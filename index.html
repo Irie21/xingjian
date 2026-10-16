@@ -37,8 +37,37 @@ img{display:block}
 #app.inkhead .phead{background:var(--ink-bg);border-bottom-color:var(--ink-line)}
 #app.inkhead .phead .t{color:var(--ink)}
 #app.inkhead .phead .ibtn{background:var(--ink-bg);color:var(--ink);border:1px solid var(--ink-line);box-shadow:none}#app{flex:1 1 auto;min-height:0;width:100%;max-width:560px;margin:0 auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 12px calc(16px + var(--kb,0px))}
-/* ---------- splash ---------- */
-#splash{position:fixed;inset:0;background:#fff;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .6s;cursor:pointer}
+/* ---------- 液态玻璃（Liquid Glass）全局材质 ---------- */
+:root{
+ --glass-blur:16px;
+ --glass-bg:rgba(255,255,255,.18);
+ --glass-border:rgba(255,255,255,.55);
+ --glass-shadow:0 10px 30px rgba(0,0,0,.12);
+ --glass-top:rgba(255,255,255,.55);
+ --glass-text-shadow:0 1px 2px rgba(0,0,0,.06)
+}
+.glass{position:relative;background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur));backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);border-radius:24px;overflow:hidden}
+.glass:before{content:"";position:absolute;left:0;right:0;top:0;height:46%;pointer-events:none;background:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0));border-radius:24px 24px 40% 40%}
+html[data-glass="1"] .card,html[data-glass="1"] .mwallet,html[data-glass="1"] .pchero,html[data-glass="1"] .pccal,
+html[data-glass="1"] .txpop,html[data-glass="1"] .mufloat,html[data-glass="1"] .mubar,html[data-glass="1"] .favbar,
+html[data-glass="1"] .patbar,html[data-glass="1"] .mcard,html[data-glass="1"] .mmallcats .chip{
+ background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.25);backdrop-filter:blur(var(--glass-blur)) saturate(1.25);
+ border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);text-shadow:var(--glass-text-shadow);border-radius:24px}
+html[data-glass="1"] .card{position:relative;overflow:hidden}
+html[data-glass="1"] .card:before,html[data-glass="1"] .mwallet:before,html[data-glass="1"] .pchero:before,html[data-glass="1"] .mufloat:before{
+ content:"";position:absolute;left:0;right:0;top:0;height:46%;pointer-events:none;
+ background:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0));opacity:.6;border-radius:24px 24px 40% 40%}
+html[data-glass="1"] .phead{background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur));backdrop-filter:blur(var(--glass-blur));border-bottom:1px solid var(--glass-border);box-shadow:none;text-shadow:var(--glass-text-shadow)}
+html[data-glass="1"] .btn,html[data-glass="1"] .ibtn,html[data-glass="1"] .chip{
+ background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur));backdrop-filter:blur(var(--glass-blur));
+ border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);border-radius:14px}
+html[data-glass="1"] .btn.pri{background:var(--primary);color:var(--on-primary,#fff)}
+html[data-glass="1"] #modal .sheet,html[data-glass="1"] #chatpanel{
+ background:var(--glass-bg);-webkit-backdrop-filter:blur(calc(var(--glass-blur) + 6px)) saturate(1.2);
+ backdrop-filter:blur(calc(var(--glass-blur) + 6px)) saturate(1.2);border:1px solid var(--glass-border)}
+html[data-glass="1"] #modal .sheet{overflow:hidden}
+html[data-glass="1"] #modal .sheet:before{content:"";position:absolute;left:0;right:0;top:0;height:38%;pointer-events:none;background:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0))}
+/* ---------- splash ---------- */#splash{position:fixed;inset:0;background:#fff;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .6s;cursor:pointer}
 #splash.hide{opacity:0;pointer-events:none}
 #splash img{width:100%;height:100%;object-fit:contain}
 @media (max-aspect-ratio:3/5){#splash img{object-fit:cover;object-position:63% 50%}}
@@ -400,6 +429,8 @@ input[type="password"]::-webkit-caps-lock-indicator{display:none !important;visi
 .listitem .main .t2{font-size:12px;color:var(--muted)}
 .listitem img.th{width:46px;height:46px;object-fit:cover;border-radius:8px;flex:none}
 .listitem .playbtn{width:34px;height:34px;flex:none;border:none;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center}
+.listitem .mico{width:38px;height:38px;flex:none;border-radius:12px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden}
+.listitem .mico img{width:100%;height:100%;object-fit:cover}
 .listitem .playbtn svg{width:16px;height:16px}
 .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 .searchbox{display:flex;gap:8px;margin:6px 0}
@@ -801,6 +832,10 @@ html[data-dark="1"]{--ink:#cbcbcb;--ink-soft:rgba(203,203,203,.14);--ink-line:rg
 .lreply{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13px;line-height:1.5}
 .lreply b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
 .bub .askcard{display:block;min-width:176px;max-width:252px}
+/* 情绪字卡：紧贴对方气泡下方的一行小字，表达 TA 当下的情绪 */
+.msgcol .bubmoods{display:flex;align-items:baseline;flex-wrap:nowrap;gap:10px;margin-top:2px;max-width:100%;white-space:nowrap}
+.msgcol .bubmood{display:inline-block;font-size:12px;color:var(--muted);line-height:1.45;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.msgcol .bubmood2{display:inline-block;font-size:12px;color:var(--primary);line-height:1.45;max-width:100%;overflow:hidden;text-overflow:ellipsis;opacity:.9}
 /* 帮我决定 / 问卷 的气泡固定白色，不随主题色与自定义气泡色改变 */
 .bub.wfix{--bub-me-bg:#fff;--bub-ta-bg:#fff;--bub-me-text:#22252a;--bub-ta-text:#22252a;--line:#e9e9ee;--bg:#f3f4f7;--text:#22252a;--muted:#7c828b;background:#fff;color:#22252a;box-shadow:0 1px 4px rgba(0,0,0,.10)}
 .bub .askhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
@@ -978,6 +1013,24 @@ img.zoomable{cursor:zoom-in}
 .dcard2 .dckw{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.35}
 .dvq{background:var(--bg);border-radius:10px;padding:8px 10px;font-size:13px;white-space:pre-wrap;word-break:break-word}
 .dvtext{white-space:pre-wrap;font-size:14px;line-height:1.65;margin-top:10px;word-break:break-word}
+/* 液态玻璃：底栏导航 / 桌面图标 / 字卡库格子 / 主题色渐变背景 */
+html[data-glass="1"] #tabbarwrap,html[data-glass="1"] #tabbar,html[data-glass="1"] .tabbar{
+ background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.25);backdrop-filter:blur(var(--glass-blur)) saturate(1.25);
+ border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);border-radius:22px}
+html[data-glass="1"] .tile,html[data-glass="1"] .libtile,html[data-glass="1"] .app{
+ background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.2);backdrop-filter:blur(var(--glass-blur)) saturate(1.2);
+ border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);border-radius:22px}
+#app{background-image:var(--bg-grad,none);background-attachment:fixed}
+#splash:after{content:"";position:absolute;inset:0;pointer-events:none;background:var(--bg-grad,none);mix-blend-mode:soft-light;opacity:.9}
+.chatbar .ibtn{width:34px;height:34px}
+.chatbar .ibtn svg{width:20px;height:20px}
+/* 昵称库：胶囊排满整行（三列等宽，不再右侧留空） */
+.avsheet .avbody .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.avsheet .avbody .chips .tagwrap{display:flex;align-items:center;min-width:0;position:relative}
+.avsheet .avbody .chips .chip{flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 微信内置浏览器：给底部原生工具条留出位置，避免盖住聊天底栏 */
+html.wxweb .chatbar,html.wxweb #tabbarwrap,html.wxweb .mubar,html.wxweb .fcbar,html.wxweb .favbar,html.wxweb .patbar{bottom:calc(50px + env(safe-area-inset-bottom))}
+html.wxweb #app{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
 </style>
 </head>
 <body>
@@ -1130,7 +1183,7 @@ const kvClear=()=>new Promise(res=>{const t=DB.transaction("kv","readwrite").obj
 const kvKeys=()=>new Promise(res=>{const t=DB.transaction("kv").objectStore("kv").getAllKeys();t.onsuccess=()=>res(t.result||[])});
 /* ================= state ================= */
 const DEF_SETTINGS={
- theme:"ink",dark:false,custom:{primary:"",bg:""},flowerApps:{},appFont:"",
+ theme:"ink",dark:false,glass:true,custom:{primary:"",bg:""},flowerApps:{},appFont:"",
  together:"",quote:"一纸星笺，万般思意",taName:"TA",myName:"我",
  chat:{myBubble:"",taBubble:"",myText:"",taText:"",headOp:100,footOp:100,bubbleCss:"",size:14,read:true,voice:true,avaSize:40,avaShape:"square",triggerName:true},
  navOp:100,
@@ -1164,9 +1217,9 @@ const DEF_SETTINGS={
  },
  voice:{on:false,proactive:false,freq:"偶尔",langMode:"auto",zhId:"",enId:"",rate:1,apiKey:"",groupId:"",baseUrl:"https://api.minimax.chat/v1",model:"speech-01-turbo",name:"",provider:"minimax",voiceId:""},
 };
-const CATS=["主字卡","情绪字卡","拍一拍","拍一拍·我","状态","表情包","Emoji","颜文字","语音字卡","灵感拾取","寻踪·在哪里","寻踪·在做什么","寻踪·想对你说","位置·方向","位置·距离","位置·状态","位置·感觉"];
+const CATS=["主字卡","情绪字卡","心意字卡","拍一拍","拍一拍·我","状态","表情包","Emoji","颜文字","语音字卡","灵感拾取","寻踪·在哪里","寻踪·在做什么","寻踪·想对你说","位置·方向","位置·距离","位置·状态","位置·感觉"];
 const CATTYPE=c=>(c==="表情包"?"img":c==="语音字卡"?"voice":"text");
-const CATICO={"主字卡":"chat","情绪字卡":"heart","拍一拍":"hand","拍一拍·我":"send","状态":"moon","表情包":"img","Emoji":"emoji","颜文字":"kaomoji","语音字卡":"mic","灵感拾取":"ai","寻踪·在哪里":"trace","寻踪·在做什么":"trace","寻踪·想对你说":"trace","位置·方向":"distance","位置·距离":"distance","位置·状态":"distance","位置·感觉":"distance"};
+const CATICO={"心意字卡":"heart","主字卡":"chat","情绪字卡":"heart","拍一拍":"hand","拍一拍·我":"send","状态":"moon","表情包":"img","Emoji":"emoji","颜文字":"kaomoji","语音字卡":"mic","灵感拾取":"ai","寻踪·在哪里":"trace","寻踪·在做什么":"trace","寻踪·想对你说":"trace","位置·方向":"distance","位置·距离":"distance","位置·状态":"distance","位置·感觉":"distance"};
 function catIco(c){if(c==="颜文字")return '<span class="kmtx">(∩_∩)</span>';const k=CATICO[c];return ico(k||(CATTYPE(c)==="img"?"img":CATTYPE(c)==="voice"?"mic":"memo"))}
 let S={settings:null,cards:[],chats:[],letters:[],moments:[],annivs:[],periods:[],audios:[],misc:{},assets:{},pickup:{on:false,prob:30,items:[]},aiModels:[],aiCurrent:"",aiLogs:[],worldbook:{},voiceLib:[],voiceCfgs:[],voiceCfgCurrent:"",divine:[]};
 const SAVEKEYS=["settings","cards","chats","letters","moments","annivs","periods","audios","misc","assets","pickup","aiModels","aiCurrent","aiLogs","worldbook","voiceLib","voiceCfgs","voiceCfgCurrent","divine"];
@@ -1298,7 +1351,39 @@ function rgbOf(v){v=String(v||"").trim();if(!v)return null;
  return null}
 const lumOf=c=>0.2126*c[0]+0.7152*c[1]+0.0722*c[2];
 const rgbStr=c=>"rgb("+c.map(x=>Math.max(0,Math.min(255,Math.round(x)))).join(",")+")";
-function applyTheme(){const s=S.settings;document.documentElement.dataset.theme=s.theme;s.dark?document.documentElement.dataset.dark="1":document.documentElement.removeAttribute("data-dark");const st=document.documentElement.style;if(s.custom.primary)st.setProperty("--primary",s.custom.primary);else st.removeProperty("--primary");if(s.custom.bg)st.setProperty("--bg",s.custom.bg);else st.removeProperty("--bg");st.setProperty("--navop",(s.navOp==null?100:s.navOp)+"%");
+function applyGlass(){
+ try{
+  const on=(S.settings.glass===undefined)?true:!!S.settings.glass;
+  if(on)document.documentElement.setAttribute("data-glass","1");else document.documentElement.removeAttribute("data-glass");
+  const st=getComputedStyle(document.documentElement);
+  const toRgb=function(c){c=String(c||"").trim();
+   if(/^#([0-9a-f]{3})$/i.test(c)){c="#"+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]}
+   const m=c.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+   if(m)return [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)];
+   const m2=c.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+   if(m2)return [ +m2[1],+m2[2],+m2[3] ];
+   return [180,150,200]};
+  const pri=toRgb(st.getPropertyValue("--primary")||"#b59bd0");
+  const lum=(pri[0]*299+pri[1]*587+pri[2]*114)/1000;
+  const dark=lum<120;
+  const bg=dark?"rgba("+pri[0]+","+pri[1]+","+pri[2]+",.22)":"rgba("+pri[0]+","+pri[1]+","+pri[2]+",.16)";
+  const bd=dark?"rgba(255,255,255,.30)":"rgba(255,255,255,.62)";
+  const tp=dark?"rgba("+Math.min(255,pri[0]+60)+","+Math.min(255,pri[1]+60)+","+Math.min(255,pri[2]+60)+",.55)":"rgba(255,255,255,.62)";
+  const sh="0 12px 32px rgba("+pri[0]+","+pri[1]+","+pri[2]+",.20)";
+  const ts=dark?"0 1px 2px rgba(255,255,255,.18)":"0 1px 2px rgba(0,0,0,.07)";
+  const root=document.documentElement.style;
+  root.setProperty("--glass-bg",bg);
+  root.setProperty("--glass-border",bd);
+  root.setProperty("--glass-top",tp);
+  root.setProperty("--glass-shadow",sh);
+  root.setProperty("--glass-text-shadow",ts);
+  root.setProperty("--glass-blur","16px");
+  const bgc=(S.settings.custom&&S.settings.custom.bg)?S.settings.custom.bg:"";
+  const b=toRgb(bgc||st.getPropertyValue("--bg")||"#f6f6f3");
+  const mx=[Math.round((b[0]+pri[0])/2),Math.round((b[1]+pri[1])/2),Math.round((b[2]+pri[2])/2)];
+  root.setProperty("--bg-grad","linear-gradient(165deg, rgba("+b[0]+","+b[1]+","+b[2]+",1) 0%, rgba("+mx[0]+","+mx[1]+","+mx[2]+",.85) 52%, rgba("+b[0]+","+b[1]+","+b[2]+",1) 100%)");
+ }catch(e){}}
+function applyTheme(){const s=S.settings;document.documentElement.dataset.theme=s.theme;s.dark?document.documentElement.dataset.dark="1":document.documentElement.removeAttribute("data-dark");const st=document.documentElement.style;if(s.custom.primary)st.setProperty("--primary",s.custom.primary);else st.removeProperty("--primary");if(s.custom.bg)st.setProperty("--bg",s.custom.bg);else st.removeProperty("--bg");st.setProperty("--navop",(s.navOp==null?100:s.navOp)+"%");applyGlass();
  /* 图标色 / 主色底上的文字色：按与背景的对比自动校正，浅色主题（如紫黛）也看得清 */
  try{const cs=getComputedStyle(document.documentElement);
   const p=rgbOf(cs.getPropertyValue("--primary")),b=rgbOf(cs.getPropertyValue("--bg"));
@@ -1412,7 +1497,7 @@ PAGES.chat={html(){const s=S.settings;
   '<button class="ibtn" data-act="chat-set" title="聊天设置">'+ico("star")+'</button></div>'+
   '<div class="chatscroll" id="chatscroll"><div class="msgs" id="msgs"></div></div>'+
   '<div id="abovebar"><div class="typing" id="typing">对方正在输入…</div><div id="quotebar"></div><div id="multibar"></div></div>'+
-  '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button class="ibtn" data-act="chat-menu" title="功能">'+ico("dotsLine")+'</button><button class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" placeholder="输入消息…"><button class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
+  '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button class="ibtn" data-act="chat-menu" title="功能">'+ico("heart")+'</button><button class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" placeholder="输入消息…"><button class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
   '<div id="chatpanel"></div><div id="msgmenu"></div>'},
  init(){renderMsgs("bottom");setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});renderTabbar()}};
 let curChatStatus="在线";
@@ -1441,7 +1526,79 @@ function renderMsgs(mode){const box=$("#msgs");if(!box)return;
  if(sc)sc.scrollTop=near?sc.scrollHeight:Math.max(0,t0+(sc.scrollHeight-h0));
  if(txPopEl)placeTxPop()}
 let lastMeMsgId=null;
-function pushChat(m){m.id=m.id||uid();m.ts=m.ts||Date.now();if(!m.timestamp)m.timestamp=m.ts;if(m.from==="me")lastMeMsgId=m.id;S.chats.push(m);save("chats");try{pkPickup(m)}catch(e){};if(cur==="chat")renderMsgs("bottom");return m}
+const MOOD_DATA={rg:[80,15,5],gs:[{g:"喜悦与正向",w:30,c:[["开心",0],["快乐",0],["愉悦",0],["高兴",0],["满足",0],["幸福",0],["安心",0],["放松",0],["轻松",0],["温暖",0],["舒心",0],["欣慰",0],["愉快",0],["期待",0],["兴奋",0],["惊喜",0],["雀跃",1],["满足感",0],["充实",0],["踏实",0],["安心感",0],["幸运",0],["庆幸",0],["感激",0],["感动",0],["欣喜",0],["释然",2]]},{g:"亲近与爱意",w:20,c:[["喜欢",0],["在意",0],["珍惜",0],["信任",0],["依赖",0],["亲近",0],["眷恋",1],["想念",0],["思念",0],["牵挂",0],["心软",0],["心疼",0],["怜惜",0],["宠溺",1],["偏爱",0],["包容",0],["纵容",1],["依恋",0],["舍不得",1],["想靠近",0],["想陪伴",0],["想照顾",0],["想保护",0],["想了解",0],["想回应",0]]},{g:"悲伤与低落",w:4,c:[["难过",0],["伤心",0],["失落",0],["遗憾",0],["孤单",0],["孤独",0],["寂寞",0],["委屈",0],["无奈",0],["疲惫",0],["疲倦",0],["低落",0],["沮丧",0],["失望",0],["心酸",0],["苦涩",0],["空虚",0],["迷茫",0],["迷失",0],["沉重",0],["压抑",1],["痛苦",0],["悲伤",0],["哀伤",0],["落寞",0]]},{g:"愤怒与不满",w:1,c:[["生气",0],["愤怒",0],["恼火",0],["烦躁",0],["不耐烦",0],["不满",0],["厌烦",0],["抗拒",0],["排斥",0],["恼怒",0],["气恼",0],["不甘",0],["嫉妒",0],["吃醋",0],["愤懑",1],["委屈",0],["赌气",1],["冷淡",0],["疏离",1]]},{g:"不安与恐惧",w:3,c:[["害怕",0],["恐惧",0],["担心",0],["忧虑",0],["焦虑",0],["紧张",0],["不安",0],["慌张",0],["慌乱",0],["害怕失去",0],["忐忑",1],["不知所措",0],["心慌",0],["压力",0],["担忧",0],["敏感",0]]},{g:"害羞与社交情绪",w:6,c:[["害羞",0],["不好意思",0],["脸红",0],["羞涩",0],["尴尬",0],["拘谨",0],["腼腆",0],["害臊",1],["紧张",0],["小心翼翼",0],["不自然",0],["犹豫",0],["迟疑",0],["想说又停下",0]]},{g:"思考与复杂情绪",w:10,c:[["疑惑",0],["困惑",0],["好奇",0],["惊讶",0],["意外",0],["震惊",0],["犹豫",0],["纠结",0],["矛盾",0],["迟疑",0],["怀疑",0],["不确定",0],["复杂",0],["说不清",0],["想不明白",2],["若有所思",1],["沉思",0],["认真",0],["专注",0]]},{g:"自我情绪",w:1,c:[["骄傲",0],["自豪",0],["自信",0],["满足",0],["羞愧",0],["自责",1],["后悔",0],["内疚",0],["不甘心",1],["委屈自己",2],["怀疑自己",0],["失落感",2],["无力",2],["疲惫感",2],["释怀",1],["接受",0],["放下",0]]},{g:"克制与隐藏",w:8,c:[["平静",0],["冷静",0],["克制",0],["忍耐",0],["沉默",0],["压下情绪",0],["隐藏情绪",0],["假装平静",2],["表面平静",0],["心里在意",0],["偷偷开心",1],["偷偷难过",1],["默默期待",1],["默默守护",1],["不愿表达",0],["不知道怎么说",2]]},{g:"中性与日常",w:15,c:[["普通",0],["平常",0],["淡然",0],["随意",0],["自然",0],["放空",0],["发呆",0],["安静",0],["专注",0],["认真",0],["观察",0],["等待",0],["好奇",0],["期待中",0],["没有特别情绪",0]]},{g:"特殊表达情绪",w:2,c:[["想被理解",0],["想被看见",0],["想确认",0],["想解释",0],["想安慰你",0],["想陪着你",0],["想靠近一点",0],["舍不得离开",2],["放心了",0],["安心下来",0],["松了一口气",2],["忍不住开心",1],["忍不住在意",1],["藏着心事",1],["有话想说",1],["不知道怎么表达",2]]}],hs:[{g:"陪伴与守护",c:[["陪伴",0],["陪着你",0],["我在这里",0],["安静陪你",0],["想和你一起",0],["不用一个人",0],["待在你身边",0],["不会离开",1],["想陪你走下去",2],["想和你待一会",1]]},{g:"分享与交流",c:[["分享",0],["想告诉你",0],["想和你聊聊",0],["想让你知道",0],["想听你的想法",0],["想看看你的反应",0],["想把这个分享给你",1],["想和你交换想法",1]]},{g:"关心与照顾",c:[["关心",0],["想照顾你",1],["希望你好好的",1],["记得休息",0],["不要太累",0],["想确认你没事",1],["希望你开心",0],["想让你轻松一点",0]]},{g:"思念与靠近",c:[["想念",1],["想到你",0],["想靠近一点",1],["想见你",1],["想和你在一起",1],["想听你说话",0],["想知道你在做什么",0],["舍不得离开",2]]},{g:"理解与回应",c:[["回应",0],["我听到了",0],["我明白",1],["我知道",0],["我记住了",1],["我理解",1],["收到你的话",0],["想回应你",1]]},{g:"鼓励与支持",c:[["支持",0],["相信你",1],["陪你努力",1],["为你加油",0],["认可你",0],["为你感到骄傲",2],["希望你坚持",0],["我支持你的选择",1]]},{g:"邀请与互动",c:[["邀请",0],["想和你一起",1],["想听你说",0],["想和你讨论",0],["等你加入",1],["想一起分享",0],["想和你做同一件事",1]]},{g:"记录与珍惜",c:[["记录",0],["想记住",0],["保存这一刻",0],["珍惜现在",0],["留下回忆",0],["这个瞬间很重要",1],["想收藏这份感觉",1]]},{g:"特殊表达",c:[["想被理解",0],["想被看见",0],["有话想说",0],["不知道怎么表达",0],["藏着一点心事",1],["想确认你的心意",1],["舍不得表达",1]]}],e2h:{"不安与恐惧":[["陪伴与守护",40],["关心与照顾",30],["理解与回应",20],["特殊表达",10]],"中性与日常":[["分享与交流",35],["陪伴与守护",25],["记录与珍惜",20],["邀请与互动",20]],"亲近与爱意":[["思念与靠近",35],["陪伴与守护",30],["记录与珍惜",15],["理解与回应",10],["特殊表达",10]],"克制与隐藏":[["特殊表达",35],["思念与靠近",30],["陪伴与守护",25],["理解与回应",10]],"喜悦与正向":[["分享与交流",35],["陪伴与守护",25],["邀请与互动",20],["记录与珍惜",15],["思念与靠近",5]],"害羞与社交情绪":[["思念与靠近",35],["理解与回应",30],["邀请与互动",20],["分享与交流",15]],"思考与复杂情绪":[["理解与回应",40],["记录与珍惜",25],["陪伴与守护",20],["特殊表达",15]],"悲伤与低落":[["陪伴与守护",40],["关心与照顾",30],["理解与回应",20],["特殊表达",10]],"愤怒与不满":[["陪伴与守护",30],["理解与回应",30],["关心与照顾",20],["特殊表达",20]],"特殊表达情绪":[["特殊表达",50],["理解与回应",30],["陪伴与守护",20]],"自我情绪":[["理解与回应",30],["记录与珍惜",30],["陪伴与守护",20],["特殊表达",20]]},gh:[["陪伴与守护",25],["分享与交流",20],["关心与照顾",15],["思念与靠近",12],["理解与回应",10],["鼓励与支持",8],["邀请与互动",5],["记录与珍惜",3],["特殊表达",2]]};
+const MOOD_STREAK={0:70,1:60,2:45,3:30,4:20};
+const MOOD_DOWN={"悲伤与低落":1,"愤怒与不满":1,"不安与恐惧":1,"自我怀疑":1,"依赖与撒娇":1};
+const MOOD_UP={"喜悦与正向":1,"亲近与爱意":1};
+function moodState(){const m=S.misc;if(typeof m.moodStreak!=="number")m.moodStreak=0;if(typeof m.moodLastTs!=="number")m.moodLastTs=0;
+ if(!Array.isArray(m.moodRecent))m.moodRecent=[];if(!Array.isArray(m.moodRecentH))m.moodRecentH=[];return m}
+function moodGroupOn(g){const o=(S.settings.reply.chat||{}).moodOff||{};return !o[g]}
+function moodCardOff(c){try{const l=cardsOf("情绪字卡");if(!l.length)return false;
+ const hit=l.filter(function(x){return String(x.content||"")===String(c||"")})[0];if(!hit)return false;return !!hit.off}catch(e){return false}}
+function taMoodPick(){
+ const st=moodState();
+ if(st.moodLastTs&&Date.now()-st.moodLastTs>10*60000)st.moodStreak=0;
+ const s=S.settings.reply.chat;
+ const base=Math.max(0,Math.min(100,+s.mood==null?20:+s.mood));
+ const ref=MOOD_STREAK[0],lvl=st.moodStreak>=4?4:st.moodStreak;
+ const ratio=(ref>0&&MOOD_STREAK[lvl]!==undefined)?(MOOD_STREAK[lvl]/ref):1;
+ if(Math.random()*100>Math.max(0,Math.min(100,base*ratio)))return null;
+ let inP=false;try{const inf=periodInfo();inP=!!(inf&&inf.inPeriod)}catch(e){}
+ const gs=(typeof MOOD_DATA!=="undefined"&&MOOD_DATA.gs)?MOOD_DATA.gs:[];
+ if(!gs.length)return null;
+ const w=[];
+ gs.forEach(function(g){
+  if(!moodGroupOn(g.g))return;
+  const cards=(g.c||[]).filter(function(c){return !moodCardOff(c[0])});
+  if(!cards.length)return;
+  let k=g.w||1;
+  if(inP){if(MOOD_DOWN[g.g])k*=3;else if(MOOD_UP[g.g])k*=0.6}
+  const n=st.moodRecent.length;
+  if(n&&st.moodRecent[n-1]===g.g)k*=0.5;
+  else if(n>1&&st.moodRecent[n-2]===g.g)k*=0.7;
+  w.push([g,cards,Math.max(0,k)])});
+ if(!w.length)return null;
+ let total=0;w.forEach(function(x){total+=x[2]});if(total<=0)total=w.length;
+ let r=Math.random()*total,sel=w[0];
+ for(let i=0;i<w.length;i++){r-=Math.max(0,w[i][2]);if(r<=0){sel=w[i];break}}
+ const rg=(typeof MOOD_DATA!=="undefined"&&MOOD_DATA.rg)?MOOD_DATA.rg:[80,15,5];
+ const rr=Math.random()*100;const want=rr<rg[0]?0:(rr<rg[0]+rg[1]?1:2);
+ let pool=sel[1].filter(function(c){return (c[1]||0)===want});
+ if(!pool.length)pool=sel[1];
+ const card=pick(pool);
+ if(!card)return null;
+ st.moodStreak++;st.moodLastTs=Date.now();
+ st.moodRecent.push(sel[0].g);st.moodRecent=st.moodRecent.slice(-6);
+ if(want===1||want===2){st.moodRare=(st.moodRare||0)+1}
+ save("misc");
+ return {c:String(card[0]||""),g:sel[0].g,r:want}}
+function taHeartPick(mg){
+ const s=S.settings.reply.chat;
+ const base=Math.max(0,Math.min(100,+s.heart==null?35:+s.heart));
+ if(Math.random()*100>base)return null;
+ if(typeof MOOD_DATA==="undefined")return null;
+ let pool=(MOOD_DATA.e2h&&MOOD_DATA.e2h[mg])?MOOD_DATA.e2h[mg]:null;
+ if(!pool||!pool.length)pool=MOOD_DATA.gh||[];
+ if(!pool.length)return null;
+ const st=moodState();
+ const adj=pool.map(function(p){const rn=st.moodRecentH.slice(-3);return [p[0],rn.indexOf(p[0])>=0?(p[1]||1)*0.5:(p[1]||1)]});
+ let total=0;adj.forEach(function(x){total+=x[1]});if(total<=0)total=adj.length;
+ let r=Math.random()*total,g=adj[0][0];
+ for(let i=0;i<adj.length;i++){r-=adj[i][1];if(r<=0){g=adj[i][0];break}}
+ const grp=(MOOD_DATA.hs||[]).filter(function(x){return x.g===g})[0];
+ if(!grp||!grp.c||!grp.c.length)return null;
+ const rg=(typeof MOOD_DATA!=="undefined"&&MOOD_DATA.rg)?MOOD_DATA.rg:[80,15,5];
+ const rr=Math.random()*100;const want=rr<rg[0]?0:(rr<rg[0]+rg[1]?1:2);
+ let cp=grp.c.filter(function(c){return (c[1]||0)===want});
+ if(!cp.length)cp=grp.c;
+ const card=pick(cp);
+ if(!card)return null;
+ st.moodRecentH.push(g);st.moodRecentH=st.moodRecentH.slice(-6);
+ save("misc");
+ return String(card[0]||"")}
+function pushChat(m){m.id=m.id||uid();m.ts=m.ts||Date.now();if(!m.timestamp)m.timestamp=m.ts;
+ if(m.from==="ta"&&m.type==="text"&&!m.mood&&!m.nopick){try{const mo=taMoodPick();if(mo&&mo.c){m.mood=mo.c;const h=taHeartPick(mo.g);if(h)m.mood2=h}}catch(e){}}
+ if(m.from==="me")lastMeMsgId=m.id;S.chats.push(m);save("chats");try{pkPickup(m)}catch(e){};if(cur==="chat")renderMsgs("bottom");return m}
 function sendChat(){const inp=$("#cin");const t=inp.value.trim();if(!t)return;inp.value="";const m={from:"me",type:"text",text:t};if(quoteRef){m.quote=quoteRef.text;m.quoteId=quoteRef.id;clearQuote()}pushChat(m);playBlock("me");taRespond(t)}
 function pickMany(a,n){const pool=[...a],out=[];while(out.length<n&&pool.length)out.push(pool.splice(rnd(0,pool.length-1),1)[0]);return out}
 /* 拼字卡模式：按概率决定是否多张拼接；触发时条数在「最少 ~ 最多」之间随机；概率为 0 则只发单张 */
@@ -1452,21 +1609,6 @@ function taTextContent(nC){const s=S.settings.reply.chat;const pool=cardTexts("�
  else n=1;
  const parts=pool.length?pickMany(pool,n):Array.from({length:n},()=>pick(fb));
  let txt=parts.join(pool.length?"，":"");
- /* 情绪字卡链路（参考 mochi）：先抽一张情绪字卡，再按概率从「同一分组」里接一张主字卡 */
- if(chance(s.mood==null?20:s.mood)){
-  const ms=cardsOf("情绪字卡");
-  if(ms.length){const mc=pick(ms),g=mc.group||"";
-   const head=String(mc.content||"").trim();
-   let nxt=[];
-   if(g){nxt=cardsOf("主字卡").filter(function(c){return (c.group||"")===g})}
-   if(!nxt.length&&g){nxt=ms.filter(function(c){return (c.group||"")===g&&c.id!==mc.id})}
-   if(!nxt.length)nxt=cardsOf("主字卡");
-   if(head){
-    if(chance(s.moodChain==null?60:s.moodChain)&&nxt.length)txt=head+"，"+String(pick(nxt).content||"")+((txt&&txt!==head)?"，"+txt:"");
-    else txt=head+((txt&&txt!==head)?"，"+txt:"")
-   }
-  }
- }
  if(chance(s.kaomoji)){const k=cardTexts("颜文字");if(k.length)txt+=" "+pick(k)}
  if(chance(s.emoji)){const e=cardTexts("Emoji");if(e.length)txt+=pick(e)}
  return txt}
@@ -1526,6 +1668,45 @@ function taRespond(myText){const s=S.settings.reply.chat;const delay=rnd(s.speed
  showTyping(true,delay);
  setTimeout(()=>{showTyping(false);markMeRead();taReplyNow(myText);favTaCollectMsg()},delay)}
 /* 拍一拍回应链（参考 mochi sendPoke 尾部）：短候 → 输入态 → 按概率拍回或正常回复 */
+/* ---------- 情绪/心意字卡：整组停用 + 导入字卡库 ---------- */
+function moodLibSeeded(){return !!S.misc.moodLibSeeded}
+function moodSeedIntoLib(){
+ if(typeof MOOD_DATA==="undefined")return;
+ if(!Array.isArray(S.cards))S.cards=[];
+ let n=0;
+ const add=function(cat,g,content){
+  if(!content)return;
+  if(S.cards.some(function(c){return c.cat===cat&&String(c.content||"")===String(content)}))return;
+  S.cards.push({id:uid(),cat:cat,type:"text",content:String(content),group:g});n++};
+ if(!S.misc.groups||typeof S.misc.groups!=="object")S.misc.groups={};
+ (MOOD_DATA.gs||[]).forEach(function(g){ if(!S.misc.groups["情绪字卡"])S.misc.groups["情绪字卡"]=[];
+  if(g.g&&S.misc.groups["情绪字卡"].indexOf(g.g)<0)S.misc.groups["情绪字卡"].push(g.g);
+  (g.c||[]).forEach(function(c){add("情绪字卡",g.g,c[0])})});
+ (MOOD_DATA.hs||[]).forEach(function(g){ if(!S.misc.groups["心意字卡"])S.misc.groups["心意字卡"]=[];
+  if(g.g&&S.misc.groups["心意字卡"].indexOf(g.g)<0)S.misc.groups["心意字卡"].push(g.g);
+  (g.c||[]).forEach(function(c){add("心意字卡",g.g,c[0])})});
+ if(CATS.indexOf("心意字卡")<0)CATS.push("心意字卡");
+ S.misc.moodLibSeeded=1;save("cards");save("misc");
+ if(n)try{toast("已导入预设情绪/心意字卡 "+n+" 条")}catch(e){}}
+function moodGroupsSheet(){
+ const off=(S.settings.reply.chat||{}).moodOff||{};
+ const c=(S.settings.reply.chat||{});
+ const rows=(MOOD_DATA.gs||[]).map(function(g){
+  const cnt=(g.c||[]).length;
+  return '<div class="row"><span class="lab">'+esc(g.g)+' <span class="sub">'+cnt+" 条 · 权重 "+g.w+'</span></span><label class="sw"><input type="checkbox" data-mgset="'+esc(g.g)+'" '+(off[g.g]?"":"checked")+'><i></i></label></div>'}).join("");
+ const hearts=(MOOD_DATA.hs||[]).map(function(g){return '<div class="row"><span class="lab">'+esc(g.g)+' <span class="sub">'+(g.c||[]).length+' 条</span></span><span class="muted" style="font-size:12px">心意卡</span></div>'}).join("");
+ const sh=openSheet('<div class="mtitle">情绪字卡分组<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
+  '<div class="muted" style="padding:2px 2px 8px">关掉某个分组，TA 就不会再抽到这一组（只影响情绪卡；分组的权重决定被抽中的倾向）。</div>'+
+  '<div class="card" style="padding:0 12px">'+rows+"</div>"+
+  '<div class="sect" style="margin:14px 2px 6px">心意卡分组（随情绪卡接续）</div>'+
+  '<div class="card" style="padding:0 12px">'+hearts+"</div>"+
+  '<div class="muted" style="padding:8px 2px 0">这些预设卡已导入「字卡库」：可在 字卡库 → 情绪字卡 / 心意字卡 里逐条查看、屏蔽或编辑。</div>',true);
+ sh.onchange=function(e){const el=e.target.closest("[data-mgset]");if(!el)return;
+  const s=S.settings.reply.chat;s.moodOff=s.moodOff||{};
+  if(el.checked)delete s.moodOff[el.dataset.mgset];else s.moodOff[el.dataset.mgset]=1;
+  save("settings");toast(el.checked?("已启用分组："+el.dataset.mgset):("已停用分组："+el.dataset.mgset))};
+ sh.onclick=function(e){if(e.target.closest("[data-r]"))closeModal()}}
+ACT["mood-groups"]=()=>moodGroupsSheet();
 function taPatRespond(){const s=S.settings.reply.chat;
  setTimeout(()=>{if(chance(s.noreply)){markMeRead();return}
   const d=rnd(800,2000);showTyping(true,d);
@@ -1719,7 +1900,7 @@ function mailDataPanel(){return '<div class="card"><div class="mltitle">信件�
  '<div class="muted" style="padding:12px 2px 0;line-height:1.6">信没显示全时点「从本地库找回信件」：直接读本机存储里的那一份，与屏上逐封合并后重画；只合并、不覆盖、不删除。</div>'+
  "</div>"}
 PAGES.mail={html(){const t=mailTab(),nm=esc(S.settings.taName||"TA");
- return phead("信箱",'<button class="ibtn" data-act="letter-data" title="信件数据">'+ico("dots")+"</button>")+
+ return phead("信箱",'<button class="ibtn" data-act="letter-data" title="信件数据">'+ico("dotsLine")+"</button>")+
  '<div class="chips mailtabs" style="margin:2px 0 12px">'+MAIL_TABS.map(function(x){return '<button class="chip'+(t===x[0]?" on":"")+'" data-act="letter-tab" data-t="'+x[0]+'">'+x[1]+"</button>"}).join("")+"</div>"+
  (t==="new"?'<div class="card"><div class="mltitle">写信</div><div class="muted" style="text-align:center;padding:12px 0 16px">点击下方按钮进入写信页面</div><button class="btn pri" style="width:100%" data-act="letter-new">'+ico("edit")+" 提笔写信</button></div>":
   '<div class="card" style="padding:10px 12px" id="lbox"></div>')},
@@ -1875,7 +2056,7 @@ function feedBarHtml(bk,rk){const i=bk.findIndex(function(b){return b.k===rk});
   bk.map(function(b){return '<button class="fcap'+(b.k===rk?" on":"")+'" data-act="moment-range" data-fr="go" data-k="'+b.k+'">'+esc(b.label)+' <b>'+b.n+"</b></button>"}).join("")+
   '<button class="fnav" data-act="moment-range" data-fr="next" '+(i<bk.length-1?"":"disabled")+'>'+ico("next")+"</button></div>"}
 PAGES.moments={html(){const un=feedUnread();
- return phead("朋友圈",'<button class="ibtn" data-act="moment-notice" title="通知提醒">'+ico("bell")+(un?'<span class="fdot">'+(un>99?"99+":un)+"</span>":"")+'</button><button class="ibtn" data-act="moment-new" title="发布">'+ico("plus")+'</button><button class="ibtn" data-act="moment-data" title="数据管理">'+ico("dots")+'</button><button class="ibtn" data-act="moment-clear" title="删除动态">'+ico("trash")+"</button>")+
+ return phead("朋友圈",'<button class="ibtn" data-act="moment-notice" title="通知提醒">'+ico("bell")+(un?'<span class="fdot">'+(un>99?"99+":un)+"</span>":"")+'</button><button class="ibtn" data-act="moment-new" title="发布">'+ico("plus")+'</button><button class="ibtn" data-act="moment-data" title="数据管理">'+ico("dotsLine")+'</button><button class="ibtn" data-act="moment-clear" title="删除动态">'+ico("trash")+"</button>")+
  '<div class="fcover"'+(feedCover()?' style="background-image:url('+feedCover()+')"':"")+' data-act="moment-cover"><span class="favme"><span class="favav" data-act="moment-myavatar">'+avatarHtml({src:S.assets.ava_me,name:S.settings.myName,me:true})+'</span><span class="favnm" data-act="moment-myname">'+esc(S.settings.myName||"我")+"</span></span></div>"+
  feedBarHtml(feedBuckets(),feedRange())+
  '<div id="mbox"></div>'},
@@ -2344,7 +2525,7 @@ ACT["mu-deadclear"]=()=>{const n=muDeadCount();if(!n)return toast("没有需要�
   S.misc.muDead={};save("audios");save("misc");closeModal();render();toast("已清理 "+n+" 首")})};
 PAGES.music={html(){const st=muState();const tabs=[["songs","歌曲"],["lists","歌单"],["recent","最近播放"],["tafav",(S.settings.taName||"TA")+" 的收藏"]];
  const rows=muRows();
- return phead("音乐",'<button class="ibtn" data-act="mu-searchbtn" title="搜索">'+ico("search")+'</button><button class="ibtn" data-act="mu-menu" title="更多">'+ico("dots")+"</button>")+
+ return phead("音乐",'<button class="ibtn" data-act="mu-searchbtn" title="搜索">'+ico("search")+'</button><button class="ibtn" data-act="mu-menu" title="更多">'+ico("dotsLine")+"</button>")+
   (st.searchOn?'<div class="card" id="musearch" style="padding:8px 12px;margin-bottom:10px"><input id="muq" placeholder="搜索歌名 / 歌手" value="'+esc(st.q)+'"></div>':"")+
   (st.tab==="lists"?"":'<div class="card muhero"><div class="mumid" style="flex:1"><b>'+esc(muListName(st.listId))+'</b><span>共 '+rows.length+" 首 · "+muModeName()+'</span></div><button class="btn pri" data-act="mu-playall">'+ico("play")+' 播放全部</button><button class="btn mumode" data-act="mu-mode" title="'+esc(muModeName())+'">'+muModeIcon()+'<span>'+muModeShort()+'</span></button></div>')+
   '<div class="chips mutabs">'+tabs.map(function(t){return '<button class="chip'+(st.tab===t[0]?" on":"")+'" data-act="mu-tab" data-v="'+t[0]+'">'+t[1]+"</button>"}).join("")+"</div>"+
@@ -3201,7 +3382,7 @@ function favDataHtml(){const n=favList().length;
 function favBarHtml(){if(!favBatchOn())return "";
  const sel=favSel(),vis=favVisible(),all=vis.length>0&&vis.every(f=>sel.indexOf(f.id)>=0);
  return '<div class="favbar"><button class="btn" data-act="fav-bcancel">取消</button><button class="btn" data-act="fav-ball">'+(all?"取消全选":"全选")+'</button><button class="btn danger" data-act="fav-bdel" '+(sel.length?"":"disabled")+">删除"+(sel.length?"("+sel.length+")":"")+"</button></div>"}
-PAGES.fav={html(){return phead("收藏",'<button class="ibtn'+(favBatchOn()?" sel":"")+'" data-act="fav-batch" title="批量管理">'+ico("check")+'</button><button class="ibtn" data-act="fav-set" title="收藏设置">'+ico("dots")+"</button>")+
+PAGES.fav={html(){return phead("收藏",'<button class="ibtn'+(favBatchOn()?" sel":"")+'" data-act="fav-batch" title="批量管理">'+ico("check")+'</button><button class="ibtn" data-act="fav-set" title="收藏设置">'+ico("dotsLine")+"</button>")+
  favBarHtml()+favTabsHtml()+favKindsHtml()+favListHtml()},
  init(){}};
 PAGES.favset={html(){const c=favCfg(),all=favList();
@@ -3530,7 +3711,7 @@ function mallCartSheet(){const m=mallCfg();
  if(!Array.isArray(m.cart))m.cart=[];
  const rows=m.cart.map(function(it,i){const g=mallFind(it.gid);
   if(!g)return "";
-  return '<div class="listitem"><div class="playbtn">'+esc(g.emoji||"🎁")+'</div><div class="main"><div class="t1">'+esc(g.name)+'</div><div class="t2">¥'+mallMoney(g.price)+"</div></div>"+
+  return '<div class="listitem"><div class="mico">'+esc(g.emoji||"🎁")+'</div><div class="main"><div class="t1">'+esc(g.name)+'</div><div class="t2">¥'+mallMoney(g.price)+"</div></div>"+
    '<span class="stepper" style="flex:none"><button class="stbtn" data-mcq="-1" data-i="'+i+'">−</button><input class="stepnum" value="'+it.n+'" readonly style="width:44px"><button class="stbtn" data-mcq="1" data-i="'+i+'">＋</button></span>'+
    '<button class="ibtn" data-mcdel="'+i+'" title="删除">'+ico("trash")+"</button></div>"}).join("");
  let total=0;m.cart.forEach(function(it){const g=mallFind(it.gid);if(g)total+=g.price*it.n});
@@ -3571,12 +3752,12 @@ function mallCartSheet(){const m=mallCfg();if(!Array.isArray(m.cart))m.cart=[];
  const nm=S.settings.taName||"TA";
  let mine="",totalN=0,totalP=0;
  m.cart.forEach(function(it,i){const g=mallFind(it.gid);if(!g)return;totalN+=it.n;if(+g.price>0)totalP+=(+g.price)*it.n;
-  mine+='<div class="listitem"><div class="playbtn">'+esc(g.emoji||"礼物")+'</div><div class="main"><div class="t1">'+esc(g.name)+'</div><div class="t2">'+((+g.price>0)?("¥"+mallMoney(g.price)):"心意")+"</div></div>"+
+  mine+='<div class="listitem"><div class="mico">'+esc(g.emoji||"礼物")+'</div><div class="main"><div class="t1">'+esc(g.name)+'</div><div class="t2">'+((+g.price>0)?("¥"+mallMoney(g.price)):"心意")+"</div></div>"+
    '<span class="stepper" style="flex:none"><button class="stbtn" data-mcq="-1" data-i="'+i+'">−</button><input class="stepnum" value="'+it.n+'" readonly style="width:42px"><button class="stbtn" data-mcq="1" data-i="'+i+'">＋</button></span>'+
    '<button class="ibtn" data-mcdel="'+i+'" title="移除">'+ico("trash")+"</button></div>"});
  let ta="";
  mallCartTA().forEach(function(it,i){const g=mallFind(it.gid);if(!g)return;
-  ta+='<div class="listitem"><div class="playbtn">'+esc(g.emoji||"礼物")+'</div><div class="main"><div class="t1">'+esc(g.name)+' <span class="muted">×'+it.n+'</span></div><div class="t2">'+esc(nm)+" "+(it.want==="me"?"要送给你的":"给自己买的")+"</div></div></div>"});
+  ta+='<div class="listitem"><div class="mico">'+esc(g.emoji||"礼物")+'</div><div class="main"><div class="t1">'+esc(g.name)+' <span class="muted">×'+it.n+'</span></div><div class="t2">'+esc(nm)+" "+(it.want==="me"?"要送给你的":"给自己买的")+"</div></div></div>"});
  openSheet('<div class="mtitle">购物车<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
   '<div class="sect" style="margin:2px 2px 6px">我的购物车</div>'+
   (mine?('<div class="card" style="padding:0 12px">'+mine+"</div>"+'<div class="muted" style="padding:6px 2px 0">共 '+totalN+" 件"+(totalP?(" · 合计 ¥"+mallMoney(totalP)):"")+"</div>"):'<div class="card"><div class="empty" style="padding:18px 0">我还什么都没挑，去商品详情点「加入购物车」</div></div>')+
@@ -3739,7 +3920,7 @@ function mallWishSheet(mine){const m=mallCfg();const nm=S.settings.taName||"TA";
   (mine?'<div class="muted" style="padding:2px 2px 8px">点商品卡右下角的 ♡ 可以加入这里；TA 会按「TA 买下我的心愿概率」把它买下来送给你。</div>':('<div class="muted" style="padding:2px 2px 8px">'+esc(nm)+" 想要的东西都在这儿，可以挑一件「送给 TA」。</div>"))+
   (items.length?items.map(function(g,i){const w=g.want||(g.want=mallWantPick());
    const tag=(w==="self"?"给自己买的":(w==="me"?"想给我买":"想让我买了送给他"));
-   return '<div class="listitem" data-act="mall-wantgift" data-i="'+i+'"><div class="playbtn">'+esc(g.emoji)+'</div><div class="main"><div class="t1">'+esc(g.name)+'</div><div class="t2">'+esc(g.cat+" · "+(g.wish||""))+'</div></div><div class="val" style="flex:none;font-size:11px;color:var(--muted)">'+esc(tag)+(mine?"":" ›")+"</div></div>"}).join(""):'<div class="empty">'+(mine?"还没有心愿，点商品卡上的 ♡ 加入":(esc(nm)+" 还没有收藏商品"))+"</div>"),true);
+   return '<div class="listitem" data-act="mall-wantgift" data-i="'+i+'"><div class="mico">'+esc(g.emoji)+'</div><div class="main"><div class="t1">'+esc(g.name)+'</div><div class="t2">'+esc(g.cat+" · "+(g.wish||""))+'</div></div><div class="val" style="flex:none;font-size:11px;color:var(--muted)">'+esc(tag)+(mine?"":" ›")+"</div></div>"}).join(""):'<div class="empty">'+(mine?"还没有心愿，点商品卡上的 ♡ 加入":(esc(nm)+" 还没有收藏商品"))+"</div>"),true);
  const sh=$("#modal .sheet");
  sh.onclick=function(e){
   const row=e.target.closest("[data-act='mall-wantgift']");
@@ -3748,7 +3929,7 @@ function mallWishSheet(mine){const m=mallCfg();const nm=S.settings.taName||"TA";
 ACT["mall-wantgift"]=el=>{const it=mallCfg().wishTa[+el.dataset.i];if(it)mallBuy({emoji:it.emoji,name:it.name,cat:it.cat,wish:it.wish,price:+it.price||0})};
 function mallBoxSheet(){const m=mallCfg();
  openSheet('<div class="mtitle">购买记录<button class="ibtn" data-r="x">'+ico("close")+"</button></div>"+
-  (m.box.length?m.box.map(function(b){return '<div class="listitem"><div class="playbtn">'+esc(b.emoji)+'</div><div class="main"><div class="t1">'+esc(b.name)+' <span class="muted">'+(b.dir==="in"?("来自 "+(S.settings.taName||"TA")):"我送出")+'</span></div><div class="t2">'+fmtFull(b.ts)+(b.note?(" · "+esc(b.note)):"")+"</div></div></div>"}).join(""):'<div class="empty">还没有购买记录</div>'),true);
+  (m.box.length?m.box.map(function(b){return '<div class="listitem"><div class="mico">'+esc(b.emoji)+'</div><div class="main"><div class="t1">'+esc(b.name)+' <span class="muted">'+(b.dir==="in"?("来自 "+(S.settings.taName||"TA")):"我送出")+'</span></div><div class="t2">'+fmtFull(b.ts)+(b.note?(" · "+esc(b.note)):"")+"</div></div></div>"}).join(""):'<div class="empty">还没有购买记录</div>'),true);
  const sh=$("#modal .sheet");sh.onclick=function(e){if(e.target.closest("[data-r]"))closeModal()}}
 /* ================= system loops ================= */
 let wakeLock=null,silentNode=null;
@@ -3780,14 +3961,14 @@ else if(m.type==="quiz")inner=quizBubbleHtml(m);
  const rd=(me&&c.read&&m.read)?'<span class="rd">已读</span>':"";
  const meta='<span class="meta"><span class="tm">'+fmtMsgTime(m.timestamp||m.ts)+'</span>'+rd+'</span>';
  const selc=(msgMulti&&msgSel.has(m.id))?" selected":"";
- return '<div class="msg '+(me?"me":"")+selc+'" data-id="'+m.id+'"><button class="ava-hit" data-act="ava-tap" data-who="'+(me?"me":"ta")+'" title="点击更换头像 · 双击拍一拍">'+ava+'</button><div class="msgcol"><div class="bub message '+(me?"message-sent":"message-received")+(m.type==="ask"||m.type==="quizset"||m.type==="quiz"||m.type==="transfer"||m.type==="redpacket"?" wfix":"")+(m.tag?" hastag":"")+'" data-act="msg-tap" data-id="'+m.id+'">'+inner+'</div>'+meta+"</div>"+(msgMulti?'<span class="selbox" data-act="msg-tap" data-id="'+m.id+'"></span>':"")+"</div>"}
+ return '<div class="msg '+(me?"me":"")+selc+'" data-id="'+m.id+'"><button class="ava-hit" data-act="ava-tap" data-who="'+(me?"me":"ta")+'" title="点击更换头像 · 双击拍一拍">'+ava+'</button><div class="msgcol"><div class="bub message '+(me?"message-sent":"message-received")+(m.type==="ask"||m.type==="quizset"||m.type==="quiz"||m.type==="transfer"||m.type==="redpacket"?" wfix":"")+(m.tag?" hastag":"")+'" data-act="msg-tap" data-id="'+m.id+'">'+inner+'</div>'+(me?"":(m.mood||m.mood2?'<span class="bubmoods">'+(m.mood?'<span class="bubmood" data-act="mood-tap" data-id="'+m.id+'">'+esc(m.mood)+"</span>":"")+(m.mood2?'<span class="bubmood2">'+esc(m.mood2)+"</span>":"")+"</span>":""))+meta+"</div>"+(msgMulti?'<span class="selbox" data-act="msg-tap" data-id="'+m.id+'"></span>':"")+"</div>"}
 /* 可复用头像组件：参数 src / size / shape / name（不传 size 时使用全局 --ava-size/--ava-radius，便于实时预览） */
 function avatarHtml(o){o=o||{};const src=o.src;let st="";if(o.size){const s=o.size,r=(o.shape==="circle")?"50%":"10px";st=' style="width:'+s+"px;height:"+s+"px;border-radius:"+r+'"'}return '<span class="ava'+(o.me?" me":"")+'"'+st+">"+(src?'<img src="'+src+'">':esc((o.name||"").slice(0,1)))+"</span>"}
 /* ================= LIBRARY L1 ================= */
 /* 「灵感拾取」作为分类卡展示（与其它分类一致）；点击进入「TA的拾取」页统一管理 */
 PAGES.lib={html(){
  const lb=c=>CATTYPE(c)==="img"?"图片":CATTYPE(c)==="voice"?"语音":"文本";
- return '<div class="phead"><div class="t" style="margin-left:4px">字卡库</div><button class="ibtn" data-act="lib-more" title="数据管理">'+ico("dots")+'</button></div>'+
+ return '<div class="phead"><div class="t" style="margin-left:4px">字卡库</div><button class="ibtn" data-act="lib-more" title="数据管理">'+ico("dotsLine")+'</button></div>'+
  '<div class="libstat"><span class="muted">共 '+S.cards.length+' 条字卡 · '+CATS.length+' 个分类</span></div>'+
  '<div class="libgrid">'+CATS.map(c=>{const pk=c===PICKUP_CAT;const n=pk?pkState().items.length:cardsOf(c).length;return '<button class="libtile" data-act="'+(pk?"pickup-open":"lib-open")+'" data-cat="'+c+'"><span class="ltico">'+catIco(c)+'</span><b>'+c+'</b><span class="ltmeta">'+n+' 条 · '+lb(c)+'</span></button>'}).join("")+'</div>';
 },
@@ -3908,6 +4089,7 @@ PAGES.setapp={html(){const s=S.settings;
  '<div class="sect">内置预设主题</div><div class="card"><div class="chips">'+THEMES.map(t=>'<button class="chip'+(s.theme===t[0]?" on":"")+'" data-act="theme-pick" data-t="'+t[0]+'">'+t[1]+"</button>").join("")+"</div>"+
  '<div class="row" style="margin-top:10px"><span class="lab">自定义主色</span><input type="color" data-custom="primary" value="'+(s.custom.primary||"#DCCDF2")+'"></div>'+
  '<div class="row"><span class="lab">自定义背景色</span><input type="color" data-custom="bg" value="'+(s.custom.bg||"#E7DDEA")+'"></div>'+
+ '<div class="row"><span class="lab">液态玻璃质感<br><span class="sub">卡片 / 面板 / 按钮 / 弹窗加通透玻璃材质，跟随主题色与自定义色</span></span><label class="sw"><input type="checkbox" data-set="glass" '+(S.settings.glass!==false?"checked":"")+'><i></i></label></div>'+
  '<div class="row"><span class="lab">深色模式</span><label class="sw"><input type="checkbox" data-set="dark" '+(s.dark?"checked":"")+"><i></i></label></div></div>"+
  '<div class="sect">底栏导航</div><div class="card">'+setRowRange("底栏胶囊透明度","navOp","%",0,100)+'<div class="muted" style="padding:2px 0 6px">调低后底栏胶囊变透，露出的是桌面壁纸，不会透出下面滚动的内容与图标。</div></div>'+
  '<div class="sect">花卉图标（主页 / 底栏）</div><div class="card"><div class="chips">'+APPS.map(a=>'<button class="chip'+((s.flowerApps&&s.flowerApps[a[0]])?" on":"")+'" data-act="flower-app" data-id="'+a[0]+'">'+a[1]+"</button>").join("")+[["nav_home","底栏·首页"],["nav_lib","底栏·字卡库"],["nav_set","底栏·设置"]].map(a=>'<button class="chip'+((s.flowerApps&&s.flowerApps[a[0]])?" on":"")+'" data-act="flower-app" data-id="'+a[0]+'">'+a[1]+"</button>").join("")+'</div><div class="muted" style="margin-top:8px">点亮某个图标，其主页 / 底栏图标即换成花卉图标（颜色随主题与自定义主色变化）</div></div>'+
@@ -3969,7 +4151,7 @@ function modChat(){const r=S.settings.reply.chat;const body=
  setRowStep("触发概率","reply.chat.pinProb","%",0,100,5)+
  setRowNum("最少字卡数","reply.chat.pinMin","张")+setRowNum("最多字卡数","reply.chat.pinMax","张")+
  '<div class="muted" style="padding:2px 0 8px">触发时从「主字卡」随机抽取若干张，用「，」拼成一句话；概率为 0 时只发单张字卡，不触发拼接。</div>'+
- setRowStep("已读不回概率","reply.chat.noreply","%",0,100,5)+setRowStep("情绪字卡概率","reply.chat.mood","%",0,100,5)+setRowStep("情绪后接同组字卡概率","reply.chat.moodChain","%",0,100,5)+setRowStep("拍一拍概率","reply.chat.pat","%",0,100,5)+setRowStep("表情包概率","reply.chat.sticker","%",0,100,5)+setRowStep("Emoji 概率","reply.chat.emoji","%",0,100,5)+setRowStep("语音字卡概率","reply.chat.voice","%",0,100,5)+setRowStep("颜文字概率","reply.chat.kaomoji","%",0,100,5)+setRowStep("引用概率","reply.chat.quote","%",0,100,5)+setRowStep("撤回概率","reply.chat.retract","%",0,100,5)+
+'<div class="row"><span class="lab">情绪字卡分组 <span class="sub">整组启用 / 停用</span></span><button class="btn sm" data-act="mood-groups">管理</button></div>'+setRowStep("已读不回概率","reply.chat.noreply","%",0,100,5)+setRowStep("情绪字卡概率","reply.chat.mood","%",0,100,5)+setRowStep("情绪后接心意卡概率","reply.chat.heart","%",0,100,5)+setRowStep("拍一拍概率","reply.chat.pat","%",0,100,5)+setRowStep("表情包概率","reply.chat.sticker","%",0,100,5)+setRowStep("Emoji 概率","reply.chat.emoji","%",0,100,5)+setRowStep("语音字卡概率","reply.chat.voice","%",0,100,5)+setRowStep("颜文字概率","reply.chat.kaomoji","%",0,100,5)+setRowStep("引用概率","reply.chat.quote","%",0,100,5)+setRowStep("撤回概率","reply.chat.retract","%",0,100,5)+
  '<div class="muted" style="padding:2px 0 8px">「拍一拍」文案取自字卡库「拍一拍」，支持 {ta} / {me} 占位符，并把「你 / 我」按当前昵称替换；在聊天里双击头像也能拍一拍；发送后对方会回复一条。</div>'+
  '<div class="sect" style="margin:12px 0 2px">灵感拾取（对方从对话中拾取）</div>'+
  pkStepRow()+
@@ -4826,11 +5008,11 @@ ACT["quizset-open"]=el=>{const m=(S.chats||[]).find(x=>x.id===el.dataset.id);if(
 function initVoiceToggle(inp){let t=null;inp.addEventListener("pointerdown",()=>{t=setTimeout(()=>{t=null;setVoiceMode(true)},450)});["pointerup","pointerleave","pointercancel"].forEach(ev=>inp.addEventListener(ev,()=>{if(t){clearTimeout(t);t=null}}))}
 function setVoiceMode(on){const bar=$("#chatbar");if(!bar)return;
  if(on){const allowed=!!(S.settings.chat&&S.settings.chat.voice);
-  bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("dotsLine")+'</button><button class="voicemode'+(allowed?"":" disabled")+'" id="vbtn">按住 说话</button><button class="ibtn" data-act="chat-kbd">'+ico("keyboard")+'</button>';
+  bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("heart")+'</button><button class="voicemode'+(allowed?"":" disabled")+'" id="vbtn">按住 说话</button><button class="ibtn" data-act="chat-kbd">'+ico("keyboard")+'</button>';
   const vb=$("#vbtn");
   vb.addEventListener("pointerdown",e=>{e.preventDefault();if(!allowed){voicePermDialog();return}startRecord()});
   vb.addEventListener("pointerup",()=>{if(mediaRec&&mediaRec.state==="recording")mediaRec.stop()})}
- else{bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("dotsLine")+'</button><input id="cin" placeholder="输入消息…"><button class="ibtn" data-act="chat-img">'+ico("img")+'</button><button class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});initVoiceToggle(inp)}}
+ else{bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("heart")+'</button><input id="cin" placeholder="输入消息…"><button class="ibtn" data-act="chat-img">'+ico("img")+'</button><button class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});initVoiceToggle(inp)}}
 /* ---- 问卷自动作答 ---- */
 /* ================= 底部面板 / 消息操作 / 引用 / 多选 / 收藏 ================= */
 let chatPanelMode=null;
@@ -5394,7 +5576,56 @@ ACT["bulk-file"]=()=>pickFile("application/json,.json,.txt,text/plain",false,fs=
 ACT["lib-import-cat"]=()=>pickFile("application/json,.json",false,fs=>readAsText(fs[0]).then(t=>{try{const o=JSON.parse(t);const arr=o.cards||o;restoreVal("cards",arr).then(v=>{S.cards=S.cards.concat(v.filter(c=>c.cat===curParam));save("cards");libRefresh(curParam);toast("导入完成")})}catch(e){toast("文件解析失败")}}));
 ACT["lib-export-cat"]=()=>{const cat=curParam;(async()=>{const data={app:"xingjian",ver:1,data:{cards:await prepExport("cards")}};data.data.cards=data.data.cards.filter(c=>c.cat===cat);download("字卡_"+cat+".json",JSON.stringify(data));toast("已导出")})()};
 ACT["lib-export-all"]=()=>exportKeys(["cards"],"字卡库全部.json");
-ACT["lib-import-all"]=()=>pickFile("application/json,.json",false,fs=>readAsText(fs[0]).then(t=>{try{const o=JSON.parse(t);restoreVal("cards",o.cards||o).then(v=>{S.cards=S.cards.concat(v);save("cards");render();toast("导入完成")})}catch(e){toast("文件解析失败")}}));
+ACT["lib-import-all"]=()=>pickFile("application/json,.json",false,fs=>{readAsText(fs[0]).then(function(t){
+ let o=null;try{o=JSON.parse(t)}catch(e){}
+ if(!o)return toast("不是有效的 JSON 文件");
+ const items=[];
+ const add=function(cat,group,content,data){
+  if(data){items.push({cat:cat,type:"img",data:String(data),group:group||""});return}
+  const c=String(content==null?"":content).trim();if(!c)return;
+  items.push({cat:cat,type:CATTYPE(cat),content:c,group:group||""})};
+ const val=function(c){if(typeof c==="string")return {s:c};if(c&&typeof c==="object")return {s:(c.content||c.text||c.name||""),d:(c.data||c.img||c.url||"")};return {}};
+ // 1) 星笺自己的导出
+ if(o.app==="xingjian"&&o.data&&Array.isArray(o.data.cards)){o.data.cards.forEach(function(c){if(!c||!c.cat)return;items.push(c)})}
+ // 2) 语录 / 类似 {customReplies:[...]}
+ else if(Array.isArray(o.customReplies)||Array.isArray(o.customPokes)||Array.isArray(o.customStatuses)||Array.isArray(o.customMottos)||Array.isArray(o.customIntros)||Array.isArray(o.customEmojis)){
+  if(Array.isArray(o.customReplies))o.customReplies.forEach(function(x){add("主字卡","语录",x)});
+  if(Array.isArray(o.customPokes))o.customPokes.forEach(function(x){add("拍一拍","",x)});
+  if(Array.isArray(o.customStatuses))o.customStatuses.forEach(function(x){add("状态","",x)});
+  if(Array.isArray(o.customMottos))o.customMottos.forEach(function(x){add("主字卡","座右铭",x)});
+  if(Array.isArray(o.customIntros))o.customIntros.forEach(function(x){add("主字卡","自我介绍",x)});
+  if(Array.isArray(o.customEmojis))o.customEmojis.forEach(function(x){add("Emoji","",x)});
+ }
+ // 3) mochi 字卡库导出：{text:[["组",[...]],...], kaomoji:[...], emoji:[...], ...}
+ else{
+  const MAP={text:"主字卡",kaomoji:"颜文字",emoji:"Emoji",image:"表情包",sticker:"表情包",voice:"语音字卡",poke:"拍一拍",interact:"情绪字卡",intent:"情绪字卡",music:"音乐",period:"经期",cjian:"主字卡",mjfree:"自由字卡",room:"房间",water:"水",fish:"鱼",garden:"花园",eat:"吃饭",piggy:"存钱",drift:"漂流",reach:"触碰",sync:"同步"};
+  Object.keys(o).forEach(function(k){
+   const cat=MAP[k];if(!cat)return;
+   let v=o[k];
+   if(v&&!Array.isArray(v)&&typeof v==="object"){v=[Object.keys(v).map(function(g){return [g,[v[g]]]})[0]]}
+   if(!Array.isArray(v))return;
+   v.forEach(function(row){
+    if(Array.isArray(row)&&row.length>=2&&Array.isArray(row[1])){const g=String(row[0]||"");row[1].forEach(function(c){const x=val(c);if(x.d)add(cat,g,"",x.d);else add(cat,g,x.s)})}
+    else if(typeof row==="string"){add(cat,"",row)}})});
+ }
+ if(!items.length)return toast("这个文件里没有能识别的字卡");
+ const by={};items.forEach(function(c){by[c.cat]=(by[c.cat]||0)+1});
+ const desc=Object.keys(by).map(function(k){return k+" "+by[k]+" 条"}).join("、");
+ actionSheet("识别到 "+items.length+" 条字卡："+desc,["合并导入（跳过重复）","清空后导入"]).then(function(i){
+  if(i==null)return;
+  if(i===1)S.cards=[];
+  if(!S.misc.groups||typeof S.misc.groups!=="object")S.misc.groups={};
+  let n=0;
+  items.forEach(function(c){
+   if(!c.cat)return;
+   if(!S.misc.groups[c.cat])S.misc.groups[c.cat]=[];
+   if(c.group&&S.misc.groups[c.cat].indexOf(c.group)<0)S.misc.groups[c.cat].push(c.group);
+   if(CATS.indexOf(c.cat)<0)CATS.push(c.cat);
+   const dup=S.cards.some(function(x){return x.cat===c.cat&&(c.type==="img"?(x.data===c.data):(String(x.content||"")===String(c.content||""))) });
+   if(dup)return;
+   S.cards.push({id:uid(),cat:c.cat,type:c.type||CATTYPE(c.cat),content:c.content||"",data:c.data||undefined,group:c.group||"",name:c.name||""});n++});
+  save("cards");save("misc");closeModal();render();toast("已导入 "+n+" 条字卡（跳过重复 "+(items.length-n)+"）")});
+}).catch(function(){toast("读取文件失败")})});
 ACT["lib-clear"]=()=>confirmDlg("清除全部字卡库数据？此操作不可恢复","清除",true).then(ok=>{if(!ok)return;S.cards=[];save("cards");render();toast("已清除")});
 /* 字卡库「管理」入口：统一改为独立页面，可返回、可展开说明，不再依赖嵌套 actionSheet */
 ACT["lib-more"]=()=>{if(cur==="lib")go("libmanage");else if(cur==="libcat")go("libcatmanage",curParam);else go("libmanage")};
@@ -5479,7 +5710,7 @@ document.addEventListener("click",e=>{
  const mm=$("#msgmenu");if(mm&&mm.classList.contains("on")&&!e.target.closest("#msgmenu")&&!e.target.closest('[data-act="msg-tap"]'))closeMsgMenu();
 });
 document.addEventListener("input",e=>{const t=e.target;
- if(t.matches("[data-set]")){const p=t.dataset.set;let v=t.type==="checkbox"?t.checked:(t.type==="number"||t.type==="range"?+t.value:t.value);setPath(S.settings,p,v);normalizeActive(p);save("settings");const lab=document.querySelector('[data-labfor="'+p+'"]');if(lab)lab.textContent=v+(lab.dataset.unit||"");const pnote=document.querySelector('[data-probnote="'+p+'"]');if(pnote)pnote.style.display=(+v===0)?"":"none";if(p==="dark"||p==="theme"||p==="navOp"||p.startsWith("custom"))applyTheme();if(p==="aiOn"&&v){S.settings.aiReply=S.settings.aiReply||{};S.settings.aiReply.on=true}if(p.startsWith("system"))applySystem();if(p.startsWith("chat"))applyChatUI();if(p.indexOf("ai")===0||p.indexOf("voice")===0)renderAiBadge();if(p.indexOf("reply.chat.active")===0)scheduleActive();if(p==="system.storageWarn")renderStorageCard();if(p==="taName")try{localStorage.setItem("nickname",v)}catch(e){}return}
+ if(t.matches("[data-set]")){const p=t.dataset.set;let v=t.type==="checkbox"?t.checked:(t.type==="number"||t.type==="range"?+t.value:t.value);setPath(S.settings,p,v);normalizeActive(p);save("settings");const lab=document.querySelector('[data-labfor="'+p+'"]');if(lab)lab.textContent=v+(lab.dataset.unit||"");const pnote=document.querySelector('[data-probnote="'+p+'"]');if(pnote)pnote.style.display=(+v===0)?"":"none";if(p==="dark"||p==="theme"||p==="navOp"||p==="glass"||p.startsWith("custom"))applyTheme();if(p==="aiOn"&&v){S.settings.aiReply=S.settings.aiReply||{};S.settings.aiReply.on=true}if(p.startsWith("system"))applySystem();if(p.startsWith("chat"))applyChatUI();if(p.indexOf("ai")===0||p.indexOf("voice")===0)renderAiBadge();if(p.indexOf("reply.chat.active")===0)scheduleActive();if(p==="system.storageWarn")renderStorageCard();if(p==="taName")try{localStorage.setItem("nickname",v)}catch(e){}return}
  
  if(t.matches("[data-mall]")){const s=S.settings.reply.mall=S.settings.reply.mall||{};s[t.dataset.mall]=!!t.checked;save("settings");return}
  if(t.matches("[data-pcr]")){const c=pcCfg();c.en=!!t.checked;save("misc");return}
@@ -5492,7 +5723,8 @@ document.addEventListener("input",e=>{const t=e.target;
  if(t.matches("[data-pknum]")){let v=+t.value;if(!isFinite(v))v=0;if(v<0)v=0;if(v>100)v=100;const p=pkState();p.prob=v;t.value=v;save("pickup");return}});
 /* ================= seed & boot ================= */
 const SEED={"主字卡":["今天也在想你呀","吃饭了吗？别饿着自己","晚安，梦里见","抱抱你","我在呢，慢慢说","想听你说说话","外面降温了，多穿点","累了吗？靠一会儿吧","你笑的样子真好看","不管多晚我都等你"],"情绪字卡":["开心到想转圈","有点小委屈","想你想得发呆","心里暖暖的","酸酸的，是想你了","安静得只听见心跳"],"拍一拍":["的肩膀说辛苦了","的头说乖","的小手说牵住不放","的背说我在呢"],"拍一拍·我":["的头发说好软","的脸颊说亲一下","的手说牵紧不放","的脑袋说想你了","的肩膀说靠一下","的额头说晚安","的后背说抱抱","的心口说我在"],"状态":["在看书","在散步","在发呆想你","在做饭","在听歌","睡着了","在忙里偷闲"],"寻踪·在哪里":["在家","在公司","在咖啡店","在公园","在图书馆","在路上","在朋友家","在健身房","在超市","在电影院","在便利店","在书店","在地铁上","在阳台","在河边","在小区楼下","在面包店","在车站","在自习室"],"寻踪·在做什么":["刷手机","看书","发呆","听歌","写东西","吃零食","喝奶茶","散步","玩游戏","想你","看电影","追剧","刷视频","等快递","收拾房间","洗衣服","做饭","泡茶","吃水果","拍照"],"寻踪·想对你说":["想你了","记得按时吃饭","今天也很喜欢你","早点休息","有空给我回消息","别太累","喝水了吗","今天开心吗","我今天有点累","我今天很开心","我今天有点想你","我今天有点无聊","今天过得怎么样","记得多穿点","路上注意安全","晚安"],"颜文字":["(｡･ω･｡)","(≧▽≦)","(´･ω･`)","(｡>ω<｡)","(っ´▽`)っ","(｡•́︿•̀｡)","(＾▽＾)","╭(′▽`)╯"],"位置·方向":["在你左边","在你右边","在你身后","在你前面","离你两步","抬头就能看到","在你看不到的地方偷看你"],"位置·距离":["再近一点","再远一点","就停这儿","马上到你身边","一直在原地等你"],"位置·状态":["跟在你后面","陪你走着","停下来等你","绕着你转圈","在你身边"],"位置·感觉":["在你看不到的地方","隔着世界在你身边","感觉到了吗","能摸到我吗","一直没走远","隐约在你身旁"],"Emoji":["❤","✨","🌙","🌸","😊","🎵","💌"]};
-async function boot(){await idbOpen();
+async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))document.documentElement.classList.add("wxweb")}catch(e){}
+ await idbOpen();
  for(const k of SAVEKEYS){const v=await kvGet(k);if(v!==undefined)S[k]=v}
  const preSound=(S.settings&&S.settings.sound)||{};
  const preChat=(S.settings&&S.settings.reply&&S.settings.reply.chat)||{};
@@ -5545,7 +5777,7 @@ async function boot(){await idbOpen();
  taMomentCheck();taLetterCheck();setInterval(()=>{taMomentCheck();taLetterCheck()},10*60000);
  try{quizSetTickAll();setInterval(quizSetTickAll,5000)}catch(e){}
  try{catchUpAsks()}catch(e){}
- try{trCheck();setInterval(trCheck,60000);locCheck();setInterval(locCheck,60000);locHintTick();setInterval(locHintTick,30000)}catch(e){}
+ try{trCheck();setInterval(trCheck,60000);locCheck();setInterval(locCheck,60000);locHintTick();setInterval(locHintTick,30000)}catch(e){} try{moodSeedIntoLib()}catch(e){}
  try{memoTick();setTimeout(memoTick,60000);setInterval(memoTick,240000);setInterval(memoSysDue,300000)}catch(e){}
  try{try{periodCareCheck()}catch(e){};setInterval(function(){try{periodCareCheck()}catch(e){}},300000)}catch(e){}
  try{mallAuto();setInterval(function(){try{mallAuto()}catch(e){}},600000)}catch(e){} try{setInterval(function(){try{if(muAudio){muTick()}muFloatSync()}catch(e){}},1000)}catch(e){}
