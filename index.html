@@ -3453,7 +3453,7 @@ function memoSysDue(){try{const c=memoCfg();if(!c.en)return;const t=MEMO_TODAY()
  sh.onclick=e=>{if(e.target.closest("[data-r]")){closeModal();if(cur==="memo")render()}}
  if(cur==="memo")render()}catch(e){}}
 /* ================= 商城 ================= */
-const MALL_CATS=["美食","甜点","饮品","鲜花","礼物","饰品","玩偶","数码","家居","陪伴"];
+const MALL_CATS=["美食","甜点","饮品","鲜花","礼物","饰品","玩偶","数码","家居","陪伴","电器","家纺","运动","母婴","玩乐","家具","家装","电脑","车品","海淘","特殊食品"];
 const MALL_DEF=[
  ["🍰","小蛋糕",49,"甜点","想和你一起切一块"],["🍜","一碗热面",26,"美食","深夜想吃的那口"],
  ["🍵","热奶茶",16,"饮品","记得少糖"],["🍫","巧克力",39,"甜点","甜一点心情好"],
@@ -3477,7 +3477,24 @@ const MALL_DEF=[
  ["📖","一本书",39,"礼物","读到这句想到你"],["🎬","一起看电影",60,"陪伴","买两张票"],
  ["🎮","一起打游戏",0,"陪伴","陪我一局就好"],["✈️","一起去旅行",1888,"陪伴","说走就走的那种"],
  ["🌙","一次晚安",0,"陪伴","陪你说说话"],["🫂","一个拥抱",0,"陪伴","抱一下就好了"],
- ["⏳","陪你发呆一小时",0,"陪伴","什么都不做也行"],["🐱","撸猫券",20,"陪伴","猫归你管"]
+ ["⏳","陪你发呆一小时",0,"陪伴","什么都不做也行"],["🐱","撸猫券",20,"陪伴","猫归你管"],
+ ["👟","一双跑鞋",299,"运动","陪你一起跑"],["🧘","瑜伽垫",89,"运动","一起拉伸"],
+ ["🪢","跳绳",19,"运动","楼下见"],["🚲","一辆自行车",899,"运动","带你兜风"],
+ ["🏸","羽毛球拍",129,"运动","打两局"],["🏕️","户外露营椅",159,"运动","坐一起看星星"],
+ ["💨","小风扇",39,"电器","夏天救命"],["💧","加湿器",129,"电器","别干燥"],
+ ["🎐","空气循环扇",199,"电器","睡得安稳"],["🔌","充电宝",99,"数码","出门不怕没电"],
+ ["🧺","一条毛毯",69,"家纺","盖着一起看电影"],["🛏️","乳胶枕头",139,"家纺","睡好一点"],
+ ["🍼","奶瓶礼盒",88,"母婴","给未来的小日子"],["🧸","安抚玩偶",59,"母婴","抱着就不哭"],
+ ["🎠","旋转木马券",45,"玩乐","一起当小孩"],["🎡","游乐园门票",180,"玩乐","两张票"],
+ ["🎫","抽卡券",30,"玩乐","手气怎么样"],
+ ["🪑","一把舒适椅子",259,"家具","坐着等你回来"],["🕯️","小夜灯",45,"家具","房间暖一点"],
+ ["🪟","窗帘",99,"家装","遮住早上的太阳"],["🧹","扫地机器人",699,"家装","我来扫也行"],
+ ["💻","笔记本电脑",3999,"电脑","工作也要陪你"],["🖱️","无线鼠标",89,"电脑","顺手那种"],
+ ["⌨️","电脑清洁套装",19,"电脑","键盘缝也干净"],
+ ["🛵","电瓶车",1999,"车品","带你去兜风"],["🪖","头盔",159,"车品","安全第一"],
+ ["🪑","坐垫",29,"车品","久坐不累"],
+ ["🛒","海外代购券",199,"海淘","给你带回来"],["🍫","进口巧克力",69,"海淘","尝个新鲜"],
+ ["🍜","限定泡面礼盒",49,"特殊食品","宵夜搭档"],["🍯","蜂蜜礼盒",89,"特殊食品","养生一点"]
 ];
 function mallCfg(){S.misc.mall=S.misc.mall||{};const m=S.misc.mall;
  m.wallet=m.wallet||{me:52000,ta:52000};if(typeof m.goods!=="undefined"&&!Array.isArray(m.goods))m.goods=[];
@@ -3489,7 +3506,7 @@ function mallCfg(){S.misc.mall=S.misc.mall||{};const m=S.misc.mall;
  return m}
 function mallMoney(v){const n=+v||0;return String(Math.round(n*100)/100)}
 function mallGoods(){const m=mallCfg();const def=MALL_DEF.map(function(g,i){return {id:"d"+i,emoji:g[0],name:g[1],price:g[2],cat:g[3],wish:g[4],def:true}});
- return def.concat(m.goods.map(function(g){return {id:g.id,emoji:g.emoji||"🎁",img:g.img||"",name:g.name,price:+g.price||0,cat:g.cat||"礼物",wish:g.wish||"",custom:true}}))}
+ return def.map(function(g){return Object.assign({},g,{img:mallImgs()[g.id]||""})}).concat(m.goods.map(function(g){return {id:g.id,emoji:g.emoji||"🎁",img:mallImgs()[g.id]||g.img||"",name:g.name,price:+g.price||0,cat:g.cat||"礼物",wish:g.wish||"",custom:true}}))}
 function mallFind(id){return mallGoods().find(function(g){return g.id===id})}
 function mallWished(id){return mallCfg().wish.indexOf(id)>=0}
 function mallWishToggle(id){const m=mallCfg();const i=m.wish.indexOf(id);
@@ -3633,9 +3650,13 @@ function mallDetailSheet(g){
   '<div class="mcat">'+esc(g.cat||"礼物")+'</div>'+
   '<div class="mprice">'+((+g.price>0)?("¥"+mallMoney(g.price)):"心意礼物")+"</div>"+
   (g.wish?'<div class="mnote">'+esc(g.wish)+"</div>":"")+"</div>"+
-  '<div class="btnrow" style="margin-top:10px"><button class="btn" data-md="cart" style="flex:1">加入购物车</button><button class="btn pri" data-md="gift" style="flex:1">送给 TA</button></div>',true);
+  '<div class="btnrow" style="margin-top:10px"><button class="btn" data-md="cart" style="flex:1">加入购物车</button><button class="btn pri" data-md="gift" style="flex:1">送给 TA</button></div>'+
+  '<div class="btnrow" style="margin-top:8px"><button class="btn" data-md="img" style="flex:1">换一张商品图片</button>'+(g.img?'<button class="btn" data-md="imgclr" style="flex:none">恢复默认</button>':"")+"</div>",true);
  sh.onclick=function(e){const b=e.target.closest("[data-md]");
-  if(b){const act=b.dataset.md;closeModal();
+  if(b){const act=b.dataset.md;
+   if(act==="img"){pickFile("image/*",false,function(fs){if(!fs||!fs[0])return;readAsDataURL(fs[0]).then(function(u){return compressImage(u,560,.82)}).then(function(u){mallSetImg(g.id,u);closeModal();if(cur==="mall")render();toast("已更换商品图片")}).catch(function(){toast("图片读取失败")})});return}
+   if(act==="imgclr"){mallSetImg(g.id,"");closeModal();if(cur==="mall")render();toast("已恢复默认图片");return}
+   closeModal();
    if(act==="cart"){mallCartAdd(g.id);return}
    mallBuy(g.id);return}
   if(e.target.closest("[data-r]"))closeModal()}}
@@ -3662,47 +3683,44 @@ function mallSetSheetHtml(){const s=S.settings.reply.mall=Object.assign({giftInO
 ACT["mall-set"]=()=>{const sh=openSheet('<div class="mtitle">商城设置<button class="ibtn" data-r="x">'+ico("close")+"</button></div>"+mallSetSheetHtml(),true);
  sh.onchange=function(e){const el=e.target.closest("[data-mall]");if(!el)return;const s=S.settings.reply.mall;s[el.dataset.mall]=!!el.checked;save("settings")};
  sh.onclick=function(e){if(e.target.closest("[data-r]"))closeModal()}};
-ACT["mall-cat"]=el=>{S.misc.mallCat=el.dataset.v||"";save("misc");
- const cat=S.misc.mallCat;
- const box=document.querySelector(".mgoods");
- if(box){
-  const list=mallFilterGoods(cat);
-  box.innerHTML=list.length?list.map(mallCardHtml).join(""):'<div class="empty" style="padding:26px 0;grid-column:1/-1">这个分类还没有商品</div>';
-  const chips=document.querySelectorAll(".mmallcats .chip");
-  for(let i=0;i<chips.length;i++){chips[i].classList.toggle("on",(chips[i].dataset.v||"")===cat)}
-   const n=document.getElementById("app");
-   if(n){const gy=Math.max(0,(box.offsetTop||0)-70);if(n.scrollTop>gy){try{n.scrollTop=gy}catch(e){}}}
-  return}
- render()};
+ACT["mall-cat"]=el=>{const n0=document.getElementById("app");const y=n0?n0.scrollTop:0;
+ S.misc.mallCat=el.dataset.v||"";save("misc");render();
+ const n=document.getElementById("app");if(n){try{n.scrollTop=Math.min(y,Math.max(0,n.scrollHeight-n.clientHeight))}catch(e){}}};
 ACT["mall-open"]=el=>{const g=mallFind(el.dataset.id);if(g)mallDetailSheet(g)};
-function mallCats(){const out=MALL_CATS.slice();
+function mallCatsOff(){if(!Array.isArray(S.misc.mallCatsOff))S.misc.mallCatsOff=[];return S.misc.mallCatsOff}
+function mallCats(){const off=mallCatsOff();const out=MALL_CATS.filter(function(c){return off.indexOf(c)<0});
  try{(S.misc.mallCats||[]).forEach(function(c){if(c&&out.indexOf(c)<0)out.push(c)})}catch(e){}
  try{mallCfg().goods.forEach(function(g){if(g.cat&&out.indexOf(g.cat)<0)out.push(g.cat)})}catch(e){}
  return out}
+function mallCatDel(c){c=String(c||"");if(!c)return;
+ if(MALL_CATS.indexOf(c)>=0){const off=mallCatsOff();if(off.indexOf(c)<0)off.push(c)}
+ if(Array.isArray(S.misc.mallCats))S.misc.mallCats=S.misc.mallCats.filter(function(x){return x!==c});
+ if(S.misc.mallCat===c)S.misc.mallCat="";
+ save("misc")}
 function mallFilterGoods(cat){const list=mallGoods();if(!cat)return list;
  return list.filter(function(g){return (g.cat||"礼物")===cat})}
 function mallCatAdd(c){c=String(c||"").trim();if(!c)return false;
  if(!Array.isArray(S.misc.mallCats))S.misc.mallCats=[];
+ const off=mallCatsOff();const oi=off.indexOf(c);if(oi>=0)off.splice(oi,1);
  if(MALL_CATS.indexOf(c)<0&&S.misc.mallCats.indexOf(c)<0)S.misc.mallCats.push(c);
  save("misc");return true}
+function mallImgs(){if(!S.misc.mallImgs||typeof S.misc.mallImgs!=="object")S.misc.mallImgs={};return S.misc.mallImgs}
+function mallSetImg(id,data){mallImgs()[id]=data||"";save("misc")}
 function mallCatsSheet(){
  const list=mallCats();
- const rows=list.map(function(c){return '<div class="row"><span class="lab">'+esc(c)+(MALL_CATS.indexOf(c)>=0?' <span class="sub">内置</span>':'')+'</span>'+
-  (MALL_CATS.indexOf(c)>=0?'<span class="muted" style="font-size:12px">内置分类</span>':'<button class="ibtn" data-catdel="'+esc(c)+'" title="删除">'+ico("trash")+"</button>")+"</div>"}).join("");
+ const rows=list.map(function(c){return '<div class="row"><span class="lab">'+esc(c)+'</span><button class="ibtn" data-catdel="'+esc(c)+'" title="删除">'+ico("trash")+"</button></div>"}).join("");
  const sh=openSheet('<div class="mtitle">管理分类<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
   '<div class="card" style="padding:0 12px">'+rows+"</div>"+
   '<div class="uprow" style="display:flex;gap:8px;margin-top:10px"><input id="mallnewcat" placeholder="新分类名称（如：宠物）"><button class="btn pri" data-catadd="1">添加</button></div>'+
-  '<div class="muted" style="padding:8px 2px 0">删除分类后，该分类下的商品会回到「全部」里，不会丢；内置分类不可删除。</div>',true);
+  '<div class="muted" style="padding:8px 2px 0">删除分类后，该分类下的商品会回到「全部」里，不会丢；内置分类删掉后，在下面输入同样的名字就能恢复。</div>',true);
  sh.onclick=function(e){
   const add=e.target.closest("[data-catadd]");
   if(add){const i=document.getElementById("mallnewcat");const v=i?i.value:"";if(!String(v||"").trim())return toast("先写个分类名");
    mallCatAdd(v);closeModal();if(cur==="mall")render();toast("已添加分类："+String(v).trim());return}
   const del=e.target.closest("[data-catdel]");
   if(del){const c=del.dataset.catdel;
-   confirmDlg("删除分类「"+c+"」？分类下的商品会回到「全部」","删除",true).then(function(ok){if(!ok)return;
-    S.misc.mallCats=(S.misc.mallCats||[]).filter(function(x){return x!==c});
-    if(S.misc.mallCat===c)S.misc.mallCat="";
-    save("misc");closeModal();if(cur==="mall")render();toast("已删除分类")});return}
+   confirmDlg("删除分类「"+c+"」？该分类下的商品会回到「全部」","删除",true).then(function(ok){if(!ok)return;
+    mallCatDel(c);closeModal();if(cur==="mall")render();toast("已删除分类")});return}
   if(e.target.closest("[data-r]"))closeModal()}}
 ACT["mall-cats"]=()=>mallCatsSheet();
 PAGES.mall={html(){const m=mallCfg();
