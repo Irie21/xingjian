@@ -5231,3 +5231,110 @@ boot();
   document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(restoreCall, 500); });
   window.addEventListener("pageshow", function () { setTimeout(restoreCall, 500); });
 })();
+/* ================= 引用定位整行闪烁 + 输入框防自动填充条 ================= */
+(function () {
+  window.locateQuote = function (qid) {
+    try {
+      var t = document.querySelector('.msg[data-id="' + qid + '"]');
+      if (!t) return;
+      t.scrollIntoView({ block: "center" });
+      t.classList.remove("flashrow");
+      void t.offsetWidth;
+      t.classList.add("flashrow");
+      setTimeout(function () { t.classList.remove("flashrow"); }, 2600);
+    } catch (e) {}
+  };
+  try {
+    var old = window.msgInputAttrs;
+    window.msgInputAttrs = function (el) {
+      try { if (old) old.apply(null, arguments); } catch (e) {}
+      try {
+        if (!el) return;
+        el.setAttribute("autocomplete", "off");
+        el.setAttribute("inputmode", "text");
+        el.setAttribute("aria-autocomplete", "none");
+        if (el.id === "cin" || el.id === "fcin") el.removeAttribute("name");
+      } catch (e) {}
+    };
+    var t = document.getElementById("cin");
+    if (t) window.msgInputAttrs(t);
+  } catch (e) {}
+})();
+/* ================= 存储统计再提速：改用浏览器空闲时间逐个算，进页面不阻塞 ================= */
+(function () {
+  try {
+    window.renderStorageCard = function () {
+      var paint = function (info) { var card = $("#storcard"); if (card) card.innerHTML = storageHtml(info); };
+      paint({ usage: null, quota: null, persisted: null });   /* 先把骨架画出来，秒进 */
+      var sched = function (fn) { return (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 600 }) : setTimeout(fn, 40)); };
+      var q = STORE_APPS.slice(), tot = 0, last = null;
+      var step = function () {
+        var g = q.shift();
+        if (!g) { var el = document.getElementById("stortotal"); if (el) el.innerHTML = "<b>" + fmtBytes(tot) + "</b> 估算占用"; return; }
+        var v = appSizeCached(g); tot += v; last = g.id;
+        var s2 = document.querySelector('[data-sizefor="' + g.id + '"]');
+        if (s2) s2.textContent = " " + fmtBytes(v);
+        sched(step);
+      };
+      sched(step);
+      (async function () {
+        try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
+        var info = await storageInfo();
+        paint(info);
+        var warn = +((S.settings.system || {}).storageWarn) || 0;
+        if (info.usage != null && info.quota && warn > 0) {
+          var pct = Math.round(info.usage / info.quota * 1000) / 10;
+          if (pct >= warn && !window._storWarnShown) { window._storWarnShown = true; setTimeout(function () { showStorWarn(pct, warn); }, 120); }
+        }
+      })().catch(function () {});
+    };
+  } catch (e) {}
+})();
+/* ================= 引用定位：改回原来的小闪烁块（不整行）================= */
+window.locateQuote = function (qid) {
+  try {
+    var t = document.querySelector('.msg[data-id="' + qid + '"]');
+    if (!t) return;
+    t.scrollIntoView({ block: "center" });
+    var f = document.createElement("span");
+    f.className = "flash";
+    t.appendChild(f);
+    setTimeout(function () { try { f.remove(); } catch (e) {} }, 3100);
+  } catch (e) {}
+};
+
+/* ================= 后台通知 全链路自检 ================= */
+ACT["notify-perm"] = function () {
+  var L = [], ok = 0, bad = 0;
+  function add(good, t) { L.push((good === null ? "• " : (good ? "✓ " : "✗ ")) + t); if (good === true) ok++; if (good === false) bad++; }
+  var s = (S.settings && S.settings.system) || {};
+  add(("Notification" in window), "浏览器支持通知 API" + ("Notification" in window ? "" : "（当前浏览器不支持 → 只能用应用内横幅）"));
+  add(Notification.permission === "granted", "通知权限：" + (typeof Notification !== "undefined" ? Notification.permission : "无") + (Notification.permission === "granted" ? "" : "（未授权 → 去浏览器站点设置里改成「允许」）"));
+  add(!!navigator.serviceWorker, "浏览器支持 Service Worker");
+  var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  add(null, "运行方式：" + (standalone ? "已安装到桌面（PWA / APK）" : "浏览器标签页（建议先安装到桌面，安卓通知更稳）"));
+  add(!!s.notify, "设置里「后台通知」已打开" + (s.notify ? "" : "（没开 → 打开它）"));
+  add(!!s.keepalive, "设置里「后台保活」已打开" + (s.keepalive ? "" : "（没开 → 后台不会跑逻辑，自然没有通知）"));
+  add(!document.hidden, "当前页面可见性：" + (document.hidden ? "后台（会走系统通知）" : "前台（只会弹应用内横幅，不进通知栏）"));
+  add(document.visibilityState === "visible" ? null : true, "提示：测试时请点完按钮后立刻切到后台/回桌面");
+  var sh = openSheet('<div class="mtitle">通知自检<button class="ibtn" data-r="x">' + ico("close") + '</button></div><div id="ntout" class="muted" style="line-height:1.9;font-size:13px;white-space:pre-wrap">检测中…</div><div class="btnrow" style="margin-top:12px"><button class="btn sm" data-r="x">关闭</button></div>', true);
+  sh.onclick = function (e) { if (e.target.closest("[data-r]")) closeModal(); };
+  var out = function () { var el = document.getElementById("ntout"); if (el) el.textContent = L.join("\n") + "\n\n通过 " + ok + " 项，失败 " + bad + " 项"; };
+  (function () {
+    var p = (navigator.serviceWorker && navigator.serviceWorker.getRegistration) ? navigator.serviceWorker.getRegistration() : Promise.resolve(null);
+    p.then(function (reg) {
+      add(!!reg, "Service Worker 已注册" + (reg ? "" : "（没有 SW → 安卓系统通知一定失败）"));
+      if (reg) {
+        add(!!reg.active, "SW 状态：" + (reg.active ? "active" : (reg.waiting ? "waiting（重新打开一次网页）" : "installing")));
+        add(!!navigator.serviceWorker.controller, "SW 已接管本页" + (navigator.serviceWorker.controller ? "" : "（刷新一次即可接管）"));
+        if (Notification.permission === "granted" && reg.showNotification) {
+          reg.showNotification("星笺 · 自检通知", { body: "看到这条 = 系统通知链路完全正常 ✓", icon: "icon-192.png", badge: "icon-192.png", tag: "xj-diag", renotify: true, vibrate: [80, 40, 80] })
+            .then(function () { add(true, "实际发送系统通知：成功（请查看通知栏）"); out(); })
+            .catch(function (e) { add(false, "实际发送系统通知：失败 → " + e.message); out(); });
+          out(); return;
+        } else { add(false, "未尝试发送：" + (Notification.permission !== "granted" ? "权限不是 granted" : "SW 不支持 showNotification")); }
+      } else { add(false, "未尝试发送：没有 Service Worker"); }
+      out();
+    }).catch(function (e) { add(false, "查询 SW 出错：" + e.message); out(); });
+  })();
+};
