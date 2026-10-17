@@ -1178,3 +1178,19 @@ html[data-idle="1"] .msgpop{transition:none !important}
 /* ---------- 表情包格子：删除按钮改白色半透明底 ---------- */
 #liblist .stkgrid .cell .del{background:rgba(255,255,255,.82);color:#3c3c40;box-shadow:0 1px 4px rgba(0,0,0,.18);width:22px;height:22px;top:3px;right:3px}
 #liblist .stkgrid .cell .del svg{width:12px;height:12px}
+/* 表情包格子删除按钮：白透明底 + 清晰的 ✕ */
+#liblist .stkgrid .cell .del{background:rgba(255,255,255,.86);color:#33333a;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+#liblist .stkgrid .cell .del svg{width:13px;height:13px}
+/* ---------- 信箱：表情包/图片尺寸与「表情包卡池」格子一致（约 78px），并支持「图在文字前」---------- */
+#lepic img{width:78px;height:78px;object-fit:cover;border-radius:10px;margin-top:8px;display:block;max-width:100%}
+.mlcard .mlst{width:78px;height:78px;object-fit:cover;border-radius:10px;margin-top:8px;display:block;max-width:100%}
+/* 编辑卡片：按顺序排列（图片可移到文字上方）*/
+.mlcard.edit{display:flex;flex-direction:column}
+.mlcard.edit #lepic{order:1}
+.mlcard.edit .mlch{order:0}
+.mlcard.edit #lt2{order:2}
+.mlcard.edit #lc2{order:3}
+.mlcard.edit .lebtns{order:0}
+.mlcard.edit.imgfirst #lepic{order:3;margin-bottom:6px}
+.mlcard.edit.imgfirst #lt2{order:1}
+.mlcard.edit.imgfirst #lc2{order:2}

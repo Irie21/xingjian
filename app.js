@@ -3141,7 +3141,7 @@ function libGridHtml(cat,items,multi,sel){
   if(multi)return '<button type="button" class="cell'+blk+(sel.includes(c.id)?" on":"")+'" data-act="lib-seltile" data-id="'+c.id+'"><img src="'+c.data+'">'+(sel.includes(c.id)?'<span class="cellck">'+ico("check")+"</span>":"")+"</button>";
   return '<div class="cell'+blk+'"><img src="'+c.data+'" data-act="lib-edit" data-id="'+c.id+'">'+
 
-   '<button type="button" class="del" data-act="lib-del" data-id="'+c.id+'" title="删除">'+ico("trash")+"</button></div>"}).join("")+"</div>"):'<div class="empty">'+(((S.misc.q||{})[cat])?"没有匹配的内容":"这个分类还没有内容")+"</div>"}
+   '<button type="button" class="del" data-act="lib-del" data-id="'+c.id+'" title="删除">'+ico("close")+"</button></div>"}).join("")+"</div>"):'<div class="empty">'+(((S.misc.q||{})[cat])?"没有匹配的内容":"这个分类还没有内容")+"</div>"}
 function libListHtml(cat){const q=(S.misc.q||{})[cat]||"";const gf=(S.misc.gf||{})[cat]||"";const multi=(S.misc.multi||{})[cat];const sel=(S.misc.sel||{})[cat]||[];
  let items=cardsOf(cat).filter(c=>(gf===""||c.group===gf)&&(!q||(c.type==="text"?c.content.includes(q):(c.name||"").includes(q))));
  if(CATTYPE(cat)==="img")return libGridHtml(cat,items,multi,sel);
@@ -3707,7 +3707,7 @@ function fmtBytes(n){if(n==null||!isFinite(n))return"—";const u=["B","KB","MB"
 function bytesOf(v){try{
  if(v==null)return 0;
  const t=typeof v;
- if(t==="string")return new Blob([v]).size;
+ if(t==="string")return v.length;
  if(t==="number")return 8;
  if(t==="boolean")return 4;
  if(v instanceof Blob)return v.size;
@@ -3727,9 +3727,16 @@ function showStorWarn(pct,warn){
 function persistFail(reason){
  openSheet('<div class="mtitle center">未能启用持久化</div><div class="muted" style="line-height:1.7">'+esc(reason)+'。<br><br>可尝试：<br>1. 确认使用普通窗口（无痕 / 隐私模式下无法持久化）；<br>2. 把本页「添加到主屏幕」后从桌面图标打开，更容易获得授权；<br>3. 检查 Edge / Chrome 设置里未开启「退出时清除浏览数据」，且未禁用本站存储；<br>4. 站点被频繁访问、存储配额充足时，浏览器更可能自动授予。</div><div class="btnrow center" style="margin-top:12px"><button class="btn pri" data-r="ok">知道了</button></div>',true);
  $("#modal .sheet").onclick=e=>{if(e.target.closest("[data-r]"))closeModal()}}
+let _sizeCache={};
+function appSizeCached(g){const t=Date.now(),c=_sizeCache[g.id];if(c&&(t-c.t)<30000)return c.v;const v=appSize(g);_sizeCache[g.id]={t:t,v:v};return v}
 function renderStorageCard(){
  const paint=info=>{const card=$("#storcard");if(card)card.innerHTML=storageHtml(info);
-  STORE_APPS.forEach(g=>{const el=document.querySelector('[data-sizefor="'+g.id+'"]');if(el)el.textContent=" "+fmtBytes(appSize(g))})};
+  const _q=STORE_APPS.slice();let _tot=0;
+  const _step=()=>{const g=_q.shift();
+   if(!g){const tt=document.getElementById("stortotal");if(tt)tt.innerHTML="<b>"+fmtBytes(_tot)+"</b> 估算占用";return}
+   const v=appSizeCached(g);_tot+=v;const el=document.querySelector('[data-sizefor="'+g.id+'"]');if(el)el.textContent=" "+fmtBytes(v);
+   setTimeout(_step,16)};
+  setTimeout(_step,32)};
  paint({usage:null,quota:null,persisted:null});
  (async()=>{
   /* 直接尝试启用持久化，浏览器同意后即长期生效 */
@@ -3748,7 +3755,7 @@ function storageHtml(info){const {usage,quota,persisted}=info;
   if(over)head+='<div class="storwarn">占用已达 '+pct+'%，超过提醒阈值 '+warn+'%，建议清理数据。</div>';
   head+='<div class="storbar'+(over?" danger":"")+'"><i style="width:'+Math.max(1,pct)+'%"></i></div>'+
    '<div class="stortext"><span><b>'+fmtBytes(usage)+'</b> 已用</span><span class="muted">可用 '+fmtBytes(quota)+' · 占用 '+pct+'%</span></div>'}
- else{const total=STORE_APPS.reduce((a,g)=>a+appSize(g),0);head+='<div class="stortext"><span><b>'+fmtBytes(total)+'</b> 估算占用</span><span class="muted">当前环境不支持配额查询</span></div>'}
+ else{head+='<div class="stortext"><span id="stortotal"><b>计算中…</b> 估算占用</span><span class="muted">当前环境不支持配额查询</span></div>'}
  let persist;
  if(persisted==null){persist='<div class="storrow2"><span class="sname2">持久化存储</span><span class="muted">检测中…</span></div>'}
  else if(persisted){persist='<div class="storrow2"><span class="sname2">持久化存储</span><span class="stpill on">已持久化</span></div>'+
@@ -5063,3 +5070,164 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
 /* PWA：注册 Service Worker（Chrome / Edge 安装到手机桌面需要它）*/
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 boot();
+/* ================= 信箱增强补丁（覆盖式，避免改动原函数体）================= */
+(function () {
+  try {
+    /* ① 对方写信正文：从主字卡随机抽 minCards~maxCards 张，用「，」连成一段，
+          一行写不下自然换行（不再一句一行）——与聊天「拼字卡」同一套逻辑 */
+    window.letterContent = function () {
+      const r = S.settings.reply.letter;
+      const n = rnd(r.minCards, r.maxCards);
+      const pool = [].concat(cardTexts("主字卡"), cardTexts("情绪字卡"));
+      const lines = [];
+      for (let i = 0; i < n; i++) lines.push(pool.length ? pick(pool) : "见字如面，甚是思念");
+      let txt = "见字如面：" + lines.join("，") + "。盼复";
+      if (chance(r.kaomoji)) { const k = cardTexts("颜文字"); if (k.length) txt += " " + pick(k); }
+      if (chance(r.emoji)) { const e = cardTexts("Emoji"); if (e.length) txt += pick(e); }
+      return txt;
+    };
+  } catch (e) {}
+
+  /* ② 记「谁先谁后」：先写字再选表情包 → 图在文字后面；先选表情包再写字 → 图在文字前面
+        （编辑页用 CSS order 立刻换位，发送时把顺序一起存进信件里） */
+  function markOrder() {
+    try {
+      const c = document.querySelector(".mlcard.edit");
+      if (c) c.classList.toggle("imgfirst", _le.order === "s");
+    } catch (e) {}
+  }
+  const _oldEmo = ACT["letter-emo"], _oldImg = ACT["letter-img"], _oldPaint = window.lePaint;
+  if (_oldEmo) ACT["letter-emo"] = function () {
+    _oldEmo.apply(null, arguments);
+    setTimeout(function () {
+      try {
+        const t = document.getElementById("lc2");
+        if (_le.sticker && !((t && t.value) || "").trim()) _le.order = "s"; else if (_le.sticker) _le.order = "t";
+        markOrder();
+      } catch (e) {}
+    }, 40);
+  };
+  if (_oldImg) ACT["letter-img"] = function () {
+    _oldImg.apply(null, arguments);
+    setTimeout(function () {
+      try {
+        const t = document.getElementById("lc2");
+        _le.order = ((t && t.value) || "").trim() ? "t" : "s";
+        markOrder();
+      } catch (e) {}
+    }, 40);
+  };
+  if (_oldPaint) window.lePaint = function () { _oldPaint.apply(null, arguments); markOrder(); };
+  try { const p = PAGES.letteredit; if (p && p.init) { const oi = p.init; p.init = function () { oi.apply(null, arguments); markOrder(); }; } } catch (e) {}
+})();
+/* ================= 卡死自愈补丁 =================
+   现象：偶尔整页点不动，必须刷新。最常见原因是「弹窗遮罩 #modal 残留」——
+   它是一个铺满全屏的固定层，只要 .on 没被摘掉，就会把全屏点击都吞掉（而背景是透明的，看不出有东西挡着）。
+   这里做三件事：1) 定时自检并清理空遮罩；2) 页面报错 / Promise 未处理时立刻自愈；3) 点击被吞时强制清一次。 */
+(function () {
+  function heal() {
+    try {
+      var m = document.getElementById("modal");
+      if (m) {
+        var sh = m.querySelector(".sheet");
+        var empty = !sh || !String(sh.innerHTML || "").trim();
+        if (m.classList.contains("on") && empty) {
+          m.className = "";
+          try { if (sh) sh.className = "sheet"; } catch (e) {}
+          try { if (window.closeChatPanel) closeChatPanel(); } catch (e) {}
+        }
+      }
+    } catch (e) {}
+    try {
+      var p = document.getElementById("chatpanel");
+      if (p && p.style.display !== "none" && !String(p.innerHTML || "").trim()) p.style.display = "none";
+    } catch (e) {}
+  }
+  window.__xjHeal = heal;
+  setInterval(heal, 1200);                                   /* 定时自检 */
+  window.addEventListener("error", function () { setTimeout(heal, 30); });          /* JS 报错后自愈 */
+  window.addEventListener("unhandledrejection", function () { setTimeout(heal, 60); }); /* Promise 未处理 */
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) heal(); });
+  /* 点击落在残留遮罩上时：不吞掉，直接清掉并让这次点击正常生效 */
+  document.addEventListener("click", function (e) {
+    try {
+      var m = document.getElementById("modal");
+      if (m && m.classList.contains("on")) {
+        var sh = m.querySelector(".sheet");
+        if (!sh || !String(sh.innerHTML || "").trim()) { heal(); }
+      }
+    } catch (err) {}
+  }, true);
+})();
+/* ================= 通知自检 + 通话保活 ================= */
+(function () {
+  /* ① 设置→系统 里加两个按钮：一键测试通知、检查权限 */
+  try {
+    var oldSys = PAGES.setsys.html;
+    PAGES.setsys.html = function () {
+      var h = oldSys.apply(null, arguments);
+      var add = '<div class="btnrow" style="margin-top:10px"><button class="btn sm" data-act="notify-test">发送测试通知</button><button class="btn sm" data-act="notify-perm">检查权限状态</button></div>';
+      var i = h.lastIndexOf('</div>');
+      return i >= 0 ? (h.slice(0, i) + add + h.slice(i)) : h + add;
+    };
+  } catch (e) {}
+
+  ACT["notify-test"] = function () {
+    try {
+      if (!("Notification" in window)) return toast("此浏览器不支持通知");
+      if (Notification.permission !== "granted") return toast("通知权限未开启（当前：" + Notification.permission + "）");
+      if (!document.hidden) toast("提示：现在应用在前台，前台只弹应用内横幅；退到后台才会走系统通知");
+      sysNotif("星笺 · 测试通知", { body: "能看到这条，说明通知链路是通的 ✓", icon: "icon-192.png", badge: "icon-192.png", tag: "xj-test", renotify: true, vibrate: [80, 40, 80] });
+      toast("已发送，请看通知栏");
+    } catch (e) { toast("发送失败：" + e.message); }
+  };
+  ACT["notify-perm"] = function () {
+    try {
+      if (!("Notification" in window)) return toast("此浏览器不支持通知");
+      var msg = "权限：" + Notification.permission;
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function (r) {
+          var sw = r ? "已注册" : "未注册（系统通知会失败）";
+          if (Notification.permission === "default" && r && r.showNotification) Notification.requestPermission();
+          toast(msg + " · Service Worker：" + sw);
+        }).catch(function () { toast(msg); });
+      } else { toast(msg + " · 无 Service Worker 支持"); }
+    } catch (e) {}
+  };
+
+  /* ② 通话保活：把通话状态落盘；切后台、甚至被系统回收后再回来，通话不会被挂断 */
+  var _open = window.callOpen, _end = window.callEnd;
+  if (_open) {
+    window.callOpen = function (o) {
+      try {
+        o = o || {};
+        S.misc.callSave = { dir: o.dir, mode: o.mode, status: o.status, at: Date.now(), startedAt: (typeof callState !== "undefined" && callState && callState.startedAt) || Date.now() };
+        save("misc");
+      } catch (e) {}
+      return _open.apply(null, arguments);
+    };
+  }
+  if (_end) {
+    window.callEnd = function () {
+      try { delete S.misc.callSave; save("misc"); } catch (e) {}
+      return _end.apply(null, arguments);
+    };
+  }
+  function restoreCall() {
+    try {
+      var s = S.misc && S.misc.callSave;
+      if (!s || typeof callState === "undefined" || callState) return;
+      var el = Date.now() - (s.at || 0);
+      if (s.mode === "ringing" && el > 50000) { delete S.misc.callSave; save("misc"); return; }  /* 响铃太久：当作已挂断 */
+      if (s.mode === "ringing" || s.mode === "active") {
+        window.__xjRestoring = true;
+        window.callOpen({ dir: s.dir, mode: s.mode, status: s.status, startedAt: s.startedAt });
+        window.__xjRestoring = false;
+        toast("通话已恢复");
+      } else { delete S.misc.callSave; save("misc"); }
+    } catch (e) {}
+  }
+  setTimeout(restoreCall, 2200);                                              /* 启动后恢复 */
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(restoreCall, 500); });
+  window.addEventListener("pageshow", function () { setTimeout(restoreCall, 500); });
+})();
