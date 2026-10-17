@@ -5371,3 +5371,52 @@ ACT["notify-perm"] = function () {
     window.addEventListener("pageshow", function () { setTimeout(_restore, 400); });
   } catch (e) {}
 })();
+/* ================= 红包卡片：内联强制「扁平纯白」（覆盖旧的内联阴影）================= */
+(function () {
+  function flatReds() {
+    try {
+      var bs = document.querySelectorAll(".bub .transfer");
+      for (var i = 0; i < bs.length; i++) {
+        var b = bs[i].closest(".bub");
+        if (!b) continue;
+        b.style.background = "#fff";
+        b.style.backgroundImage = "none";
+        b.style.boxShadow = "none";
+        b.style.border = "none";
+        b.style.filter = "none";
+        b.style.backdropFilter = "none";
+        b.style.webkitBackdropFilter = "none";
+        b.style.textShadow = "none";
+      }
+      /* 卡片内部所有元素：去阴影/去滤镜；分割线改极浅实色 */
+      var inner = document.querySelectorAll(".bub .transfer, .bub .transfer *");
+      for (var k = 0; k < inner.length; k++) {
+        var e = inner[k];
+        e.style.boxShadow = "none";
+        e.style.filter = "none";
+        e.style.textShadow = "none";
+        var bg = e.style.backgroundColor || "";
+        var hasLine = /(line|hr|divider|sep)/i.test(e.className || "");
+        if (hasLine) { e.style.backgroundColor = "#f0f0f0"; e.style.height = "1px"; e.style.border = "none"; }
+      }
+      var p = document.querySelector(".txpop");
+      if (p) {
+        p.style.background = "#fff";
+        p.style.boxShadow = "none";
+        p.style.border = "none";
+        p.style.filter = "none";
+        p.style.backdropFilter = "none";
+        p.style.webkitBackdropFilter = "none";
+      }
+      var pi = document.querySelectorAll(".txpop *");
+      for (var m = 0; m < pi.length; m++) { pi[m].style.filter = "none"; pi[m].style.textShadow = "none"; }
+    } catch (e) {}
+  }
+  window.__xjFlatReds = flatReds;
+  var _rm = window.renderMsgs;
+  if (_rm) window.renderMsgs = function () { var r = _rm.apply(null, arguments); setTimeout(flatReds, 0); return r; };
+  var _stp = window.showTxPop;
+  if (_stp) window.showTxPop = function () { var r = _stp.apply(null, arguments); setTimeout(flatReds, 0); return r; };
+  setTimeout(flatReds, 600);
+  document.addEventListener("click", function () { setTimeout(flatReds, 40); }, true);
+})();

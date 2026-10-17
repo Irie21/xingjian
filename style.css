@@ -1210,3 +1210,12 @@ html[data-glass="1"] .bub{
  text-shadow:none !important}
 html[data-glass="1"] .bub *,html[data-glass="1"] .txpop,html[data-glass="1"] .txpop *{
  -webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+/* ---------- 红包/转账卡片：扁平纯白（无外阴影、无边框、无滤镜），分割线极浅实色 ---------- */
+.bub:has(.transfer){background:#fff !important;border:none !important;box-shadow:none !important;filter:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+.bub:has(.transfer) *{box-shadow:none !important;filter:none !important;text-shadow:none !important}
+.bub:has(.transfer) hr,.bub:has(.transfer) .trline,.bub:has(.transfer) .tr-line,.bub:has(.transfer) .txline,.bub:has(.transfer) .tpline{
+ background-color:#f0f0f0 !important;border:none !important;border-color:#f0f0f0 !important;height:1px !important;box-shadow:none !important}
+.bub:has(.transfer) [style*="border-top"],.bub:has(.transfer) [style*="border-bottom"]{border-color:#f0f0f0 !important;box-shadow:none !important}
+/* 领取/退还浮层同样扁平纯白 */
+html[data-glass="1"] .txpop,.txpop{background:#fff !important;border:none !important;box-shadow:0 8px 24px rgba(0,0,0,.14) !important;filter:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+.txpop *{filter:none !important;text-shadow:none !important}
