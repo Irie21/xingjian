@@ -50,9 +50,6 @@ html[data-glass="1"] .patbar,html[data-glass="1"] .mcard,html[data-glass="1"] .m
  border:1px solid var(--glass-border);
  box-shadow:var(--glass-shadow),inset 0 1px 0 rgba(255,255,255,.5);
  text-shadow:var(--glass-text-shadow);border-radius:24px}
-/* 红包「领取 / 退还」小浮层：不参与液态玻璃，保持实色 */
-html[data-glass="1"] .txpop{background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;border:none;box-shadow:0 12px 32px rgba(0,0,0,.22);border-radius:16px}
-html[data-glass="1"] .txpop:before{background:#fff}
 html[data-glass="1"] .card{position:relative;overflow:hidden}
 html[data-glass="1"] .card:before,html[data-glass="1"] .mwallet:before,html[data-glass="1"] .pchero:before{
  content:"";position:absolute;left:0;right:0;top:0;height:46%;pointer-events:none;
@@ -1142,15 +1139,16 @@ html[data-idle="1"] .msgpop{transition:none !important}
  font-size:10px;letter-spacing:.2em;color:#b9b9b9;opacity:0;animation:spMark 1.9s ease-out 3.1s both}
 /* ---------- 全局点击反馈：任何可点元素按下立刻有反应（字卡库工具按钮等不再「点了没变化」）---------- */
 .retback{display:block;cursor:pointer}
+/* 聊天气泡及气泡内的可点元素（红包 / 问卷卡 / 帮我决定卡）不吃这套按下反馈：半透明底色会透出壁纸，看起来就是液态玻璃 */
 .btn:active,.chip:active,.ibtn:active,.libtile:active,.app:active,.listitem:active,
-.row:active,.actionrow:active,.mletter:active,.post .acts span:active,[data-act]:active{
+.row:active,.actionrow:active,.mletter:active,.post .acts span:active,[data-act]:active:not(.bub):not(.bub *){
  transform:scale(.972);opacity:.68}
 /* ---------- 撤回「就地还原」的切换动画（轻、快、不卡）---------- */
 .bub.swapin{animation:swapIn .24s cubic-bezier(.2,.8,.3,1)}
 @keyframes swapIn{from{opacity:.35;transform:translateY(3px) scale(.985)}to{opacity:1;transform:none}}
 /* ---------- A. 全局点击反馈改为「主题色淡色提示」（像选中胶囊那种淡紫），不再缩放变暗 ---------- */
 .btn:active,.chip:active,.ibtn:active,.libtile:active,.app:active,.listitem:active,
-.row:active,.actionrow:active,.mletter:active,.post .acts span:active,#tabbar button:active,[data-act]:active{
+.row:active,.actionrow:active,.mletter:active,.post .acts span:active,#tabbar button:active,[data-act]:active:not(.bub):not(.bub *){
  background-color:rgba(172,142,206,.34) !important;
  background-color:color-mix(in srgb,var(--primary) 42%,transparent) !important;
  transform:none !important;opacity:1 !important;
@@ -1194,52 +1192,21 @@ html[data-idle="1"] .msgpop{transition:none !important}
 .mlcard.edit.imgfirst #lepic{order:3;margin-bottom:6px}
 .mlcard.edit.imgfirst #lt2{order:1}
 .mlcard.edit.imgfirst #lc2{order:2}
-/* ---------- 红包：气泡 + 领取/退还浮层参与液态玻璃（像图上那样透出壁纸）---------- */
-html[data-glass="1"] .bub:has(.transfer),html[data-glass="1"] .transfer{
- background:var(--glass-bg) !important;
- -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.25);
- backdrop-filter:blur(var(--glass-blur)) saturate(1.25);
- border:1px solid var(--glass-border);
- box-shadow:var(--glass-shadow),inset 0 1px 0 rgba(255,255,255,.5)}
-html[data-glass="1"] .txpop{
- background:var(--glass-bg);
- -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.25);
- backdrop-filter:blur(var(--glass-blur)) saturate(1.25);
- border:1px solid var(--glass-border);
- box-shadow:0 12px 32px rgba(0,0,0,.18);
- border-radius:16px}
-html[data-glass="1"] .txpop:before{background:rgba(255,255,255,.42)}
-/* 未开启玻璃时，红包依旧是实色面板，保证可读 */
 /* ---------- 引用定位：整行消息闪烁 ---------- */
 .msg.flashrow{border-radius:16px;animation:msgRowFlash 1.25s ease-out 2}
 @keyframes msgRowFlash{0%,100%{background-color:rgba(0,0,0,0)}30%{background-color:rgba(110,110,110,.26)}}
 
-/* ---------- 红包：气泡与领取/退还浮层都不参与液态玻璃，保持白色实色面板 ---------- */
-html[data-glass="1"] .bub:has(.transfer),html[data-glass="1"] .transfer{
- background:var(--card) !important;
- -webkit-backdrop-filter:none !important;backdrop-filter:none !important;
- border:none !important;
- box-shadow:0 1px 3px rgba(0,0,0,.07) !important;
- text-shadow:none}
-html[data-glass="1"] .txpop{
- background:#fff !important;
- -webkit-backdrop-filter:none !important;backdrop-filter:none !important;
- border:none !important;
- box-shadow:0 12px 32px rgba(0,0,0,.22) !important}
-html[data-glass="1"] .txpop:before{background:#fff !important}
 /* ---------- 引用定位：整行闪烁并延伸到屏幕两端 ---------- */
 .msg.flashrow{position:relative}
 .msg.flashrow:before{content:"";position:absolute;left:50%;width:100vw;transform:translateX(-50%);
  top:-5px;bottom:-5px;background:rgba(110,110,110,.26);border-radius:0;pointer-events:none;
  animation:rowFlashFade 1.3s ease-out 2}
 @keyframes rowFlashFade{0%,100%{opacity:0}28%{opacity:1}}
-/* ---------- 聊天消息气泡：一律不参与液态玻璃（保持实色、无模糊、无玻璃描边）---------- */
-html[data-glass="1"] .bub,
-html[data-glass="1"] .bub.message-sent,
-html[data-glass="1"] .bub.message-received{
+/* ---------- 聊天消息气泡 / 红包面板 / 领取·退还浮层：一律不参与液态玻璃，保持实色 ---------- */
+/* 这里只剥掉玻璃属性；实色底与阴影仍由 .bub / .message-sent / .bub.wfix / .txpop 决定，避免盖掉用户自定义气泡色 */
+html[data-glass="1"] .bub{
  -webkit-backdrop-filter:none !important;
  backdrop-filter:none !important;
- text-shadow:none !important;
- border:1px solid transparent}
-html[data-glass="1"] .bub .q,html[data-glass="1"] .bub .askcard,html[data-glass="1"] .bub .qzcard{
+ text-shadow:none !important}
+html[data-glass="1"] .bub *,html[data-glass="1"] .txpop,html[data-glass="1"] .txpop *{
  -webkit-backdrop-filter:none !important;backdrop-filter:none !important}

@@ -66,7 +66,7 @@ phone:SV('<path d="M5 4h4l2 5-2.4 1.6a12.5 12.5 0 0 0 4.8 4.8L15 13l5 2v4a2 2 0 
 phoneoff:SV('<path d="M3 10c5-4.5 13-4.5 18 0l-2.5 3-3-2 .8-2.2c-2.8-1-5.8-1-8.6 0L8.5 11l-3 2z"/><path d="M4 20L20 4"/>'),
  hangup:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 9c-1.6 0-3.1.25-4.5.7v2.1c0 .4-.2.7-.6.9-.8.4-1.5.9-2.2 1.5-.3.3-.7.3-1 0l-1.9-1.9c-.3-.3-.3-.8 0-1.1C4.8 8.9 8.2 7 12 7s7.2 1.9 10.2 5.2c.3.3.3.8 0 1.1l-1.9 1.9c-.3.3-.7.3-1 0-.7-.6-1.4-1.1-2.2-1.5-.4-.2-.6-.5-.6-.9v-2.1C15.1 9.25 13.6 9 12 9z"/></svg>',
  answer:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>',
-heart:SV('<path d="M12 20s-7-4.6-7-9.6C5 7 7.4 5 9.9 5c1.3 0 2.1.7 2.1.7S12.8 5 14.1 5C16.6 5 19 7 19 10.4c0 5-7 9.6-7 9.6z"/>'),
+heart:SV('<path d="M12 19.8C12 19.8 4.2 14.6 4.2 9.5C4.2 6.6 6.4 4.4 9.1 4.4C10.5 4.4 11.5 5 12 5.9C12.5 5 13.5 4.4 14.9 4.4C17.6 4.4 19.8 6.6 19.8 9.5C19.8 14.6 12 19.8 12 19.8z"/>'),
 cmt:SV('<path d="M20 4H4v12h4v4l5-4h7z"/>'),
 move:SV('<path d="M4 6h10M4 12h16M4 18h10"/><path d="M17 5l4 4-4 4" transform="translate(0,3)"/>'),
 check:SV('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
@@ -5340,7 +5340,7 @@ ACT["notify-perm"] = function () {
 };
 /* ================= 通话存档立刻落盘 + 红包强制实色（inline 优先级最高）================= */
 (function () {
-  /* ① 通话：用 kvSet 立即写入 IndexedDB（不走 250ms 防抖），切后台/被系统杀掉也不丢 */
+  /* 通话：用 kvSet 立即写入 IndexedDB（不走 250ms 防抖），切后台/被系统杀掉也不丢 */
   try {
     var _open = window.callOpen;
     if (_open) {
@@ -5370,36 +5370,4 @@ ACT["notify-perm"] = function () {
     document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(_restore, 400); });
     window.addEventListener("pageshow", function () { setTimeout(_restore, 400); });
   } catch (e) {}
-
-  /* ② 红包气泡 + 领取/退还浮层：内联样式强制白色实色、去模糊（内联优先级最高，压过一切玻璃规则）*/
-  function solidReds() {
-    try {
-      var bs = document.querySelectorAll(".bub .transfer");
-      for (var i = 0; i < bs.length; i++) {
-        var b = bs[i].closest(".bub");
-        if (!b) continue;
-        b.style.background = "#fff";
-        b.style.backdropFilter = "none";
-        b.style.webkitBackdropFilter = "none";
-        b.style.border = "none";
-        b.style.boxShadow = "0 1px 3px rgba(0,0,0,.07)";
-      }
-      var p = document.querySelector(".txpop");
-      if (p) {
-        p.style.background = "#fff";
-        p.style.backdropFilter = "none";
-        p.style.webkitBackdropFilter = "none";
-        p.style.border = "none";
-      }
-      var pa = document.querySelector(".txpop");
-      if (pa && pa.previousElementSibling) {}
-    } catch (e) {}
-  }
-  window.__xjSolidReds = solidReds;
-  var _rm = window.renderMsgs;
-  if (_rm) window.renderMsgs = function () { var r = _rm.apply(null, arguments); setTimeout(solidReds, 0); return r; };
-  var _stp = window.showTxPop;
-  if (_stp) window.showTxPop = function () { var r = _stp.apply(null, arguments); setTimeout(solidReds, 0); return r; };
-  setTimeout(solidReds, 700);
-  document.addEventListener("click", function () { setTimeout(solidReds, 40); }, true);
 })();
