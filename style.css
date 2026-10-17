@@ -1219,3 +1219,21 @@ html[data-glass="1"] .bub *,html[data-glass="1"] .txpop,html[data-glass="1"] .tx
 /* 领取/退还浮层同样扁平纯白 */
 html[data-glass="1"] .txpop,.txpop{background:#fff !important;border:none !important;box-shadow:0 8px 24px rgba(0,0,0,.14) !important;filter:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
 .txpop *{filter:none !important;text-shadow:none !important}
+/* ---------- 发红包弹窗：移动端完整显示 + 内部可滑动（不再被屏幕/键盘截断）---------- */
+#modal .sheet.panelsheet{
+ height:auto !important;
+ max-height:calc(100vh - var(--chatfoot,52px) - var(--kb,0px) - 20px) !important;
+ max-height:calc(100dvh - var(--chatfoot,52px) - var(--kb,0px) - 20px) !important;
+ overflow-y:auto !important;overflow-x:hidden !important;
+ -webkit-overflow-scrolling:touch;box-sizing:border-box}
+
+/* ---------- 聊天消息气泡：任何状态都保持纯白实色（点掉全局点击反馈带来的半透明"玻璃感"）---------- */
+.bub:active,.bub.active,.bub.glass,.bub.transparent{
+ -webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+.bub.message-received:active{background-color:var(--bub-ta-bg,#fff) !important}
+.bub.message-sent:active{background-color:var(--bub-me-bg,#fff) !important}
+.bub:before,.bub:after{content:none !important}
+/* 引用块 / 卡片类内嵌物也一律去模糊 */
+.bub .q:active,.bub .askcard:active,.bub .qzcard:active,.bub .transfer:active{
+ -webkit-backdrop-filter:none !important;backdrop-filter:none !important;
+ background-color:inherit !important}
