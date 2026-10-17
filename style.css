@@ -2,7 +2,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;background-color:var(--bg)}
 /* 主题渐变只放在 html 上（壁纸层下方），壁纸层本身绝不再叠加任何滤镜/遮罩 */
-html{background-image:var(--bg-grad,none);background-attachment:fixed;background-size:cover;background-position:center;background-repeat:no-repeat}
+html{background-image:var(--bg-grad,none);background-size:cover;background-position:center;background-repeat:no-repeat}
 :root{--primary:#5b6ea8;--primary-dark:#2c3e50;--bg:#eef1f6;--card:#ffffff;--surface:var(--card);--line:rgba(120,130,150,.16);--accent:var(--line);--text:#23262b;--muted:#8a8f98;--danger:#d64545}
 html[data-theme="star"]{--primary:#E6D2F6;--bg:#F4ECFB;--card:#fff}
 html[data-theme="sakura"]{--primary:#d98cae;--bg:#fbf0f4;--card:#fff}
@@ -25,14 +25,15 @@ textarea::-webkit-resizer{display:none}
 ::-webkit-resizer{display:none}
 /* 弹窗/抽屉内部滚动到底时不把滚动传给背后的页面（防止“跳顶”错觉） */
 #modal .sheet,#chatpanel{overscroll-behavior:contain}
-img{display:block;image-rendering:-webkit-optimize-contrast}
+img{display:block}
+.app .ico img,.listitem img,.libtile .ltico img,.sgrid img,.stkgrid img,.th,.fcimg{image-rendering:-webkit-optimize-contrast}
 #app.inkbg{background:var(--ink-bg)}
 #app.inkhead .phead{background:var(--ink-bg);border-bottom-color:var(--ink-line)}
 #app.inkhead .phead .t{color:var(--ink)}
 #app.inkhead .phead .ibtn{background:var(--ink-bg);color:var(--ink);border:1px solid var(--ink-line);box-shadow:none}#app{flex:1 1 auto;min-height:0;width:100%;max-width:560px;margin:0 auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;will-change:scroll-position;padding:0 12px calc(16px + var(--kb,0px))}
 /* ---------- 液态玻璃（Liquid Glass）全局材质 ---------- */
 :root{
- --glass-blur:16px;
+ --glass-blur:10px;
  --glass-bg:rgba(255,255,255,.18);
  --glass-border:rgba(255,255,255,.5);
  --glass-shadow:0 10px 30px rgba(0,0,0,.12);
@@ -48,7 +49,7 @@ html[data-glass="1"] .patbar,html[data-glass="1"] .mcard,html[data-glass="1"] .m
  -webkit-backdrop-filter:none;backdrop-filter:none;
  border:1px solid var(--glass-border);
  box-shadow:var(--glass-shadow),inset 0 1px 0 rgba(255,255,255,.5);
- text-shadow:var(--glass-text-shadow);border-radius:24px;transform:translateZ(0)}
+ text-shadow:var(--glass-text-shadow);border-radius:24px}
 /* 红包「领取 / 退还」小浮层：不参与液态玻璃，保持实色 */
 html[data-glass="1"] .txpop{background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;border:none;box-shadow:0 12px 32px rgba(0,0,0,.22);border-radius:16px}
 html[data-glass="1"] .txpop:before{background:#fff}
@@ -62,7 +63,7 @@ html[data-glass="1"] .btn,html[data-glass="1"] .ibtn,html[data-glass="1"] .chip{
  -webkit-backdrop-filter:none;backdrop-filter:none;
  border:1px solid var(--glass-border);
  box-shadow:0 2px 8px rgba(0,0,0,.05),inset 0 1px 0 rgba(255,255,255,.5);
- border-radius:14px;transform:translateZ(0)}
+ border-radius:14px}
 html[data-glass="1"] .btn.pri{background:var(--primary);color:var(--on-primary,#fff)}
 html[data-glass="1"] #modal .sheet,html[data-glass="1"] #chatpanel{
  background:var(--card);-webkit-backdrop-filter:none;backdrop-filter:none;opacity:1;filter:none;
@@ -283,7 +284,7 @@ input[type="password"]::-webkit-caps-lock-indicator{display:none !important;visi
 .bub .transfer .tr-st{color:#000;text-align:right}
 .bub .opt{font-size:13px;padding:1px 0}
 .sysmsg{align-self:center;font-size:12px;color:#000;background:rgba(128,128,128,.12);padding:3px 10px;border-radius:10px}
-.sysmsg img{display:block;width:96px;height:96px;object-fit:cover;border-radius:8px;margin:5px auto 1px}
+.sysmsg img{display:block;width:48px;height:48px;object-fit:cover;border-radius:8px;margin:5px auto 1px}
 .stkgrid .cell.on{outline:2px solid var(--primary);outline-offset:-2px}
 .retline{display:block;cursor:pointer}
 .txpop{position:fixed;z-index:80;background:#fff;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.22);padding:10px 12px 11px;width:206px;transform-origin:top center;animation:txpopin .16s ease-out}
@@ -1032,7 +1033,7 @@ html[data-glass="1"] #tabbar{
 html[data-glass="1"] #tabbarwrap,html[data-glass="1"] .tabbar{-webkit-backdrop-filter:none;backdrop-filter:none;background:transparent}
 html[data-glass="1"] .libtile{
  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.45);box-shadow:0 4px 16px rgba(0,0,0,.05);
- border-radius:18px;padding:14px 12px;text-shadow:none;transform:translateZ(0)}
+ border-radius:18px;padding:14px 12px;text-shadow:none}
 html[data-glass="1"] .libtile .ltico{
  background:rgba(255,255,255,.2);
  -webkit-backdrop-filter:none;backdrop-filter:none;
@@ -1047,7 +1048,7 @@ html[data-glass="1"] .app .ico{
  -webkit-backdrop-filter:blur(8px) saturate(1.2);backdrop-filter:blur(8px) saturate(1.2);
  border:1px solid var(--glass-border);
  box-shadow:0 4px 14px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);
- border-radius:15px;transform:translateZ(0);will-change:backdrop-filter}
+ border-radius:15px;transform:translateZ(0)}
 html[data-glass="1"] .app .lbl{background:none;border:none;box-shadow:none;text-shadow:none;color:var(--text);-webkit-backdrop-filter:none;backdrop-filter:none}
 /* 壁纸层 / 外壳：绝对干净，不加渐变、不加模糊、不加半透明底 */
 html[data-glass="1"] #chatbg,html[data-glass="1"] #app,html[data-glass="1"] body,html[data-glass="1"] html{-webkit-backdrop-filter:none;backdrop-filter:none;filter:none;background-color:transparent}
@@ -1078,8 +1079,8 @@ html[data-glass="1"] .voicemode{background:rgba(255,255,255,.30);color:var(--tex
 /* 底栏导航：清澈通透的液态玻璃（覆盖 --navop 那层不透明底） */
 html[data-glass="1"] #tabbar{
  background:rgba(255,255,255,.06);
- -webkit-backdrop-filter:blur(26px) saturate(1.5);
- backdrop-filter:blur(26px) saturate(1.5);
+ -webkit-backdrop-filter:blur(12px) saturate(1.15);
+ backdrop-filter:blur(12px) saturate(1.15);
  border:1px solid var(--glass-border);
  box-shadow:0 10px 30px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);
  border-radius:999px;opacity:1;filter:none;z-index:40}
@@ -1118,3 +1119,52 @@ html[data-glass="1"] #tabbar button.on{background:rgba(255,255,255,.26);border:1
 html[data-idle="1"] *,html[data-idle="1"] *:before,html[data-idle="1"] *:after{animation-play-state:paused !important}
 html[data-idle="1"] .typing,html[data-idle="1"] .vico svg *{animation:none !important}
 html[data-idle="1"] .msgpop{transition:none !important}
+/* ---------- 开屏动画：从中间一条细线向上下展开，底部英文舒缓浮现 ---------- */
+#splash{overflow:hidden}
+/* 只保留首尾两帧：整段用同一条缓动曲线，避免每个关键帧「停一下再走」造成的顿挫感 */
+#splash img{animation:spOpen 2.6s cubic-bezier(.58,0,.74,.5) .14s both}
+@keyframes spOpen{
+ 0%{clip-path:inset(49.85% 0 49.85% 0);opacity:.06;transform:scale(1.055)}
+ 100%{clip-path:inset(0 0 0 0);opacity:1;transform:scale(1)}
+}
+/* 中央细线：宽度一条曲线走到底（无断点），透明度单独 linear 淡入淡出 */
+#splash:before{content:"";position:absolute;left:50%;top:50%;height:1px;width:0;transform:translate(-50%,-50%);
+ background:linear-gradient(90deg,rgba(70,70,70,0),rgba(70,70,70,.6),rgba(70,70,70,0));
+ animation:spLineW 1.95s cubic-bezier(.55,0,.75,.5) .35s both,spLineO 1.95s linear .35s both}
+@keyframes spLineW{0%{width:0}100%{width:min(58vw,240px)}}
+@keyframes spLineO{0%{opacity:0}38%{opacity:.8}78%{opacity:.5}100%{opacity:0}}
+#splash .sp-mark{position:absolute;left:0;right:0;bottom:calc(10% + env(safe-area-inset-bottom));text-align:center;
+ font-size:11px;letter-spacing:.5em;text-indent:.5em;color:#9a9a9a;text-transform:uppercase;
+ opacity:0;animation:spMark 2.3s cubic-bezier(.22,1,.36,1) 1.5s both}
+@keyframes spMark{0%{opacity:0;letter-spacing:1.05em;filter:blur(9px);transform:translateY(4px)}
+ 100%{opacity:.9;letter-spacing:.5em;filter:blur(0);transform:none}}
+#splash .sp-hint{position:absolute;left:0;right:0;bottom:calc(5.2% + env(safe-area-inset-bottom));text-align:center;
+ font-size:10px;letter-spacing:.2em;color:#b9b9b9;opacity:0;animation:spMark 1.9s ease-out 3.1s both}
+/* ---------- 全局点击反馈：任何可点元素按下立刻有反应（字卡库工具按钮等不再「点了没变化」）---------- */
+.retback{display:block;cursor:pointer}
+.btn:active,.chip:active,.ibtn:active,.libtile:active,.app:active,.listitem:active,
+.row:active,.actionrow:active,.mletter:active,.post .acts span:active,[data-act]:active{
+ transform:scale(.972);opacity:.68}
+/* ---------- 撤回「就地还原」的切换动画（轻、快、不卡）---------- */
+.bub.swapin{animation:swapIn .24s cubic-bezier(.2,.8,.3,1)}
+@keyframes swapIn{from{opacity:.35;transform:translateY(3px) scale(.985)}to{opacity:1;transform:none}}
+/* ---------- A. 全局点击反馈改为「主题色淡色提示」（像选中胶囊那种淡紫），不再缩放变暗 ---------- */
+.btn:active,.chip:active,.ibtn:active,.libtile:active,.app:active,.listitem:active,
+.row:active,.actionrow:active,.mletter:active,.post .acts span:active,#tabbar button:active,[data-act]:active{
+ background-color:rgba(172,142,206,.34) !important;
+ background-color:color-mix(in srgb,var(--primary) 42%,transparent) !important;
+ transform:none !important;opacity:1 !important;
+ transition:background-color .08s ease !important}
+
+/* ---------- B. 音乐悬浮小窗：卡片大小固定（歌词长短不再改变尺寸）---------- */
+.mufloat.open{width:min(336px,calc(100vw - 24px));min-width:0;max-width:none}
+.mufloat .mflrc{height:42px;min-height:42px;max-height:42px;overflow:hidden}
+
+/* ---------- C. 聊天里的弹窗卡片上移：红包 / 拍一拍 / 头像和昵称 / 帮我决定，与「正在输入」同一高度 ---------- */
+#modal .sheet.panelsheet,#modal .sheet.avsheet,#modal .sheet.askpanel,#modal .sheet.patsheet{
+ margin-bottom:calc(var(--chatfoot,52px) + 8px + var(--kb,0px))}
+
+/* ---------- D. 开屏页跟随主题色（logo 用 multiply 融进主题底色）---------- */
+#splash{background-color:var(--bg);background-image:var(--bg-grad,none);background-attachment:fixed;background-size:cover;background-position:center}
+#splash img{mix-blend-mode:multiply}
+#splash .sp-mark,#splash .sp-hint{color:var(--muted)}

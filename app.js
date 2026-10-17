@@ -3067,15 +3067,19 @@ function dataUrlToBlob(u){return fetch(u).then(r=>r.blob())}
 /* bubble with proactive tag image */
 function msgBubble(m){if(m.type==="sys")return '<div class="sysmsg">'+(m.nickKeep?esc(m.text):esc(nickFill(m.pat?m.pat:m.text)))+(m.img?'<img src="'+m.img+'" alt="">':"")+"</div>";
  const me=m.from==="me";const s=S.settings;const c=s.chat||{};let inner="";
- if(m.retracted){const orig=m.type==="text"?(m.text||""):msgPlain(m);
-  inner='<span class="retline" data-act="view-retract" data-id="'+m.id+'"><i class="muted">'+(me?"我":"对方")+'撤回了一条消息</i></span>'+(m.showRet?'<div class="retview">'+esc(orig)+"</div>":"");}
- else if(m.type==="img")inner='<img src="'+m.data+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">";
+ if(m.type==="img")inner='<img src="'+m.data+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">";
  else if(m.type==="voice")inner='<span class="voice" data-act="play-voice" data-id="'+m.id+'"><span class="vico">'+ico("voicewave")+"</span><span class=\"vdur\">"+(m.dur||2)+'″</span></span>'+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
   else if(m.type==="transfer"||m.type==="redpacket")inner=txBubbleHtml(m,me);
  else if(m.type==="ask")inner=askBubbleHtml(m)
 else if(m.type==="quizset")inner=quizSetBubbleHtml(m)
 else if(m.type==="quiz")inner=quizBubbleHtml(m);
  else inner=(m.tag?'<span class="msgtag">'+tagHtml(m.tag)+"</span>":"")+(m.quote?'<span class="q"'+(m.quoteId?' data-act="locate-quote" data-qid="'+m.quoteId+'"':"")+'>'+quoteHtml(m.quote,m.quoteId)+"</span>":"")+(m.tagImg?'<img src="'+m.tagImg+'" style="max-width:80px;margin-bottom:4px">':"")+esc(m.text);
+ /* 撤回：默认只显示提示文字；点一下 → 就地还原成原本那条消息，再点一下收回 */
+ if(m.retracted){
+  inner=m.showRet
+   ? '<span class="retback" data-act="view-retract" data-id="'+m.id+'" title="点击收回">'+inner+"</span>"
+   : '<span class="retline" data-act="view-retract" data-id="'+m.id+'" title="点击查看原文"><i class="muted">'+(me?"我":"对方")+"撤回了一条消息</i></span>";
+ }
  const avaImg=me?S.assets.ava_me:S.assets.ava_ta;
  const ava=avatarHtml({src:avaImg,size:c.avaSize,shape:c.avaShape,name:me?s.myName:s.taName,me:me});
  const rd=(me&&c.read&&m.read)?'<span class="rd">已读</span>':"";
@@ -3823,9 +3827,13 @@ function voicePermDialog(){openSheet('<div class="mtitle">麦克风权限<button
 /* ================= 红包 =================
    一、红包发起弹窗　二、聊天里的红包气泡（双向收发 + 状态流转）　三、红包记录页 */
 const TXQC=["52","520","1314","5200"];
-const TX_NOTES=['闪来了','我只有两个心愿：你在身边，在你身边。','星星在','加油','相信你，相信我','照顾好自己','我喜欢你','我爱你','希望你开心','希望你幸福','我们一直在一起','理理我','你是最重要的','相信你自己','可以的','\\钱来/',''];
+const TX_NOTES=['闪来了','我只有两个心愿：你在身边，在你身边。','星星在','加油','相信你','相信我','照顾好自己','我喜欢你','我爱你','希望你开心','希望你幸福','我们一直在一起','理理我','你是最重要的','相信你自己','可以的','\\钱来/',''];
 /* 对方主动转账的附言：50% 直接留空；50% 从附言池随机抽（池里也含空串，抽到即空附言） */
-function taTransferNote(){return Math.random()<0.5?"":pick(TX_NOTES)}
+function txNotes(){const r=S.settings.reply=S.settings.reply||{};if(!Array.isArray(r.txNotes))r.txNotes=TX_NOTES.slice();
+ /* 老数据修复：「相信你，相信我」原本是一条，拆成「相信你」「相信我」两条 */
+ try{const i=r.txNotes.indexOf("相信你，相信我");if(i>=0)r.txNotes.splice(i,1,"相信你","相信我")}catch(e){}
+ return r.txNotes}
+function taTransferNote(){const n=txNotes();return Math.random()<0.5?"":(n.length?pick(n):"")}
 let txDraft={amt:"",note:""};
 function txTime(ts){const d=new Date(ts);return d.getFullYear()+"/"+pad(d.getMonth()+1)+"/"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())}
 function txAmtTxt(v){const n=+v;return isFinite(n)?n.toFixed(2):"0.00"}
@@ -3930,8 +3938,15 @@ PAGES.txrec={html(){const list=txAll().slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
    '<div class="row"><span class="lab">金额方式</span><span class="chips" style="gap:6px">'+[["fix","固定 4 位数"],["rand","随机 4 位数"]].map(function(x){return '<button class="chip'+(rpCfg().mode===x[0]?" on":"")+'" data-act="rp-mode" data-v="'+x[0]+'">'+x[1]+"</button>"}).join("")+"</span></div>"+
    (rpCfg().mode==="fix"?'<div class="row"><span class="lab">固定数额 <span class="sub">4 位数字</span></span><input type="number" data-set="rp.fix" value="'+rpCfg().fix+'" style="width:96px;flex:none"></div>':'<div class="row"><span class="lab">随机范围 <span class="sub">1000 ~ 9999（固定 4 位数）</span></span></div>')+
   "</div>"+
-  '<div class="muted" style="padding:10px 2px 0">点聊天里对方发来的红包气泡，可以收款或退还。</div>'},
+  '<div class="sect">对方红包里的语录</div><div class="card" style="padding:2px 12px">'+
+   (txNotes().length?txNotes().map(function(t,i){return '<div class="row"><span class="lab">'+esc(t||"（不写语录 · 只发红包）")+'</span><button class="ibtn" data-act="rp-note-del" data-i="'+i+'" title="删除">'+ico("trash")+"</button></div>"}).join(""):'<div class="empty">还没有语录</div>')+
+  "</div>"+
+  '<div class="btnrow fill" style="margin-top:10px"><button class="btn sm" data-act="rp-note-add">'+ico("plus")+' 新增语录</button><button class="btn sm" data-act="rp-note-reset">恢复默认</button></div>'+
+  '<div class="muted" style="padding:10px 2px 0">对方发红包时会随机挑一条写上（也可能不写）。点聊天里对方发来的红包气泡，可以收款或退还。</div>'},
  init(){}};
+ACT["rp-note-add"]=()=>{promptDlg("新增红包语录","").then(function(t){if(t==null)return;const v=String(t).trim();if(!v)return;const n=txNotes();n.push(v);save("settings");render();toast("已添加")})};
+ACT["rp-note-del"]=el=>{const n=txNotes();n.splice(+el.dataset.i,1);save("settings");render();toast("已删除")};
+ACT["rp-note-reset"]=()=>{const r=S.settings.reply=S.settings.reply||{};r.txNotes=TX_NOTES.slice();save("settings");render();toast("已恢复默认语录")};
 ACT["rp-mode"]=el=>{rpCfg().mode=el.dataset.v;save("settings");render()};
 ACT["tx-filter"]=el=>{S.misc.txFilter=el.dataset.v;save("misc");render()};
 /* ---------- 对方主动转账 / 主动退还（概率硬编码，无时间与次数拦截） ---------- */
@@ -4401,7 +4416,24 @@ function openPatSheet(){patSel=null;patFocus=false;patGateUntil=performance.now(
   if(!patTextOnly(t))return toast("这条不是文字拍一拍，已跳过");
   closeModal();sendPat(t,"me")}}
 /* 点击撤回的消息查看原文（再次点击隐藏） */
-ACT["view-retract"]=el=>{const m=S.chats.find(x=>x.id===el.dataset.id);if(!m||!m.retracted)return;m.showRet=!m.showRet;save("chats");renderMsgs()};
+let _retT=null;
+ACT["view-retract"]=el=>{const m=S.chats.find(x=>x.id===el.dataset.id);if(!m||!m.retracted)return;
+ m.showRet=!m.showRet;
+ /* 只重绘这一条气泡（不再整列表 renderMsgs），点击才会丝滑 */
+ try{
+  const bub=el.closest?el.closest(".bub"):null;
+  if(bub){
+   const tmp=document.createElement("div");tmp.innerHTML=msgBubble(m);
+   const nb=tmp.querySelector(".bub");
+   if(nb){
+    bub.innerHTML=nb.innerHTML;
+    bub.classList.remove("swapin");void bub.offsetWidth;
+    bub.classList.add("swapin");
+    clearTimeout(_retT);_retT=setTimeout(function(){try{bub.classList.remove("swapin")}catch(e){}},280);
+   }
+  }
+ }catch(e){}
+ save("chats")};
 ACT["pat-open"]=()=>openPatSheet();
 /* ---------- 分组管理模块（新建 / 删除分组） ---------- */
 function patGroupCount(n){return cardsOf(patCat()).filter(c=>c.group===n).length}
