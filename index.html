@@ -52,13 +52,16 @@ img{display:block;image-rendering:-webkit-optimize-contrast}
 .glass{position:relative;background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur));backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);border-radius:24px;overflow:hidden}
 .glass:before{content:"";position:absolute;left:0;right:0;top:0;height:46%;pointer-events:none;background:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0));border-radius:24px 24px 40% 40%}
 html[data-glass="1"] .card,html[data-glass="1"] .mwallet,html[data-glass="1"] .pchero,html[data-glass="1"] .pccal,
-html[data-glass="1"] .txpop,html[data-glass="1"] .mubar,html[data-glass="1"] .favbar,
+html[data-glass="1"] .mubar,html[data-glass="1"] .favbar,
 html[data-glass="1"] .patbar,html[data-glass="1"] .mcard,html[data-glass="1"] .mmallcats .chip{
  background:var(--glass-bg);
  -webkit-backdrop-filter:none;backdrop-filter:none;
  border:1px solid var(--glass-border);
  box-shadow:var(--glass-shadow),inset 0 1px 0 rgba(255,255,255,.5);
  text-shadow:var(--glass-text-shadow);border-radius:24px;transform:translateZ(0)}
+/* 红包「领取 / 退还」小浮层：不参与液态玻璃，保持实色 */
+html[data-glass="1"] .txpop{background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;border:none;box-shadow:0 12px 32px rgba(0,0,0,.22);border-radius:16px}
+html[data-glass="1"] .txpop:before{background:#fff}
 html[data-glass="1"] .card{position:relative;overflow:hidden}
 html[data-glass="1"] .card:before,html[data-glass="1"] .mwallet:before,html[data-glass="1"] .pchero:before{
  content:"";position:absolute;left:0;right:0;top:0;height:46%;pointer-events:none;
@@ -1048,13 +1051,13 @@ html[data-glass="1"] .libtile b,html[data-glass="1"] .libtile .ltmeta{background
 html[data-glass="1"] .libtile .ltmeta{color:var(--muted)}
 /* 主页 App 图标：只有图标方块是玻璃，外层不要框，下方文字保持清晰 */
 html[data-glass="1"] .app{background:none;border:none;box-shadow:none;text-shadow:none}
-/* 主页图标方块：磨砂白（带一点点通透，像液态玻璃但不至于太透） */
+/* 主页图标方块：磨砂糊化的液态玻璃（只这 8 个方块用模糊，影响可控） */
 html[data-glass="1"] .app .ico{
- background:rgba(255,255,255,.86);
- -webkit-backdrop-filter:none;backdrop-filter:none;
+ background:rgba(255,255,255,.42);
+ -webkit-backdrop-filter:blur(8px) saturate(1.2);backdrop-filter:blur(8px) saturate(1.2);
  border:1px solid var(--glass-border);
  box-shadow:0 4px 14px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);
- border-radius:15px;transform:translateZ(0)}
+ border-radius:15px;transform:translateZ(0);will-change:backdrop-filter}
 html[data-glass="1"] .app .lbl{background:none;border:none;box-shadow:none;text-shadow:none;color:var(--text);-webkit-backdrop-filter:none;backdrop-filter:none}
 /* 壁纸层 / 外壳：绝对干净，不加渐变、不加模糊、不加半透明底 */
 html[data-glass="1"] #chatbg,html[data-glass="1"] #app,html[data-glass="1"] body,html[data-glass="1"] html{-webkit-backdrop-filter:none;backdrop-filter:none;filter:none;background-color:transparent}
@@ -1111,6 +1114,8 @@ html[data-glass="1"] #tabbar button.on{background:rgba(255,255,255,.26);border:1
 #liblist .stkgrid .cellck{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border-radius:50%;background:var(--primary);color:var(--on-primary,#fff);display:flex;align-items:center;justify-content:center}
 #liblist .stkgrid .cellck svg{width:12px;height:12px}
 </style>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 <div id="chatbg"></div>
