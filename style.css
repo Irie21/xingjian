@@ -1233,3 +1233,13 @@ html[data-glass="1"] .txpop:before{background:#fff !important}
  top:-5px;bottom:-5px;background:rgba(110,110,110,.26);border-radius:0;pointer-events:none;
  animation:rowFlashFade 1.3s ease-out 2}
 @keyframes rowFlashFade{0%,100%{opacity:0}28%{opacity:1}}
+/* ---------- 聊天消息气泡：一律不参与液态玻璃（保持实色、无模糊、无玻璃描边）---------- */
+html[data-glass="1"] .bub,
+html[data-glass="1"] .bub.message-sent,
+html[data-glass="1"] .bub.message-received{
+ -webkit-backdrop-filter:none !important;
+ backdrop-filter:none !important;
+ text-shadow:none !important;
+ border:1px solid transparent}
+html[data-glass="1"] .bub .q,html[data-glass="1"] .bub .askcard,html[data-glass="1"] .bub .qzcard{
+ -webkit-backdrop-filter:none !important;backdrop-filter:none !important}

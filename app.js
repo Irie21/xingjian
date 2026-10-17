@@ -5338,3 +5338,68 @@ ACT["notify-perm"] = function () {
     }).catch(function (e) { add(false, "查询 SW 出错：" + e.message); out(); });
   })();
 };
+/* ================= 通话存档立刻落盘 + 红包强制实色（inline 优先级最高）================= */
+(function () {
+  /* ① 通话：用 kvSet 立即写入 IndexedDB（不走 250ms 防抖），切后台/被系统杀掉也不丢 */
+  try {
+    var _open = window.callOpen;
+    if (_open) {
+      window.callOpen = function (o) {
+        try {
+          o = o || {};
+          S.misc.callSave = { dir: o.dir, mode: o.mode, status: o.status, at: Date.now(), startedAt: (typeof callState !== "undefined" && callState && callState.startedAt) || Date.now() };
+          kvSet("misc", S.misc);                       /* 立刻落盘，不防抖 */
+        } catch (e) {}
+        return _open.apply(null, arguments);
+      };
+    }
+    var _restore = function () {
+      try {
+        var s = S.misc && S.misc.callSave;
+        if (!s || (typeof callState !== "undefined" && callState)) return;
+        var el = Date.now() - (s.at || 0);
+        if (s.mode === "ringing" && el > 50000) { delete S.misc.callSave; kvSet("misc", S.misc); return; }
+        if (s.mode === "active" || s.mode === "ringing") {
+          window.callOpen({ dir: s.dir, mode: s.mode, status: s.status, startedAt: s.startedAt });
+          try { toast("通话已恢复"); } catch (e) {}
+        }
+      } catch (e) {}
+    };
+    setTimeout(_restore, 900);
+    setTimeout(_restore, 2600);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(_restore, 400); });
+    window.addEventListener("pageshow", function () { setTimeout(_restore, 400); });
+  } catch (e) {}
+
+  /* ② 红包气泡 + 领取/退还浮层：内联样式强制白色实色、去模糊（内联优先级最高，压过一切玻璃规则）*/
+  function solidReds() {
+    try {
+      var bs = document.querySelectorAll(".bub .transfer");
+      for (var i = 0; i < bs.length; i++) {
+        var b = bs[i].closest(".bub");
+        if (!b) continue;
+        b.style.background = "#fff";
+        b.style.backdropFilter = "none";
+        b.style.webkitBackdropFilter = "none";
+        b.style.border = "none";
+        b.style.boxShadow = "0 1px 3px rgba(0,0,0,.07)";
+      }
+      var p = document.querySelector(".txpop");
+      if (p) {
+        p.style.background = "#fff";
+        p.style.backdropFilter = "none";
+        p.style.webkitBackdropFilter = "none";
+        p.style.border = "none";
+      }
+      var pa = document.querySelector(".txpop");
+      if (pa && pa.previousElementSibling) {}
+    } catch (e) {}
+  }
+  window.__xjSolidReds = solidReds;
+  var _rm = window.renderMsgs;
+  if (_rm) window.renderMsgs = function () { var r = _rm.apply(null, arguments); setTimeout(solidReds, 0); return r; };
+  var _stp = window.showTxPop;
+  if (_stp) window.showTxPop = function () { var r = _stp.apply(null, arguments); setTimeout(solidReds, 0); return r; };
+  setTimeout(solidReds, 700);
+  document.addEventListener("click", function () { setTimeout(solidReds, 40); }, true);
+})();
