@@ -3121,7 +3121,7 @@ function libTools(cat){return '<div class="toolbar libtools">'+
  '<button class="chip" data-act="lib-bulk">批量导入</button>'+
  '<button class="chip" data-act="lib-multi">多选管理</button>'+
  '<button class="chip" data-act="lib-dedup">去除重复</button>'+
- '<button class="chip" data-act="lib-block-menu">屏蔽功能</button>'+
+ (CATTYPE(cat)!=="img"?'<button class="chip" data-act="lib-block-menu">屏蔽功能</button>':"")+
  '<button class="chip" data-act="lib-export-cat">导出数据</button>'+
  '<button class="chip" data-act="lib-import-cat">导入数据</button>'+
  '<button class="chip danger" data-act="lib-cat-clear">清除'+esc(cat)+'</button>'+
@@ -3140,7 +3140,7 @@ function libGridHtml(cat,items,multi,sel){
   const blk=isBlocked(c)?" blocked":"";
   if(multi)return '<button type="button" class="cell'+blk+(sel.includes(c.id)?" on":"")+'" data-act="lib-seltile" data-id="'+c.id+'"><img src="'+c.data+'">'+(sel.includes(c.id)?'<span class="cellck">'+ico("check")+"</span>":"")+"</button>";
   return '<div class="cell'+blk+'"><img src="'+c.data+'" data-act="lib-edit" data-id="'+c.id+'">'+
-   '<button type="button" class="blk" data-act="lib-block" data-id="'+c.id+'" title="'+(isBlocked(c)?"取消屏蔽":"屏蔽")+'">'+ico("block")+"</button>"+
+
    '<button type="button" class="del" data-act="lib-del" data-id="'+c.id+'" title="删除">'+ico("trash")+"</button></div>"}).join("")+"</div>"):'<div class="empty">'+(((S.misc.q||{})[cat])?"没有匹配的内容":"这个分类还没有内容")+"</div>"}
 function libListHtml(cat){const q=(S.misc.q||{})[cat]||"";const gf=(S.misc.gf||{})[cat]||"";const multi=(S.misc.multi||{})[cat];const sel=(S.misc.sel||{})[cat]||[];
  let items=cardsOf(cat).filter(c=>(gf===""||c.group===gf)&&(!q||(c.type==="text"?c.content.includes(q):(c.name||"").includes(q))));
