@@ -1048,10 +1048,13 @@ html[data-glass="1"] .libtile b,html[data-glass="1"] .libtile .ltmeta{background
 html[data-glass="1"] .libtile .ltmeta{color:var(--muted)}
 /* 主页 App 图标：只有图标方块是玻璃，外层不要框，下方文字保持清晰 */
 html[data-glass="1"] .app{background:none;border:none;box-shadow:none;text-shadow:none}
+/* 主页图标方块：磨砂白（带一点点通透，像液态玻璃但不至于太透） */
 html[data-glass="1"] .app .ico{
- background:rgba(255,255,255,.15);
+ background:rgba(255,255,255,.86);
  -webkit-backdrop-filter:none;backdrop-filter:none;
- border:1px solid rgba(255,255,255,.65);box-shadow:0 4px 14px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.55);border-radius:15px;transform:translateZ(0)}
+ border:1px solid rgba(255,255,255,.8);
+ box-shadow:0 4px 14px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.9);
+ border-radius:15px;transform:translateZ(0)}
 html[data-glass="1"] .app .lbl{background:none;border:none;box-shadow:none;text-shadow:none;color:var(--text);-webkit-backdrop-filter:none;backdrop-filter:none}
 /* 壁纸层 / 外壳：绝对干净，不加渐变、不加模糊、不加半透明底 */
 html[data-glass="1"] #chatbg,html[data-glass="1"] #app,html[data-glass="1"] body,html[data-glass="1"] html{-webkit-backdrop-filter:none;backdrop-filter:none;filter:none;background-color:transparent}
