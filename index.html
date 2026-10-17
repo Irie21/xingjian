@@ -12,7 +12,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;background-color:var(--bg)}
 /* 主题渐变只放在 html 上（壁纸层下方），壁纸层本身绝不再叠加任何滤镜/遮罩 */
-html{background-image:var(--bg-grad,none);background-attachment:fixed;background-size:cover;background-position:center}
+html{background-image:var(--bg-grad,none);background-attachment:fixed;background-size:cover;background-position:center;background-repeat:no-repeat}
 :root{--primary:#5b6ea8;--primary-dark:#2c3e50;--bg:#eef1f6;--card:#ffffff;--surface:var(--card);--line:rgba(120,130,150,.16);--accent:var(--line);--text:#23262b;--muted:#8a8f98;--danger:#d64545}
 html[data-theme="star"]{--primary:#E6D2F6;--bg:#F4ECFB;--card:#fff}
 html[data-theme="sakura"]{--primary:#d98cae;--bg:#fbf0f4;--card:#fff}
@@ -1461,9 +1461,13 @@ function applyGlass(){
   const bgc=(S.settings.custom&&S.settings.custom.bg)?S.settings.custom.bg:"";
   const b=toRgb(bgc||st.getPropertyValue("--bg")||"#f6f6f3");
   const isInk=(S.settings.theme==="ink"||S.settings.theme==="bw");
-  const mix=function(t){return [Math.round(b[0]+(pri[0]-b[0])*t),Math.round(b[1]+(pri[1]-b[1])*t),Math.round(b[2]+(pri[2]-b[2])*t)]};  const c1=mix(.12),c2=mix(.72),c3=mix(.22);
+  const mix=function(t){return [Math.round(b[0]+(pri[0]-b[0])*t),Math.round(b[1]+(pri[1]-b[1])*t),Math.round(b[2]+(pri[2]-b[2])*t)]};
+  const rg=function(t,a){const c=mix(t);return "rgba("+c[0]+","+c[1]+","+c[2]+","+(a==null?1:a)+")"};
+  /* 背景：从上到下的柔和线性渐变（多节点均匀过渡，无断层） */
+  const gg="linear-gradient(to bottom, "
+   +rg(.46)+" 0%, "+rg(.36)+" 22%, "+rg(.26)+" 45%, "+rg(.15)+" 70%, "+rg(.05)+" 100%)";
   if(isInk){root.removeProperty("--bg-grad")}
-  else{root.setProperty("--bg-grad","linear-gradient(160deg, rgba("+c1[0]+","+c1[1]+","+c1[2]+",1) 0%, rgba("+c2[0]+","+c2[1]+","+c2[2]+",1) 55%, rgba("+c3[0]+","+c3[1]+","+c3[2]+",1) 100%)")}
+  else{root.setProperty("--bg-grad",gg)}
  }catch(e){}}
 function applyTheme(){const s=S.settings;document.documentElement.dataset.theme=s.theme;s.dark?document.documentElement.dataset.dark="1":document.documentElement.removeAttribute("data-dark");const st=document.documentElement.style;if(s.custom.primary)st.setProperty("--primary",s.custom.primary);else st.removeProperty("--primary");if(s.custom.bg)st.setProperty("--bg",s.custom.bg);else st.removeProperty("--bg");st.setProperty("--navop",(s.navOp==null?100:s.navOp)+"%");applyGlass();
  /* 图标色 / 主色底上的文字色：按与背景的对比自动校正，浅色主题（如紫黛）也看得清 */
