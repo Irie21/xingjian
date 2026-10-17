@@ -1103,3 +1103,18 @@ html[data-glass="1"] #tabbar button.on{background:rgba(255,255,255,.26);border:1
 #liblist .stkgrid .cell.blocked .blk{background:var(--primary);color:var(--on-primary,#fff)}
 #liblist .stkgrid .cellck{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border-radius:50%;background:var(--primary);color:var(--on-primary,#fff);display:flex;align-items:center;justify-content:center}
 #liblist .stkgrid .cellck svg{width:12px;height:12px}
+/* ---------- 应用内消息横幅（设置里的「桌面消息弹窗」）---------- */
+.msgpop{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-150%);width:min(520px,calc(100vw - 24px));z-index:95;
+ display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:16px;background:#fff;
+ box-shadow:0 12px 32px rgba(0,0,0,.20);cursor:pointer;
+ transition:transform .3s cubic-bezier(.2,.9,.3,1.15),opacity .3s;opacity:0;pointer-events:none}
+.msgpop.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+.msgpop .mp-av{width:34px;height:34px;flex:none;border-radius:50%;overflow:hidden;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
+.msgpop .mp-av img{width:100%;height:100%;object-fit:cover;display:block}
+.msgpop .mp-bd{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
+.msgpop .mp-bd b{font-size:13px;color:var(--text)}
+.msgpop .mp-bd span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---------- 全局省电：页面切到后台时暂停所有动画，减少 GPU/CPU 唤醒与发热 ---------- */
+html[data-idle="1"] *,html[data-idle="1"] *:before,html[data-idle="1"] *:after{animation-play-state:paused !important}
+html[data-idle="1"] .typing,html[data-idle="1"] .vico svg *{animation:none !important}
+html[data-idle="1"] .msgpop{transition:none !important}

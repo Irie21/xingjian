@@ -3,7 +3,7 @@
    策略：缓存名称带版本号（更新图标/代码时改版本号即可强制刷新）
         页面导航 → 网络优先（离线回退缓存）
         其它资源 → 缓存优先 + 后台静默更新（下次打开就是新版）           */
-const CACHE = 'xingjian-v2';
+const CACHE = 'xingjian-v3';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -57,6 +57,21 @@ self.addEventListener('fetch', function (e) {
           .catch(function () { return hit; });
         return hit || net;
       });
+    })
+  );
+});
+
+/* 点通知 → 打开 / 聚焦星笺（安卓通知点击行为） */
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if (c.url.indexOf('index.html') >= 0 && 'focus' in c) return c.focus();
+      }
+      if (list.length && 'focus' in list[0]) return list[0].focus();
+      if (self.clients.openWindow) return self.clients.openWindow('./index.html');
     })
   );
 });

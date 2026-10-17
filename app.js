@@ -159,7 +159,7 @@ const DEF_SETTINGS={
   me:{on:false,sel:"静音",custom:null},
   ring:{on:false,sel:"静音",custom:null},
  },
- system:{keepalive:false,notify:false,popup:true,offline:true,battery:false,storageWarn:80},
+ system:{keepalive:false,notify:false,popup:true,offline:true,storageWarn:80},
  ai:{
   ai:{baseUrl:"https://api.openai.com/v1",apiKey:"",model:"gpt-4o-mini"},
   minimax:{baseUrl:"https://api.minimax.chat/v1",apiKey:"",groupId:"",model:"abab6.5s-chat"},
@@ -406,8 +406,9 @@ PAGES.home={html(){const s=S.settings;const bg1=S.assets.bg_widget1,bg2=S.assets
  APPS.slice(8,10).map(a=>appTile(a)).join("")+
  '<div class="widget album-w'+(bg2?"":" nobg")+'" data-act="album-w-tap" style="'+(bg2?"background-image:url("+bg2+")":"")+'">'+(bg2?"":'<div class="album-label">相册</div>')+"</div>"+
  "</div>"},
- init(){tickHome();setInterval(tickHome,1000)}};
+ init(){tickHome();if(homeTickId)clearInterval(homeTickId);homeTickId=setInterval(function(){if(!document.hidden)tickHome()},10000)}};
 function appTile(a){return '<button class="app" data-act="open-app" data-page="'+a[0]+'"><span class="ico">'+appIcon(a[0])+'</span><span class="lbl">'+a[1]+"</span></button>"}
+let homeTickId=null;
 function tickHome(){const d=new Date();const el=$("#hdt");if(el)el.innerHTML="<b>"+pad(d.getHours())+":"+pad(d.getMinutes())+"</b>"+d.getFullYear()+"."+pad(d.getMonth()+1)+"."+pad(d.getDate())+" "+WD[d.getDay()];const wd=$("#wdays");if(wd)wd.textContent=annivDays(annivCfg().date)}
 /* ================= 纪念日小组件 ================= */
 function annivCfg(){S.misc.annivWidget=S.misc.annivWidget||{};const a=S.misc.annivWidget;
@@ -481,7 +482,7 @@ function showTyping(on,dueMs){if(on){TYPING.on=true;TYPING.due=Date.now()+(dueMs
 function typingActive(){return TYPING.on&&Date.now()<TYPING.due}
 function applyTyping(){const on=typingActive();const inChat=$("#typing");if(inChat)inChat.style.display=(on&&cur==="chat")?"block":"none";syncAboveBar()}
 function syncAboveBar(){const ab=$("#abovebar");if(!ab)return;const h=ab.offsetHeight;document.documentElement.style.setProperty("--above-h",(h>0?(h+6):0)+"px")}
-setInterval(()=>{if(TYPING.on&&!typingActive()){TYPING.on=false;TYPING.due=0;applyTyping()}},2000);
+setInterval(()=>{if(document.hidden)return;if(TYPING.on&&!typingActive()){TYPING.on=false;TYPING.due=0;applyTyping()}},4000);
 function renderMsgs(mode){const box=$("#msgs");if(!box)return;
  const sc=$("#chatscroll");
  const near=!sc||mode==="bottom"||((sc.scrollHeight-sc.scrollTop-sc.clientHeight)<90);
@@ -735,14 +736,52 @@ function scheduleActive(){clearTimeout(activeTimer);const c=S.settings.reply.cha
  const lo=Math.max(1,Math.min(c.activeMin||5,c.activeMax||10)),hi=Math.max(1,Math.max(c.activeMin||5,c.activeMax||10));
  activeTimer=setTimeout(()=>{tryActiveSend();scheduleActive()},rnd(lo,hi)*60000)}
 function tryActiveSend(){const s=S.settings,c=s.reply.chat;
- if(!c.activeOn||s.system.battery)return;
+ if(!c.activeOn)return;
  if(!chance(c.active))return;
  if(chance(c.pat)){taPat();return}
  const lo=Math.max(1,Math.min(c.activeCountMin||1,c.activeCountMax||3)),hi=Math.max(1,Math.max(c.activeCountMin||1,c.activeCountMax||3));
  let n=rnd(lo,hi);
  const step=()=>{if(n<=0)return;n--;const text=taTextContent();const m={from:"ta",type:"text",text};const t=pickActiveTag();if(t)m.tag=t;pushChat(m);playBlock("ta");notifyTA(text);if(n>0)setTimeout(step,rnd(700,1800))};
  step()}
-function notifyTA(text){const s=S.settings;if(s.system.popup)toast(s.taName+"："+text);if(s.system.notify&&document.hidden&&("Notification" in window)&&Notification.permission==="granted"){try{new Notification("星笺 · "+s.taName,{body:text})}catch(e){}}}
+/* 系统通知：安卓 Chrome / Edge 必须走 Service Worker 的 showNotification，
+   页面里直接 new Notification() 会被系统忽略（这就是「开了权限也没通知」的原因） */
+function pageNotif(title,opts){try{new Notification(title,opts)}catch(e){}}
+function sysNotif(title,opts){
+ try{
+  if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){
+   navigator.serviceWorker.getRegistration().then(function(reg){
+    if(reg&&reg.showNotification){try{reg.showNotification(title,opts).catch(function(){pageNotif(title,opts)})}catch(e){pageNotif(title,opts)}}
+    else pageNotif(title,opts);
+   }).catch(function(){pageNotif(title,opts)});
+   return;
+  }
+ }catch(e){}
+ pageNotif(title,opts);
+}
+/* 应用内消息横幅（对应设置里的「桌面消息弹窗」）*/
+let _mpTimer=null;
+function msgPop(text){
+ try{
+  const s=S.settings;let el=document.getElementById("msgpop");
+  if(!el){el=document.createElement("div");el.id="msgpop";el.className="msgpop";
+   el.addEventListener("click",function(){try{el.classList.remove("on");if(cur!=="chat")go("chat")}catch(e){}});
+   document.body.appendChild(el)}
+  const av=(S.assets.ava_ta?'<img src="'+S.assets.ava_ta+'">':esc(String(s.taName||"TA").slice(0,1)));
+  el.innerHTML='<span class="mp-av">'+av+'</span><span class="mp-bd"><b>'+esc(s.taName||"TA")+'</b><span>'+esc(String(text||""))+"</span></span>";
+  el.classList.add("on");
+  if(_mpTimer)clearTimeout(_mpTimer);
+  _mpTimer=setTimeout(function(){el.classList.remove("on")},4300);
+ }catch(e){}
+}
+function notifyTA(text){const s=S.settings;
+ if(document.hidden){
+  if(!s.system.notify)return;
+  if(!("Notification" in window)||Notification.permission!=="granted")return;
+  sysNotif("星笺 · "+(s.taName||"TA"),{body:String(text||""),icon:"icon-192.png",badge:"icon-192.png",tag:"xingjian-msg",renotify:true,vibrate:[80,40,80]});
+  return;
+ }
+ if(s.system.popup)msgPop(text);
+}
 /* voice record / send */
 let mediaRec=null,recChunks=[];
 PAGES.chatVoiceSend=null;
@@ -802,9 +841,10 @@ function answerCall(){if(!callState||callState.mode!=="ringing")return;stopRing(
 function rejectCall(){if(!callState||callState.mode!=="ringing")return;callEnd("已拒绝")}
 function userHangup(){if(!callState)return;if(callState.mode==="ringing"){callEnd("已取消");return}callEnd("已挂断")}
 function incomingCall(){if(callState)return;startRing();pushChat({type:"sys",text:callName()+" 给你打来了语音通话"});callOpen({dir:"in",mode:"ringing",status:"对方来电…"});
+ try{if(S.settings.system.notify&&document.hidden&&("Notification" in window)&&Notification.permission==="granted")sysNotif("星笺 · 语音通话",{body:callName()+" 给你打来语音通话",icon:"icon-192.png",badge:"icon-192.png",tag:"xingjian-call",renotify:true,vibrate:[200,80,200,80,200]})}catch(e){}
  let n=30;const cd=$("#callCd");if(cd){cd.hidden=false;cd.textContent=n+" 秒后未接听"}
  callCd=setInterval(()=>{if(!callState||callState.mode!=="ringing"){clearInterval(callCd);callCd=null;return}n--;if(n<=0){clearInterval(callCd);callCd=null;callEnd("未接听")}else if(cd)cd.textContent=n+" 秒后未接听"},1000)}
-function maybeIncoming(){if(callState)return;if(S.settings.system.battery)return;const now=Date.now();const last=Math.min(S.misc.lastCall||0,now);if(now-last<300000)return;if(Math.random()*100>=callCfg().incoming)return;if(document.hidden)return;incomingCall()}
+function maybeIncoming(){if(callState)return;const now=Date.now();const last=Math.min(S.misc.lastCall||0,now);if(now-last<300000)return;if(Math.random()*100>=callCfg().incoming)return;if(document.hidden)return;incomingCall()}
 function callIncomingLoop(){setTimeout(()=>{try{maybeIncoming()}catch(e){};callIncomingLoop()},rnd(60000,120000))}
 function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)return;m.dataset.dragInit="1";
  let sx=0,sy=0,ox=0,oy=0,drag=false;
@@ -2898,11 +2938,63 @@ function mallBoxSheet(){const m=mallCfg();
 /* ================= system loops ================= */
 let wakeLock=null,silentNode=null;
 function applySystem(){const s=S.settings.system;
- if(s.keepalive&&!s.battery){const a=ac();if(a&&!silentNode){const b=a.createBuffer(1,a.sampleRate,a.sampleRate);silentNode=a.createBufferSource();silentNode.buffer=b;silentNode.loop=true;const g=a.createGain();g.gain.value=.0001;silentNode.connect(g);g.connect(a.destination);silentNode.start()}if(navigator.wakeLock)navigator.wakeLock.request("screen").then(w=>wakeLock=w).catch(()=>{})}
+ if(s.keepalive){const a=ac();if(a&&!silentNode){const b=a.createBuffer(1,a.sampleRate,a.sampleRate);silentNode=a.createBufferSource();silentNode.buffer=b;silentNode.loop=true;const g=a.createGain();g.gain.value=.0001;silentNode.connect(g);g.connect(a.destination);silentNode.start()}}
  else{if(silentNode){try{silentNode.stop()}catch(e){}silentNode=null}if(wakeLock){wakeLock.release();wakeLock=null}}
- if(s.notify&&("Notification" in window)&&Notification.permission==="default")Notification.requestPermission()}
-function offlineCheck(){const s=S.settings;if(!s.system.offline)return;const last=S.misc.lastSeen||Date.now();const el=Date.now()-last;if(el<30*60000)return;const n=rnd(1,2);for(let i=0;i<n;i++){S.chats.push({id:uid(),from:"ta",type:"text",text:taTextContent(),ts:last+rnd(1,Math.max(2,Math.floor(el/60000)))*60000})}save("chats");S.misc.unread=true;save("misc");toast("收到 "+n+" 条离线消息");renderTabbar()}
-setInterval(()=>{S.misc.lastSeen=Date.now();save("misc")},30000);
+ if(s.notify&&("Notification" in window)&&Notification.permission==="default")Notification.requestPermission();
+ bgStart()}
+/* ================= 后台保活：Worker 心跳 + 回到前台自动补课 ================= */
+let bgWorker=null,bgHiddenAt=0,bgLastTick=0;
+function bgRunAll(){
+ if(Date.now()-bgLastTick<3000)return;
+ bgLastTick=Date.now();
+ try{trCheck()}catch(e){} try{locCheck()}catch(e){} try{locHintTick()}catch(e){}
+ try{memoTick()}catch(e){} try{memoSysDue()}catch(e){}
+ try{taMomentCheck()}catch(e){} try{taLetterCheck()}catch(e){}
+ try{quizSetTickAll()}catch(e){} try{catchUpAsks()}catch(e){}
+ try{mallAuto()}catch(e){} try{periodCareCheck()}catch(e){} try{avTick()}catch(e){}
+}
+/* 后台时用 Worker 心跳继续跑：Worker 不会被浏览器的「密集节流」压到 1 分钟一次 */
+function bgStart(){const s=S.settings.system;const want=!!s.keepalive;
+ if(want&&!bgWorker){
+  try{const url=URL.createObjectURL(new Blob(["let n=0;setInterval(function(){n++;postMessage(n)},12000)"],{type:"text/javascript"}));
+   bgWorker=new Worker(url);bgWorker.onmessage=function(){if(document.hidden)bgRunAll()};
+  }catch(e){bgWorker=null}}
+ else if(!want&&bgWorker){try{bgWorker.terminate()}catch(e){}bgWorker=null}}
+/* 回到前台：把离开期间该发生的事一次补上 */
+function bgCatchUp(){const away=bgHiddenAt?Date.now()-bgHiddenAt:0;bgHiddenAt=0;
+ if(away<60000)return;
+ bgRunAll();
+ try{offlineCheck(true)}catch(e){}
+ try{toast("后台保活：已补上你离开的 "+Math.max(1,Math.round(away/60000))+" 分钟")}catch(e){}}
+/* 全局省电：页面在后台、且没开「后台保活」时，所有周期检查直接跳过，避免无谓唤醒 */
+function whenAwake(fn){return function(){if(document.hidden&&!(S.settings.system&&S.settings.system.keepalive))return;try{fn()}catch(e){}}}
+let _muBeat=0;
+document.addEventListener("visibilitychange",function(){
+ try{
+  if(document.hidden)document.documentElement.dataset.idle="1";
+  else delete document.documentElement.dataset.idle;
+ }catch(e){}
+ if(document.hidden)bgHiddenAt=Date.now();
+ else bgCatchUp()});
+window.addEventListener("focus",function(){if(!document.hidden&&bgHiddenAt)bgCatchUp()});
+/* 离线消息提醒：离开 ≥10 分钟，回来按离开时长补 1~4 条 TA 的消息并提示 */
+function offlineCheck(force){
+ const s=S.settings;if(!s.system.offline)return;
+ const now=Date.now(),last=S.misc.lastSeen||now;
+ const el=now-last,mins=Math.floor(el/60000);
+ S.misc.lastSeen=now;
+ if(!force&&el<10*60000)return;
+ if(mins<1)return;
+ const n=Math.min(4,Math.max(1,Math.round(mins/20)));
+ for(let i=0;i<n;i++){S.chats.push({id:uid(),from:"ta",type:"text",text:taTextContent(),ts:now-rnd(1,Math.max(2,mins))*60000})}
+ save("chats");S.misc.unread=true;save("misc");renderTabbar();
+ if(cur==="chat")renderMsgs();
+ msgPop("你离开的 "+mins+" 分钟里，TA 给你留了 "+n+" 条消息");
+}
+setInterval(()=>{if(!document.hidden){S.misc.lastSeen=Date.now();save("misc")}},60000);
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){S.misc.lastSeen=Date.now();save("misc")}
+ else{try{offlineCheck()}catch(e){}}});
 window.addEventListener("pagehide",()=>{S.misc.lastSeen=Date.now();kvSet("misc",S.misc)});
 /* ================= media helpers ================= */
 function mediaUrl(data,key){if(typeof data==="string")return data;if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
@@ -3160,7 +3252,7 @@ function modSound(){const s=S.settings.sound;
  sndBlock("ta","TA 发送消息",SND_MSG)+sndBlock("me","我发送消息",SND_MSG)+sndBlock("ring","TA 来电铃声",SND_RING)+
  '<div class="card muted">点选音效会立即试听（不受总开关影响）；总开关只决定收到消息 / 来电时是否自动播放。上传自定义音频后会新增「自定义」选项并自动选中。</div>'}
 /* ---- L2 系统 ---- */
-PAGES.setsys={html(){const s=S.settings.system;const rows=[["keepalive","后台保活","保持后台运行，减少被系统回收"],["notify","后台通知","TA 来消息时发送系统通知"],["popup","桌面消息弹窗","应用内弹出消息提示"],["offline","离线消息提醒","重新打开时补发离线期间消息"],["battery","优化电量消耗和手机发烫","降低后台频率与保活，省电降温"]];
+PAGES.setsys={html(){const s=S.settings.system;const rows=[["keepalive","后台保活","保持后台运行，减少被系统回收"],["notify","后台通知","TA 来消息时发送系统通知"],["popup","桌面消息弹窗","应用内弹出消息提示"],["offline","离线消息提醒","重新打开时补发离线期间消息"]];
  return phead("系统")+'<div class="card">'+rows.map(r=>'<div class="row"><span class="lab">'+r[1]+'<br><span class="sub">'+r[2]+'</span></span><label class="sw"><input type="checkbox" data-set="system.'+r[0]+'" '+(s[r[0]]?"checked":"")+"><i></i></label></div>").join("")+"</div>"},
  init(){}};
 /* ---- L2 AI ---- */
@@ -4849,15 +4941,27 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
  for(const k in FLOWER_MASKS){try{document.documentElement.style.setProperty("--flower-"+k,'url("'+FLOWER_MASKS[k]+'")')}catch(e){}}
  applyTheme();applyChatUI();applyFont();applySystem();renderTabbar();render();initCallMiniDrag();initKeyboardAdapt();
+ /* 老数据清理：已移除「优化电量消耗」模块，删掉遗留设置项（S 是 Proxy，需整体重建对象） */
+ try{const sy=S.settings.system;if(sy&&("battery" in sy)){const c={};Object.keys(sy).forEach(function(k){if(k!=="battery")c[k]=sy[k]});S.settings.system=c;save("settings")}}catch(e){}
  offlineCheck();scheduleActive();
- taMomentCheck();taLetterCheck();setInterval(()=>{taMomentCheck();taLetterCheck()},10*60000);
- try{quizSetTickAll();setInterval(quizSetTickAll,5000)}catch(e){}
+ taMomentCheck();taLetterCheck();setInterval(whenAwake(function(){taMomentCheck();taLetterCheck()}),10*60000);
+ try{quizSetTickAll();setInterval(whenAwake(function(){quizSetTickAll()}),20000)}catch(e){}
  try{catchUpAsks()}catch(e){}
- try{trCheck();setInterval(trCheck,60000);locCheck();setInterval(locCheck,60000);locHintTick();setInterval(locHintTick,30000)}catch(e){} try{moodSeedIntoLib()}catch(e){}
- try{memoTick();setTimeout(memoTick,60000);setInterval(memoTick,240000);setInterval(memoSysDue,300000)}catch(e){}
- try{try{periodCareCheck()}catch(e){};setInterval(function(){try{periodCareCheck()}catch(e){}},300000)}catch(e){}
- try{mallAuto();setInterval(function(){try{mallAuto()}catch(e){}},600000)}catch(e){} try{setInterval(function(){try{if(muAudio){muTick()}muFloatSync()}catch(e){}},1000)}catch(e){}
- avTick();setInterval(avTick,60000);
+ try{trCheck();setInterval(whenAwake(trCheck),60000);locCheck();setInterval(whenAwake(locCheck),60000);locHintTick();setInterval(whenAwake(locHintTick),30000)}catch(e){} try{moodSeedIntoLib()}catch(e){}
+ try{memoTick();setTimeout(memoTick,60000);setInterval(whenAwake(memoTick),240000);setInterval(whenAwake(function(){memoSysDue()}),300000)}catch(e){}
+ try{periodCareCheck();setInterval(whenAwake(function(){periodCareCheck()}),300000)}catch(e){}
+ try{mallAuto();setInterval(whenAwake(function(){mallAuto()}),600000)}catch(e){}
+ /* 音乐 / 悬浮球：只有真在播放时才 1 秒一跳，其余 5 秒一跳，后台完全停 */
+ setInterval(function(){
+  try{
+   if(document.hidden)return;
+   _muBeat++;
+   let busy=false;try{busy=!!muAudio}catch(e){}
+   if(!busy){const f=document.getElementById("mufloat");busy=!!(f&&f.style.display!=="none")}
+   if(busy||_muBeat%5===0){try{if(muAudio)muTick()}catch(e){};muFloatSync()}
+  }catch(e){}
+ },1000);
+ avTick();setInterval(whenAwake(avTick),60000);
  try{callIncomingLoop()}catch(e){}
  $("#splash").addEventListener("click",()=>{ac();$("#splash").classList.add("hide");setTimeout(()=>$("#splash").style.display="none",700)});}
 /* PWA：注册 Service Worker（Chrome / Edge 安装到手机桌面需要它）*/
