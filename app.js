@@ -411,7 +411,8 @@ function applyChatBg(){const el=$("#chatbg");if(!el)return;
  /* 聊天页用「聊天背景图」，主页用「手机桌面背景图」，其余页面用纯色 */
  const bg=cur==="chat"?S.assets.chat_bg:(cur==="home"?S.assets.bg_home:"");
  el.style.backgroundImage=bg?"url("+bg+")":""}
-/* 关掉输入法的智能填充 / 密码卡片工具栏（安卓 Chrome 常见）*/
+/* 关掉输入法的智能填充 / 密码卡片工具栏（安卓 Chrome 常见）
+   聊天框与评论框统一用 type="search"：安卓 Chrome 对 search 类型不弹「🔑 💳 📍」自动填充条 */
 function msgInputAttrs(el){
  if(!el||el.__xjAttr)return;el.__xjAttr=1;
  try{
@@ -419,7 +420,11 @@ function msgInputAttrs(el){
   el.setAttribute("autocorrect","off");
   el.setAttribute("autocapitalize","off");
   el.setAttribute("spellcheck","false");
-  if(el.id==="cin"||el.id==="fcin")el.setAttribute("enterkeyhint","send");
+  /* 兜底：万一有其它代码路径重建了这两个输入框，这里补一次 */
+  if(el.id==="cin"||el.id==="fcin"){
+   if((el.getAttribute("type")||"text").toLowerCase()==="text")el.setAttribute("type","search");
+   el.setAttribute("enterkeyhint","send");
+  }
  }catch(e){}
 }
 function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,kbOpen=false;
@@ -526,7 +531,7 @@ PAGES.chat={html(){const s=S.settings;
   '<button class="ibtn" data-act="chat-set" title="聊天设置">'+ico("star")+'</button></div>'+
   '<div class="chatscroll" id="chatscroll"><div class="msgs" id="msgs"></div></div>'+
   '<div id="abovebar"><div class="typing" id="typing">对方正在输入…</div><div id="quotebar"></div><div id="multibar"></div></div>'+
-  '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button class="ibtn" data-act="chat-menu" title="功能">'+ico("heart")+'</button><button class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="text" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
+  '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button type="button" class="ibtn" data-act="chat-menu" title="功能">'+ico("heart")+'</button><button type="button" class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
   '<div id="chatpanel"></div><div id="msgmenu"></div>'},
  init(){renderMsgs("bottom");setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});renderTabbar()}};
 let curChatStatus="在线";
@@ -1191,7 +1196,7 @@ function feedCmtBar(){let el=document.getElementById("fcbar");
  const hadFocus=!!(oldIn&&document.activeElement===oldIn);
  el.innerHTML='<button class="ibtn" data-fc="emo" title="表情包">'+ico("sticker")+'</button><button class="ibtn" data-fc="img" title="图片">'+ico("img")+'</button>'+
   (_fc.img?('<span class="fcatt"><img src="'+_fc.img+'"><button data-fc="rm" title="移除">'+ico("close")+'</button></span>'):"")+
-  '<input id="fcin" value="'+esc(keepTxt)+'" placeholder="'+(c?("回复 "+esc(c.who)+"…"):"评论…")+'">'+
+  '<input id="fcin" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" value="'+esc(keepTxt)+'" placeholder="'+(c?("回复 "+esc(c.who)+"…"):"评论…")+'">'+
   '<button class="btn pri" data-fc="send">发送</button>';
  if(hadFocus){const ni=document.getElementById("fcin");if(ni){try{ni.focus();ni.setSelectionRange(ni.value.length,ni.value.length)}catch(e){}}}}
 function renderMoments(){const box=$("#mbox");if(!box)return;
@@ -3864,9 +3869,10 @@ function txAll(){return S.chats.filter(m=>m&&(m.type==="transfer"||m.type==="red
 function transferSheet(){const nm=esc(S.settings.taName||"TA");
  const sh=openSheet('<div class="mtitle"><span class="mtt">发红包给 '+nm+'</span><button class="ibtn" data-r="x">'+ico("close")+"</button></div>"+
   '<div class="txbig"><span class="cur">¥</span><input id="txamt" type="number" inputmode="decimal" placeholder="0.00" value="'+esc(txDraft.amt)+'"></div>'+
-  '<div class="chips" style="margin-top:12px">'+TXQC.map(q=>'<button class="chip" data-tr="amt" data-v="'+q+'">¥'+q+"</button>").join("")+"</div>"+
-  '<div class="row" style="border:none;padding:10px 0 0"><input id="txnote" placeholder="添加备注（可不填）" value="'+esc(txDraft.note)+'"></div>'+
-  '<div class="btnrow" style="margin-top:16px"><button class="btn" style="flex:1" data-tr="rec">记录</button><button class="btn pri" style="flex:1" data-tr="ok">发红包</button></div>');sh.classList.add("panelsheet");
+  '<div class="chips">'+TXQC.map(q=>'<button class="chip" data-tr="amt" data-v="'+q+'">¥'+q+"</button>").join("")+"</div>"+
+  '<div class="row"><input id="txnote" placeholder="添加备注（可不填）" value="'+esc(txDraft.note)+'"></div>'+
+  '<div class="btnrow"><button class="btn" data-tr="rec">记录</button><button class="btn pri" data-tr="ok">发红包</button></div>');
+ sh.classList.add("rpsheet");
  $("#modal .sheet").onclick=e=>{
   if(e.target.closest("[data-r]")){txDraft={amt:"",note:""};closeModal();return}
   const b=e.target.closest("[data-tr]");if(!b)return;const op=b.dataset.tr;
@@ -4162,7 +4168,7 @@ function setVoiceMode(on){const bar=$("#chatbar");if(!bar)return;
   const vb=$("#vbtn");
   vb.addEventListener("pointerdown",e=>{e.preventDefault();if(!allowed){voicePermDialog();return}startRecord()});
   vb.addEventListener("pointerup",()=>{if(mediaRec&&mediaRec.state==="recording")mediaRec.stop()})}
- else{bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("heart")+'</button><input id="cin" type="text" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button class="ibtn" data-act="chat-img">'+ico("img")+'</button><button class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});initVoiceToggle(inp)}}
+ else{bar.innerHTML='<button type="button" class="ibtn" data-act="chat-menu">'+ico("heart")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});initVoiceToggle(inp)}}
 /* ---- 问卷自动作答 ---- */
 /* ================= 底部面板 / 消息操作 / 引用 / 多选 / 收藏 ================= */
 let chatPanelMode=null;

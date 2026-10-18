@@ -50,7 +50,8 @@ html[data-glass="1"] .patbar,html[data-glass="1"] .mcard,html[data-glass="1"] .m
  border:1px solid var(--glass-border);
  box-shadow:var(--glass-shadow),inset 0 1px 0 rgba(255,255,255,.5);
  text-shadow:var(--glass-text-shadow);border-radius:24px}
-html[data-glass="1"] .card{position:relative;overflow:hidden}
+/* 卡片只做高光定位上下文，绝不加 overflow:hidden（那会把卡片里任何可滚内容一起锁死） */
+html[data-glass="1"] .card{position:relative}
 html[data-glass="1"] .card:before,html[data-glass="1"] .mwallet:before,html[data-glass="1"] .pchero:before{
  content:"";position:absolute;left:0;right:0;top:0;height:46%;pointer-events:none;
  background:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0));opacity:.6;border-radius:24px 24px 40% 40%}
@@ -65,8 +66,15 @@ html[data-glass="1"] .btn.pri{background:var(--primary);color:var(--on-primary,#
 html[data-glass="1"] #modal .sheet,html[data-glass="1"] #chatpanel{
  background:var(--card);-webkit-backdrop-filter:none;backdrop-filter:none;opacity:1;filter:none;
  border:1px solid var(--glass-border);box-shadow:0 10px 28px rgba(0,0,0,.12)}
-html[data-glass="1"] #modal .sheet{overflow:hidden}
-html[data-glass="1"] #modal .sheet:before{content:"";position:absolute;left:0;right:0;top:0;height:38%;pointer-events:none;background:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0))}
+/* 弹窗绝不加 overflow:hidden（那会让弹窗内容既看不到、也滑不动）→ 恢复纵滑，横溢裁掉 */
+html[data-glass="1"] #modal .sheet{
+ position:relative;overflow-y:auto;overflow-x:hidden;
+ background-image:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0));
+ background-repeat:no-repeat;background-size:100% 56px;background-position:top}
+/* 拍一拍 / 头像昵称面板：外层不滚，滚动交给内部 .patlist / .avbody，避免双滚动条 */
+html[data-glass="1"] #modal .sheet.patsheet,html[data-glass="1"] #modal .sheet.avsheet{overflow:hidden}
+/* 高光改用「元素自身背景」实现：永远画在内容之下，既不会盖住页面，也不会糊住标题文字 */
+html[data-glass="1"] #modal .sheet:before{content:none}
 /* ---------- splash ---------- */#splash{position:fixed;inset:0;background:#fff;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .6s;cursor:pointer}
 #splash.hide{opacity:0;pointer-events:none}
 #splash img{width:100%;height:100%;object-fit:contain}
@@ -193,6 +201,14 @@ input[type="password"]::-webkit-credentials-auto-fill-button{display:none !impor
 input[type="password"]::-webkit-strong-password-auto-fill-button{display:none !important;visibility:hidden !important;pointer-events:none !important}
 input[type="password"]::-webkit-contacts-auto-fill-button{display:none !important;visibility:hidden !important;pointer-events:none !important}
 input[type="password"]::-webkit-caps-lock-indicator{display:none !important;visibility:hidden !important;pointer-events:none !important}
+/* 输入框用 type="search" 关闭安卓 Chrome 自动填充条后：隐藏 iOS / 安卓自带的放大镜与清除按钮，外观保持原样 */
+input[type="search"]{-webkit-appearance:none;appearance:none}
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration{-webkit-appearance:none;appearance:none;display:none}
+input[type="search"]::-ms-clear{display:none;width:0;height:0}
+input[type="search"]::-ms-reveal{display:none;width:0;height:0}
 /* 隐藏 Element UI / Vant / Ant 等框架的眼睛图标 */
 .el-input__password-icon,.van-password-input__eye,.van-field__right-icon,.ant-input-password-icon{display:none !important}
 /* 自绘眼睛按钮：足够点击热区、颜色跟随主题 */
@@ -1237,3 +1253,52 @@ html[data-glass="1"] .txpop,.txpop{background:#fff !important;border:none !impor
 .bub .q:active,.bub .askcard:active,.bub .qzcard:active,.bub .transfer:active{
  -webkit-backdrop-filter:none !important;backdrop-filter:none !important;
  background-color:inherit !important}
+
+/* ================= 液态玻璃：全局交互修复（问题一）================= */
+/* 1) 「看不见的膜」：玻璃效果的所有纯视觉图层（高光伪元素 / 底衬 / 遮罩）一律不吃触摸事件。
+      它们只负责好看，绝不拦截点击与滑动。 */
+.glass:before,.glass:after,
+html[data-glass="1"] .card:before,html[data-glass="1"] .card:after,
+html[data-glass="1"] .mwallet:before,html[data-glass="1"] .mwallet:after,
+html[data-glass="1"] .pchero:before,html[data-glass="1"] .pchero:after,
+html[data-glass="1"] .phead:before,html[data-glass="1"] .phead:after,
+html[data-glass="1"] .libtile:before,html[data-glass="1"] .libtile:after,
+html[data-glass="1"] #modal .sheet:before,html[data-glass="1"] #modal .sheet:after,
+html[data-glass="1"] #tabbar:before,html[data-glass="1"] #tabbar:after,
+.bar-bg,#splash:after,.widget:before,.msg .flash{pointer-events:none}
+
+/* 2) 「滑不动」：玻璃模式绝不允许把"能滚"改没。所有滚动容器保持可纵滑。 */
+html[data-glass="1"] #app,html[data-glass="1"] .chatscroll,html[data-glass="1"] #chatpanel,
+html[data-glass="1"] .patlist,html[data-glass="1"] .avbody,html[data-glass="1"] .chiprow,
+html[data-glass="1"] #modal .sheet:not(.patsheet):not(.avsheet){
+ overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+/* 仅这两类面板是「外层不滚、内层滚」，必须保留 overflow:hidden */
+html[data-glass="1"] #modal .sheet.patsheet,html[data-glass="1"] #modal .sheet.avsheet{overflow:hidden}
+
+/* ================= 【问题二】发红包弹窗：一屏显示，无需滑动 ================= */
+/* 尺寸：宽 ≤85vw 且水平居中，高 ≤75vh，box-sizing 统一按 border-box 计算，
+   把所有 padding/margin 都算进 75vh 里，保证底部按钮一定在屏幕内、点得到。 */
+#modal .sheet.rpsheet{
+ width:min(85vw,420px);max-width:85vw;
+ height:auto;max-height:75vh;max-height:75dvh;
+ box-sizing:border-box;
+ padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+ margin:0 auto calc(var(--chatfoot,52px) + 8px + var(--kb,0px));
+ border-radius:22px;
+ overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none}
+#modal .sheet.rpsheet::-webkit-scrollbar{display:none}
+/* 标题区：上下 margin 收紧 */
+#modal .sheet.rpsheet .mtitle{margin:0 0 8px}
+/* 金额输入：输入行变矮、字号缩小、下分割线间距收紧 */
+#modal .sheet.rpsheet .txbig{padding:6px 2px 6px;margin:0}
+#modal .sheet.rpsheet .txbig .cur{font-size:20px}
+#modal .sheet.rpsheet .txbig input{font-size:24px;padding:0}
+/* 快捷金额：按钮间隙与上下 padding 收紧 */
+#modal .sheet.rpsheet .chips{gap:6px;margin-top:8px}
+#modal .sheet.rpsheet .chips .chip{padding:5px 10px;font-size:12px;border-radius:14px}
+/* 备注：换成矮输入框 */
+#modal .sheet.rpsheet .row{border:none;padding:8px 0 0}
+#modal .sheet.rpsheet .row input{padding:6px 10px;font-size:13px}
+/* 底部按钮：margin-top 收紧、高度调小、左右等宽且紧贴内容下方 */
+#modal .sheet.rpsheet .btnrow{margin-top:10px;gap:8px;flex-wrap:nowrap}
+#modal .sheet.rpsheet .btnrow .btn{flex:1 1 0;min-width:0;height:36px;padding:0 12px;font-size:14px}
