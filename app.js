@@ -26,7 +26,55 @@ function readAsDataURL(f){return new Promise(res=>{const r=new FileReader();r.on
 function readAsText(f){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsText(f)})}
 function pickFile(accept,multi,cb){const inp=$("#fileinp");inp.accept=accept;inp.multiple=!!multi;inp.onchange=()=>{const fs=[...inp.files];inp.value="";if(fs.length)cb(fs)};inp.click()}
 function download(name,text,mime){const b=new Blob([text],{type:mime||"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}
-function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;$("#toasts").appendChild(d);setTimeout(()=>d.remove(),2600)}
+/* ================= 消息弹窗：左右滑动即可手动关掉（触摸 + 鼠标） =================
+   只有明确的横向手势才接管，竖向滑动完全不拦（照常滑页面）。
+   滑过阈值（80px 或屏幕宽度的 1/3）→ 朝该方向飞走并淡出，动画结束从 DOM 移除；
+   没过阈值 → 平滑回弹原位并重新计时；轻点一下也直接关掉。
+   拖动过程中临时去掉 transition，保证弹窗实时跟手。 */
+const TOAST_LIFE=2600,TOAST_SWIPE=80;
+function toastKill(d,dir){                       /* dir:-1 左飞 / 1 右飞 / 0 原地淡出 */
+ if(!d||d.__out)return;d.__out=1;
+ try{clearTimeout(d.__t)}catch(e){}
+ const off=dir?((dir<0?-1:1)*((d.offsetWidth||160)+48)):0;
+ d.style.transition="transform .3s ease-out,opacity .3s ease-out";
+ d.style.transform="translateX("+off+"px)";
+ d.style.opacity="0";
+ setTimeout(function(){try{d.remove()}catch(e){}},320)}
+function toastBind(d){
+ let sx=0,sy=0,dx=0,on=false,axis="";
+ const begin=function(x,y){if(d.__out)return;on=true;axis="";sx=x;sy=y;dx=0;
+  try{clearTimeout(d.__t)}catch(e){}};       /* 按住就暂停自动消失，免得拖到一半自己飞走 */
+ const shift=function(x,y,ev){
+  if(!on||d.__out)return;
+  const mx=x-sx,my=y-sy;
+  if(!axis){                                  /* 先判方向：横向才接管，竖向一律放行 */
+   if(Math.abs(mx)<8&&Math.abs(my)<8)return;
+   if(Math.abs(mx)<=Math.abs(my)){axis="v";return}
+   axis="h";d.style.animation="none";d.style.transition="none"}
+  if(axis!=="h")return;
+  dx=mx;d.style.transform="translateX("+dx+"px)";
+  d.style.opacity=String(Math.max(.2,1-Math.abs(dx)/(TOAST_SWIPE*2)));
+  if(ev&&ev.cancelable)ev.preventDefault()};  /* 横向拖动时不许页面跟着滚 */
+ const finish=function(tap){
+  if(!on)return;on=false;
+  const rearm=function(){d.__t=setTimeout(function(){toastKill(d,0)},TOAST_LIFE)};
+  if(axis==="v"){rearm();return}               /* 竖向：不干预，交给页面滚动 */
+  if(axis===""){if(tap)toastKill(d,0);else rearm();return}   /* 轻点即关；被系统取消就继续计时 */
+  const th=Math.max(TOAST_SWIPE,(window.innerWidth||0)/3);
+  if(Math.abs(dx)>th){toastKill(d,dx<0?-1:1);return}
+  d.style.transition="transform .3s cubic-bezier(.2,.9,.3,1.2),opacity .3s";
+  d.style.transform="translateX(0)";d.style.opacity="1";     /* 回弹到中心原位 */
+  rearm()};                                                  /* 回弹后重新开始计时 */
+ d.addEventListener("touchstart",function(e){const t=e.touches[0];if(t)begin(t.clientX,t.clientY)},{passive:true});
+ d.addEventListener("touchmove",function(e){const t=e.touches[0];if(t)shift(t.clientX,t.clientY,e)},{passive:false});
+ d.addEventListener("touchend",function(){finish(true)});
+ d.addEventListener("touchcancel",function(){finish(false)});
+ d.addEventListener("mousedown",function(e){if(e.button)return;e.preventDefault();begin(e.clientX,e.clientY);
+  const mv=function(ev){shift(ev.clientX,ev.clientY,ev)},
+        up=function(){document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);finish(true)};
+  document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up)})}
+function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;$("#toasts").appendChild(d);
+ d.__t=setTimeout(function(){toastKill(d,0)},TOAST_LIFE);try{toastBind(d)}catch(e){}}
 /* ================= icons (svg, no emoji) ================= */
 const SV=(p,extra)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'+(extra||"")+">"+p+"</svg>";
 const ICONS={
@@ -1206,7 +1254,7 @@ function renderMoments(){const box=$("#mbox");if(!box)return;
  box.innerHTML=list.map(function(p){const mine=p.who==="me";
   const liked=(p.likesWho||[]).indexOf(me)>=0,taLiked=(p.likesWho||[]).indexOf(ta)>=0;
   const cmts=(p.cmts||[]).map(function(c,i){return '<div class="fcmt"><b class="'+(c.who===ta?"ta":"")+'" data-act="feed-reply" data-id="'+p.id+'" data-i="'+i+'">'+esc(c.who)+"</b>"+(c.to?(" 回复 "+esc(c.to)):"")+"："+(c.img?'<img class="zoomable fcimg" data-act="img-view" src="'+c.img+'">':"")+esc(c.text||"")+(c.voiceData?'<button class="btn sm" data-act="play-voice" data-id="'+c.id+'" style="margin-left:4px">'+ico("play")+" 语音</button>":"")+"</div>"}).join("");
-  return '<div class="card post"><div class="who"><span class="ava'+(mine?" me":"")+'">'+esc(mine?me:ta).slice(0,1)+'</span><div><b>'+esc(mine?me:ta)+'</b><br><time>'+mailDate(p.ts)+'</time></div>'+
+  return '<div class="card post"><div class="who">'+avatarHtml({src:mine?S.assets.ava_me:S.assets.ava_ta,name:mine?me:ta,me:mine})+'<div><b>'+esc(mine?me:ta)+'</b><br><time>'+mailDate(p.ts)+'</time></div>'+
    '<button class="ibtn" data-act="moment-del" data-id="'+p.id+'" style="margin-left:auto">'+ico("trash")+"</button></div>"+
    '<div class="txt">'+esc(p.content)+"</div>"+(p.imgs&&p.imgs.length?'<div class="pics">'+p.imgs.map(function(i){return '<img class="zoomable" data-act="img-view" src="'+i+'">'}).join("")+"</div>":"")+
    (p.voice?'<button class="btn sm" data-act="play-voice" data-id="'+p.id+'" style="margin-bottom:6px">'+ico("play")+" 语音</button>":"")+
@@ -4173,11 +4221,14 @@ function setVoiceMode(on){const bar=$("#chatbar");if(!bar)return;
 /* ================= 底部面板 / 消息操作 / 引用 / 多选 / 收藏 ================= */
 let chatPanelMode=null;
 function closeChatPanel(){const p=$("#chatpanel");if(p){p.style.display="none";p.innerHTML="";p.classList.remove("panelmenu")}chatPanelMode=null}
-/* 表情包面板：最近使用 + 分组（分组名取自字卡库「表情包」的分组） */
+/* 表情包面板：最近使用 + 分组（分组名取自字卡库「表情包」的分组）
+   ⚠️ 与分类同名的「表情包」分组和「全部」完全重复，这里直接过滤掉，不再生成那个 Tab  */
+function stkGroups(){const g=(S.misc.groups||{})["表情包"]||[];
+ return g.filter(function(x){const n=String(x==null?"":x).trim();return n!==""&&n!=="表情包"})}
 function stickerCatKey(){
  const all=cardsOf("表情包");
  const n=(S.misc.stkRecent||[]).filter(function(id){return all.some(function(c){return c.id===id})}).length;
- const groups=(S.misc.groups||{})["表情包"]||[];
+ const groups=stkGroups();
  let k=S.misc.stkG;if(k===undefined)k=n?"__recent":"";
  if(k!==""&&k!=="__recent"&&groups.indexOf(k)<0)k=n?"__recent":"";
  return k}
@@ -4189,7 +4240,7 @@ function stickerGridHtml(k){
 function stickerPanelHtml(){
  const all=cardsOf("表情包");
  if(!all.length){return '<div class="empty">表情包字卡为空<div class="btnrow" style="justify-content:center;margin-top:12px"><button class="btn sm" data-act="sticker-up">'+ico("up")+' 上传表情包</button><button class="btn sm" data-act="sticker-golib">去字卡库</button></div></div>'}
- const groups=(S.misc.groups||{})["表情包"]||[];
+ const groups=stkGroups();
  const k=stickerCatKey();
  let h='<div class="chiprow stkchips"><button class="chip'+(k==="__recent"?" on":"")+'" data-act="stk-g" data-k="__recent">最近使用</button><button class="chip'+(k===""?" on":"")+'" data-act="stk-g" data-k="">全部</button>';
  h+=groups.map(function(g){return '<button class="chip'+(k===g?" on":"")+'" data-act="stk-g" data-k="'+esc(g)+'">'+esc(g)+"</button>"}).join("")+"</div>";

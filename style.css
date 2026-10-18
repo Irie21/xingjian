@@ -52,10 +52,15 @@ html[data-glass="1"] .patbar,html[data-glass="1"] .mcard,html[data-glass="1"] .m
  text-shadow:var(--glass-text-shadow);border-radius:24px}
 /* 卡片只做高光定位上下文，绝不加 overflow:hidden（那会把卡片里任何可滚内容一起锁死） */
 html[data-glass="1"] .card{position:relative}
-html[data-glass="1"] .card:before,html[data-glass="1"] .mwallet:before,html[data-glass="1"] .pchero:before{
+/* 卡片高光改成「元素自身背景」：永远画在内容之下，不再像一层纱罩住文字/整页 */
+html[data-glass="1"] .card,html[data-glass="1"] .mwallet{
+ background-image:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0));
+ background-repeat:no-repeat;background-size:100% 46%;background-position:top}
+html[data-glass="1"] .card:before,html[data-glass="1"] .mwallet:before{content:none}
+html[data-glass="1"] .pchero:before{
  content:"";position:absolute;left:0;right:0;top:0;height:46%;pointer-events:none;
  background:linear-gradient(180deg,var(--glass-top),rgba(255,255,255,0));opacity:.6;border-radius:24px 24px 40% 40%}
-html[data-glass="1"] .phead{background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur));backdrop-filter:blur(var(--glass-blur));border-bottom:1px solid var(--glass-border);box-shadow:none;text-shadow:var(--glass-text-shadow);transform:translateZ(0);will-change:backdrop-filter}
+html[data-glass="1"] .phead{background:var(--glass-bg);-webkit-backdrop-filter:blur(var(--glass-blur));backdrop-filter:blur(var(--glass-blur));border-bottom:1px solid var(--glass-border);box-shadow:none;text-shadow:var(--glass-text-shadow)}
 html[data-glass="1"] .btn,html[data-glass="1"] .ibtn,html[data-glass="1"] .chip{
  background:var(--glass-bg);
  -webkit-backdrop-filter:none;backdrop-filter:none;
@@ -936,7 +941,11 @@ textarea.qzedit{display:block;width:100%;min-height:212px;box-sizing:border-box;
 #imgview.on{display:flex}
 #imgview img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
 img.zoomable{cursor:zoom-in}
-.toast{background:rgba(255,255,255,.88);color:#111;font-size:13px;padding:8px 16px;border-radius:18px;max-width:80vw;border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 16px rgba(0,0,0,.12);animation:up .2s}
+.toast{background:rgba(255,255,255,.88);color:#111;font-size:13px;padding:8px 16px;border-radius:18px;max-width:80vw;border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 16px rgba(0,0,0,.12);animation:up .2s;
+ /* 可左右滑动关闭：容器整体仍然点击穿透，只有这条胶囊接收手势；横向归它，竖向照常滚动页面 */
+ pointer-events:auto;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;
+ -webkit-tap-highlight-color:transparent;will-change:transform;
+ transition:transform .3s,opacity .3s}
 /* pomodoro */
 .pchero{border-radius:18px;padding:16px 16px 14px;margin-bottom:10px;color:#fff;background:linear-gradient(135deg,#f4a3b6,#e8748f);box-shadow:0 6px 18px rgba(232,116,143,.25)}
 .pchero.p-fert{background:linear-gradient(135deg,#b9d8f2,#7fb3e0);box-shadow:0 6px 18px rgba(127,179,224,.25)}
@@ -1265,15 +1274,37 @@ html[data-glass="1"] .phead:before,html[data-glass="1"] .phead:after,
 html[data-glass="1"] .libtile:before,html[data-glass="1"] .libtile:after,
 html[data-glass="1"] #modal .sheet:before,html[data-glass="1"] #modal .sheet:after,
 html[data-glass="1"] #tabbar:before,html[data-glass="1"] #tabbar:after,
-.bar-bg,#splash:after,.widget:before,.msg .flash{pointer-events:none}
+.bar-bg,#splash:after,.widget:before,.msg .flash{pointer-events:none !important}
 
-/* 2) 「滑不动」：玻璃模式绝不允许把"能滚"改没。所有滚动容器保持可纵滑。 */
+/* 2) 内容层独立滚动：读长信 / 回信的弹窗、表情包面板、信件列表，全部保证纵滑 + 惯性滚动；
+      玻璃只做背景，不参与滚动。 */
+html[data-glass="1"] #modal .sheet,html[data-glass="1"] #modal.center .sheet,
+html[data-glass="1"] #chatpanel,html[data-glass="1"] #stkpane,
+html[data-glass="1"] #lbox,html[data-glass="1"] .mletter{
+ -webkit-overflow-scrolling:touch}
+
+/* ---------- 音乐页：大容器保持扁平透明，不套玻璃材质（否则整页像蒙了一层白纱）---------- */
+html[data-glass="1"] .mulist,html[data-glass="1"] .muhero,html[data-glass="1"] .card#musearch{
+ background:transparent;background-image:none;border:none;box-shadow:none;text-shadow:none;
+ -webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-glass="1"] .mulist:before,html[data-glass="1"] .muhero:before,html[data-glass="1"] .card#musearch:before{content:none}
+
+/* 3) 「滑不动」：玻璃模式绝不允许把"能滚"改没。所有滚动容器保持可纵滑。 */
 html[data-glass="1"] #app,html[data-glass="1"] .chatscroll,html[data-glass="1"] #chatpanel,
 html[data-glass="1"] .patlist,html[data-glass="1"] .avbody,html[data-glass="1"] .chiprow,
 html[data-glass="1"] #modal .sheet:not(.patsheet):not(.avsheet){
  overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 /* 仅这两类面板是「外层不滚、内层滚」，必须保留 overflow:hidden */
 html[data-glass="1"] #modal .sheet.patsheet,html[data-glass="1"] #modal .sheet.avsheet{overflow:hidden}
+
+/* ================= 表情包格子：完整显示 + 细线框 + 呼吸感 ================= */
+/* 1) 长条形 / 长方形表情包不再被左右裁掉：图片适应模式一律 contain（完整缩放、不裁切、不变形） */
+#chatpanel .sgrid img,.stkgrid button img,#liblist .stkgrid .cell img{object-fit:contain !important}
+/* 2) 外层点击格子加一圈浅灰细线框 + 圆角 + 内边距，线框与图片之间留呼吸感 */
+#chatpanel .sgrid button,.stkgrid button{
+ box-sizing:border-box;border:1px solid rgba(0,0,0,.1);border-radius:8px;overflow:hidden;padding:4px}
+/* 字卡库格子本来就有线框，只补一点内边距，和面板保持一致 */
+#liblist .stkgrid .cell{box-sizing:border-box;padding:4px}
 
 /* ================= 【问题二】发红包弹窗：一屏显示，无需滑动 ================= */
 /* 尺寸：宽 ≤85vw 且水平居中，高 ≤75vh，box-sizing 统一按 border-box 计算，
