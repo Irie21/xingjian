@@ -1660,6 +1660,10 @@ ACT["divine-run"]=async()=>{
 }
 /* ================= 音乐 v4（自研：曲库 / 歌单 / 最近播放 / 收藏 + 底部迷你条 + 全屏播放器） ================= */
 let muAudio=null;
+/* 播放代次 / 连续失败计数 / 待执行的"自动下一首"定时器
+   —— 用来解决：音源全部失效时会无限"播放失败→跳下一首"，而且点了暂停也停不下来 */
+let muGen=0,muAdvTimer=null,muFails=0;
+const MU_FAIL_LIMIT=3;
 function muState(){const m=S.misc;m.mu=(m.mu&&typeof m.mu==="object")?m.mu:{};
  const s=m.mu;if(typeof s.tab!=="string")s.tab="songs";
  if(typeof s.listId!=="string")s.listId="";if(typeof s.cur!=="string")s.cur="";
@@ -1669,7 +1673,58 @@ function muState(){const m=S.misc;m.mu=(m.mu&&typeof m.mu==="object")?m.mu:{};
  if(!Array.isArray(S.misc.muLists))S.misc.muLists=[];
  return s}
 function muLists(){muState();return S.misc.muLists}
-function muSrc(a){if(!a)return "";if(a.url)return a.url;if(!a.blob)return "";try{return a._u||(a._u=URL.createObjectURL(a.blob))}catch(e){return ""}}
+/* 音源优先级：本机已存的音频（blob）优先，其次才走网络地址 ——
+   这样「下载到本机」之后就不再看网易云/外链的脸色了 */
+function muSrc(a){if(!a)return "";
+ if(a.blob){try{return a._u||(a._u=URL.createObjectURL(a.blob))}catch(e){}}
+ return a.url||""}
+/* ---------- 把网络歌曲下载到本机（存进 IndexedDB，之后离线/歌单私密都能听） ----------
+   依次尝试：曲库里存的地址 → 网易云解析接口 → 网易云官方外链；
+   取回来先校验“确实是音频”，避免把私密歌单返回的网页/JSON 当音频存进去。
+   注意：能不能下载取决于对方服务器是否允许跨域（CORS），失败会如实返回原因。 */
+function muLocalSave(id){
+ return new Promise(function(res){
+  const a=S.audios.find(function(x){return x.id===id});
+  if(!a)return res({ok:false,why:"找不到这首歌"});
+  if(a.blob)return res({ok:true,why:"already",bytes:a.blob.size||0});
+  const cand=[];
+  if(a.url)cand.push(a.url);
+  if(a.nid)cand.push("https://api.injahow.cn/meting/?type=url&id="+a.nid);
+  if(a.nid)cand.push("https://music.163.com/song/media/outer/url?id="+a.nid+".mp3");
+  if(!cand.length)return res({ok:false,why:"没有音源地址"});
+  let i=0,lastWhy="下载失败";
+  const next=function(){
+   if(i>=cand.length)return res({ok:false,why:lastWhy});
+   const url=cand[i++];
+   fetch(url,{mode:"cors",credentials:"omit"}).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.blob()}).then(function(b){
+    if(!b||!b.size)throw new Error("空文件");
+    const t=String(b.type||"").toLowerCase();
+    if(t.indexOf("html")>=0||t.indexOf("json")>=0||t.indexOf("text/")>=0||b.size<1024)throw new Error("拿到的不是音频（可能是歌单已私密或需要会员）");
+    a.blob=b;a.dlAt=Date.now();a.dlBytes=b.size;delete a._u;save("audios");
+    res({ok:true,bytes:b.size})}).catch(function(e){lastWhy=(e&&e.message)||"下载失败";next()})};
+  next()})}
+/* 批量下载（带进度、可随时停止） */
+function muLocalSaveMany(ids,title){
+ ids=(ids||[]).filter(Boolean);const total=ids.length;if(!total)return toast("没有需要下载的歌曲");
+ const sh=openSheet('<div class="mtitle">'+(title||"下载到本机")+'<button class="ibtn" data-r="x">'+ico("close")+'</button></div><div id="dlbody"></div>',true);
+ let cancel=false,ok=0,fail=0,bytes=0,i=0,lastWhy="";
+ sh.onclick=function(e){if(e.target.closest("[data-r]")||e.target.closest("[data-dlstop]")){cancel=true;save("audios");closeModal()}};
+ const paint=function(txt){const b=document.getElementById("dlbody");if(!b)return;
+  b.innerHTML='<div class="muprog" style="margin:10px 0 8px"><span class="mufill" style="width:'+Math.max(2,Math.round(i/total*100))+'%"></span></div>'+
+   '<div class="muted" style="line-height:1.75">'+txt+"</div>"+
+   '<div class="btnrow" style="margin-top:2px"><button class="btn sm" data-dlstop="1">'+(i>=total?"完成":"停止")+"</button></div>"};
+ const step=function(){
+  if(cancel)return;
+  if(i>=total){save("audios");
+   paint("完成：成功 "+ok+" 首"+(fail?("，失败 "+fail+" 首"+(lastWhy?"（"+esc(lastWhy)+"）":"")):"")+"<br>本机已存 "+fmtBytes(bytes)+"；这些歌之后不联网、歌单转私密也照样能听。");
+   return}
+  muLocalSave(ids[i]).then(function(r){
+   if(r.ok){ok++;bytes+=r.bytes||0}else{fail++;lastWhy=r.why||""}
+   i++;paint("正在保存到本机 "+i+"/"+total+" …<br>成功 "+ok+" · 失败 "+fail);
+   setTimeout(step,50)})};
+ paint("准备下载 "+total+" 首…");setTimeout(step,80)}
 function muName(a){return a?String(a.name||"未命名").replace(/\.[^.]+$/,""):""}
 function muFmt(s){s=Math.max(0,Math.floor(s||0));return pad(Math.floor(s/60))+":"+pad(s%60)}
 function muCur(){const st=muState();return S.audios.find(function(a){return a.id===st.cur})||null}
@@ -1682,47 +1737,75 @@ function muRows(){const st=muState();
  if(st.tab==="lists")return [];
  if(st.listId)return S.audios.filter(function(a){return (a.listId||"")===st.listId});
  return S.audios}
-function muPlay(id){const a=S.audios.find(function(x){return x.id===id});if(!a)return;
+function muPlay(id,auto){const a=S.audios.find(function(x){return x.id===id});if(!a)return;
+ if(!auto)muFails=0;                                  /* 用户主动播放 → 重置「连续失败」计数 */
+ muGen++;const gen=muGen;                             /* 新的播放代次：之前所有等待中的回调全部作废 */
+ if(muAdvTimer){clearTimeout(muAdvTimer);muAdvTimer=null}
  const st=muState();st.cur=id;st.recent=[id].concat(st.recent.filter(function(x){return x!==id})).slice(0,60);save("misc");
  const src=muSrc(a);if(!src)return toast("这首歌还没有音源");
  if(muAudio){try{muAudio.pause()}catch(e){}}
  muAudio=new Audio(src);muAudio._id=id;
  muAudio.onended=function(){muEnded()};
- muAudio.onerror=function(){muFail()};
+ muAudio.onerror=function(){muFail(gen)};
+ /* 真的出声了就说明这首歌是好的：清掉「没有音源」标记，并把连续失败计数归零 */
+ muAudio.onplaying=function(){if(gen!==muGen)return;muFails=0;try{if(muDead()[a.id]){delete muDead()[a.id];save("misc")}}catch(e){}};
  muAudio.ontimeupdate=function(){muTick()};
  muAudio.playbackRate=muRate();muAudio.play().catch(function(){toast("播放失败，检查一下音源")});setTimeout(function(){muTaPauseCheck(a);muTaFavCheck(a)},400);
  try{muFetchLrc(a)}catch(e){}
- setTimeout(function(){if(muAudio&&muAudio._id===id&&muAudio.readyState<1&&!muAudio._rt){try{muFail()}catch(e){}}},9000);
+ setTimeout(function(){if(gen===muGen&&muAudio&&muAudio._id===id&&muAudio.readyState<1&&!muAudio._rt){try{muFail(gen)}catch(e){}}},9000);
  muPaint();if(cur==="music"||cur==="muplayer")render();try{muFloatSync()}catch(e){}}
 function muDead(){if(!S.misc.muDead||typeof S.misc.muDead!=="object")S.misc.muDead={};return S.misc.muDead}
 function muDeadCount(){try{return S.audios.filter(function(a){return muDead()[a.id]}).length}catch(e){return 0}}
-function muFail(){const a=muCur();if(!a||!muAudio)return;
+function muFail(gen){if(gen!==undefined&&gen!==muGen)return;      /* 上一代遗留的回调，直接作废 */
+ const a=muCur();if(!a||!muAudio)return;
  if(muAudio._rt){
   try{muDead()[a.id]=1;save("misc")}catch(e){}
+  muFails++;
+  /* ★ 连续多首都没音源 → 停下来，不再一首接一首地跳（否则整个歌单失效时会无限"播放失败"） */
+  if(muFails>=MU_FAIL_LIMIT){
+   try{muAudio.pause()}catch(e){}
+   try{toast("连续 "+MU_FAIL_LIMIT+" 首没有音源，已停止自动播放（音乐页 ⋯ → 数据管理 → 清理无法播放的歌曲）")}catch(e){}
+   muPaint();if(cur==="music"||cur==="muplayer")render();
+   return}
   try{toast("「"+muName(a)+"」没有音源，已跳过")}catch(e){}
   const _id=muAudio._id;muAudio.onerror=null;
-  setTimeout(function(){if(muAudio&&muAudio._id===_id&&muState().cur===a.id)muNext(1)},800);
+  if(muAdvTimer){clearTimeout(muAdvTimer);muAdvTimer=null}
+  muAdvTimer=setTimeout(function(){muAdvTimer=null;
+   if(gen!==muGen)return;                                        /* 这段时间里用户按了暂停或换了歌 → 不跳 */
+   if(muAudio&&muAudio._id===_id&&muState().cur===a.id)muNext(1,true)},800);
   return}
  if(!a.nid)return;
  muAudio._rt=1;
  try{muAudio.src="https://music.163.com/song/media/outer/url?id="+a.nid+".mp3";muAudio.play().catch(function(){});
-  setTimeout(function(){if(muAudio&&muAudio._id===a.id&&muAudio.readyState<1){try{muFail()}catch(e){}}},9000)}catch(e){}}
+  setTimeout(function(){if(gen===muGen&&muAudio&&muAudio._id===a.id&&muAudio.readyState<1){try{muFail(gen)}catch(e){}}},9000)}catch(e){}}
 function muToggle(){const a=muCur();
  if(!a){const l=muRows().length?muRows():S.audios;if(l.length)muPlay(l[0].id);return}
  if(!muAudio||muAudio._id!==a.id)return muPlay(a.id);
- if(muAudio.paused){const p=muAudio.play();
-  if(p&&p.then)p.then(function(){muPaint()}).catch(function(){muPlay(a.id)});
-  else if(p&&p.catch)p.catch(function(){muPlay(a.id)});
- }else muAudio.pause();
+ if(muAudio.paused){
+  muGen++;const gen=muGen;                            /* 重新播放：新代次 + 清连续失败计数 */
+  muFails=0;
+  if(muAdvTimer){clearTimeout(muAdvTimer);muAdvTimer=null}
+  const p=muAudio.play();
+  /* 播放失败就走统一的失败处理（限次、判死、必要时跳下一首），
+     不要在这里直接 muPlay 重来 —— 音源是坏的会变成"疯狂重试"死循环 */
+  if(p&&p.then)p.then(function(){muPaint()}).catch(function(){try{muFail(gen)}catch(e){}});
+  else if(p&&p.catch)p.catch(function(){try{muFail(gen)}catch(e){}});
+ }else{
+  /* ★ 暂停时立刻作废所有等待中的"自动跳下一首"，
+     否则会出现"明明按了暂停，它还在偷偷换歌继续失败" */
+  muGen++;
+  if(muAdvTimer){clearTimeout(muAdvTimer);muAdvTimer=null}
+  try{muAudio.pause()}catch(e){}
+ }
  muPaint();if(cur==="music"||cur==="muplayer")render();try{muFloatSync()}catch(e){}}
-function muNext(d){const st=muState();
- if(st.queue.length){const qid=st.queue.shift();save("misc");return muPlay(qid)}
+function muNext(d,auto){const st=muState();
+ if(st.queue.length){const qid=st.queue.shift();save("misc");return muPlay(qid,auto)}
  let pool=muRows();if(!pool.length)pool=S.audios;if(!pool.length)return;
  const i=pool.findIndex(function(a){return a.id===st.cur});
  const nx=st.mode==="shuffle"?pool[Math.floor(Math.random()*pool.length)]:pool[(i+((d||1))+pool.length)%pool.length];
- if(nx)muPlay(nx.id)}
+ if(nx)muPlay(nx.id,auto)}
 function muPrev(){muNext(-1)}
-function muEnded(){if(muState().mode==="single"){try{muAudio.currentTime=0;muAudio.play()}catch(e){}return}if(muEndedTA())return;muNext(1)}
+function muEnded(){if(muState().mode==="single"){try{muAudio.currentTime=0;muAudio.play()}catch(e){}return}if(muEndedTA())return;muNext(1,true)}
 function muMode(){const st=muState();const i=MU_MODES.findIndex(function(v){return v[0]===st.mode});
  st.mode=MU_MODES[(i+1)%MU_MODES.length][0];save("misc");toast("已切换："+muModeName());
  muPaint();if(cur==="music"||cur==="muplayer")render()}
@@ -1772,7 +1855,7 @@ function muSongsHtml(){const st=muState();const rows=muRows();
  if(!rows.length)return '<div class="card"><div class="empty" style="padding:26px 0">'+(st.tab==="fav"?"还没有收藏歌曲，播放时点 ❤ 收藏":(st.tab==="recent"?"还没有播放记录":"还没有音乐，点右上 ⋯ 里的「导入本地音乐」"))+"</div></div>";
  return '<div class="card mulist">'+rows.map(function(a){const on=st.cur===a.id;
   return '<div class="musong'+(on?" on":"")+'" data-act="mu-play" data-id="'+a.id+'"><span class="mucov">'+muCover(a)+'</span>'+
-   '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.url?" · 网络":" · 本地")+(on?" · 正在播放":"")+'</span></span>'+
+   '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.blob?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
    '<span class="mudur">'+(on&&muAudio&&muAudio.duration?muFmt(muAudio.duration):"--:--")+'</span>'+
    '<button class="ibtn" data-act="mu-fav" data-id="'+a.id+'">'+ico("heart")+'</button>'+
    '<button class="ibtn" data-act="mu-more" data-id="'+a.id+'">'+ico("dots")+"</button></div>"}).join("")+"</div>"}
@@ -1808,7 +1891,7 @@ PAGES.music={html(){const st=muState();const tabs=[["songs","歌曲"],["lists","
    const h=document.querySelector(".muhero .mumid span");if(h)h.textContent="共 "+rows2.length+" 首 · "+muModeName()})}};
 function muSongRow(a){const st=muState(),on=st.cur===a.id;
  return '<div class="musong'+(on?" on":"")+'" data-act="mu-play" data-id="'+a.id+'"><span class="mucov">'+muCover(a)+'</span>'+
-  '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.url?" · 网络":" · 本地")+(on?" · 正在播放":"")+'</span></span>'+
+  '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.blob?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
   '<span class="mudur">'+(on&&muAudio&&muAudio.duration?muFmt(muAudio.duration):"--:--")+'</span>'+
   '<button class="ibtn" data-act="mu-fav" data-id="'+a.id+'">'+ico("heart")+'</button>'+
   '<button class="ibtn" data-act="mu-more" data-id="'+a.id+'">'+ico("dots")+"</button></div>"}
@@ -1967,8 +2050,11 @@ function muImportPlaylist(pid,tgt){
    const b2=body().querySelector("[data-mdo]");
    if(b2)b2.onclick=function(){
     if(!list.length)return toast("没有可导入的歌曲");
-    list.forEach(function(it){S.audios.push({id:uid(),name:it.name,artist:it.artist,pic:it.pic,url:it.url,nid:it.nid,listId:listId,blob:null,at:Date.now()})});
-    save("audios");closeModal();render();toast("已导入 "+list.length+" 首到「"+where+"」")}};
+    const newIds=[];
+     list.forEach(function(it){const id=uid();newIds.push(id);S.audios.push({id:id,name:it.name,artist:it.artist,pic:it.pic,url:it.url,nid:it.nid,listId:listId,blob:null,at:Date.now()})});
+    save("audios");closeModal();render();toast("已导入 "+list.length+" 首到「"+where+"」");
+     /* ★ 顺便问一句要不要存到本机：存了之后歌单转私密 / 断网都能听，不再依赖网易云公开 */
+     setTimeout(function(){confirmDlg("要不要把这 "+newIds.length+" 首也下载到本机？之后即使歌单转私密或没网也能听（会占用本机空间）","下载到本机",true).then(function(yes){if(yes)muLocalSaveMany(newIds,"下载到本机")})},500)}};
   finishFn=finish;
   const next=function(){
    if(cancel)return;
@@ -2006,13 +2092,16 @@ ACT["mu-openlist"]=el=>{muState().listId=el.dataset.id||"";muState().tab="songs"
 ACT["mu-more"]=el=>{const a=S.audios.find(function(x){return x.id===el.dataset.id});if(!a)return;
  const ls=muLists();
  const sh=openSheet('<div class="mtitle">歌曲操作<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
-   '<div class="mucard"><span class="mucov">'+muCover(a)+'</span><span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.url?" · 网络":" · 本地")+(a.nid?" · 网易云":"")+(a.lrc?" · 有歌词":"")+'</span></span></div>'+
+   '<div class="mucard"><span class="mucov">'+muCover(a)+'</span><span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.blob?" · 本机":(a.url?" · 网络":" · 本地"))+(a.nid?" · 网易云":"")+(a.lrc?" · 有歌词":"")+'</span></span></div>'+
   '<div class="mmgrid">'+
    '<button data-mm="next"><span class="mi">'+ico("skipnext")+'</span><span>下一首播放</span></button>'+
    '<button data-mm="queue"><span class="mi">'+ico("list")+'</span><span>加入播放队列</span></button>'+
    '<button data-mm="fav"><span class="mi">'+ico("heart")+'</span><span>'+(muFav(a.id)?"取消收藏":"收藏")+'</span></button>'+
    '<button data-mm="lrc"><span class="mi">'+ico("quote")+'</span><span>'+(a.lrc?"查看歌词":"歌词")+'</span></button>'+
    '<button data-mm="del" class="danger"><span class="mi">'+ico("trash")+'</span><span>删除这首歌</span></button>'+
+   (a.blob
+    ?'<button data-mm="dlrm"><span class="mi">'+ico("trash")+'</span><span>删除本机缓存</span></button>'
+    :'<button data-mm="dl"><span class="mi">'+ico("down")+'</span><span>下载到本机</span></button>')+
   "</div>"+
   (ls.length?'<div class="sect" style="margin:12px 2px 6px">加入歌单</div><div class="chips">'+ls.map(function(l){return '<button class="chip'+(a.listId===l.id?" on":"")+'" data-ml2="'+esc(l.id)+'">'+esc(l.name)+(a.listId===l.id?" ✓":"")+"</button>"}).join("")+"</div>":"")+
   (a.listId?'<div class="btnrow" style="margin-top:10px"><button class="btn" data-mm="out" style="width:100%">移出歌单（'+esc(muListName(a.listId))+'）</button></div>':""),true);
@@ -2024,6 +2113,8 @@ ACT["mu-more"]=el=>{const a=S.audios.find(function(x){return x.id===el.dataset.i
    if(k==="fav"){muFavToggle(a.id);closeModal();return}
    if(k==="out"){a.listId="";save("audios");closeModal();render();toast("已移出歌单");return}
    if(k==="lrc"){closeModal();ACT["mu-lrc"]({dataset:{id:a.id}});return}
+   if(k==="dl"){closeModal();muLocalSaveMany([a.id],"下载到本机");return}
+   if(k==="dlrm"){delete a.blob;delete a._u;delete a.dlAt;delete a.dlBytes;save("audios");closeModal();render();toast("已删除本机缓存，之后走网络播放");return}
    if(k==="del"){closeModal();if(muAudio&&muAudio._id===a.id){try{muAudio.pause()}catch(er){}muAudio=null;muState().cur=""}
     S.audios=S.audios.filter(function(x){return x.id!==a.id});
     save("audios");save("misc");render();toast("已删除");return}
@@ -2243,13 +2334,19 @@ ACT["mu-set"]=()=>{const c=muCfg();
    setRowStep("TA 收藏歌曲概率","mu.fav","%",0,100,5)+
 '<div class="mhint">按概率约你一起听 / 预订下一首 / 歌末切歌·随机·换模式 / 播放中暂停再继续 / 收藏你正在听的歌；全设 0 = TA 完全不主动。</div>'+
   "</div>"+
-  '<div class="msetbtns"><button class="btn" data-mu2="diag">诊断邀请</button><button class="btn" data-mu2="cache">清理本地音频缓存</button><button class="btn" data-mu2="close">关闭</button></div>',true);
+  '<div class="msetbtns"><button class="btn" data-mu2="dlall">把网易云歌曲下载到本机</button><button class="btn" data-mu2="diag">诊断邀请</button><button class="btn" data-mu2="cache">清理本机音频文件</button><button class="btn" data-mu2="close">关闭</button></div>',true);
  sh.onchange=function(e){const el=e.target.closest("[data-mucb]");if(!el)return;c[el.dataset.mucb]=!!el.checked;save("settings");try{muFloatSync()}catch(x){}};
  sh.onclick=function(e){const b=e.target.closest("[data-mu2]");
   if(b){const k=b.dataset.mu2;
    if(k==="close"){closeModal();return}
-   if(k==="cache"){confirmDlg("清理本地音频缓存？会删掉本机存的音频文件","清理",true).then(function(ok){if(!ok)return;
-    S.audios=S.audios.filter(function(a){return !a.blob});save("audios");render();toast("已清理本地音频缓存")});return}
+   if(k==="dlall"){const ids=S.audios.filter(function(a){return !a.blob&&(a.nid||a.url)}).map(function(a){return a.id});
+    if(!ids.length)return toast("没有需要下载的歌曲");
+    const need=ids.length;closeModal();
+    confirmDlg("把 "+need+" 首下载到本机？之后不联网、歌单转私密也能听（会占用本机空间，视歌曲数量可能几百 MB）","开始下载",true).then(function(yes){
+     if(yes)muLocalSaveMany(ids,"下载到本机")});return}
+   if(k==="cache"){confirmDlg("清理本机音频文件？本地导入的歌会被删除；网易云歌曲只删缓存、之后改回联网播放","清理",true).then(function(ok){if(!ok)return;
+    S.audios.forEach(function(a){if(a.blob&&a.url){delete a.blob;delete a._u;delete a.dlAt;delete a.dlBytes}else if(a.blob){a.__drop=1}});
+    S.audios=S.audios.filter(function(a){return !a.__drop});save("audios");render();toast("已清理本机音频文件")});return}
    if(k==="diag"){const cc=muCfg();toast("邀请 "+cc.invite+"% · 预订 "+cc.reserve+"% · 歌末 "+cc.next+"/"+cc.rand+"/"+cc.modeP+"% · 暂停 "+cc.pause+"% · 收藏 "+cc.fav+"%");return}}
   if(e.target.closest("[data-r]"))closeModal()}};
 function muTaFavHtml(){const nm=esc(S.settings.taName||"TA"),l=muTaFavs();

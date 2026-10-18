@@ -2,7 +2,7 @@
    作用�?) 满足 Chrome / Edge 的「安装到桌面」条件；2) 基础离线缓存
    策略：缓存名称带版本号（更新图标/代码时改版本号即可强制刷新）
         页面导航 �?网络优先（离线回退缓存�?        其它资源 �?缓存优先 + 后台静默更新（下次打开就是新版�?          */
-const CACHE = 'xingjian-v19';
+const CACHE = 'xingjian-v21';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
