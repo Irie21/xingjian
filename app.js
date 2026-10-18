@@ -1868,7 +1868,7 @@ function muDataHtml(){let n=0;try{S.audios.forEach(function(a){if(a.blob)n+=(a.b
  return '<div class="sect">音乐 · 数据管理</div><div class="card">'+
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>音乐 · 数据管理</b></span><span class="val" data-act="mu-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+S.audios.length+" 首 · 本地缓存 "+fmtBytes(n)+"</div>"+
-  '<div class="btnrow"><button class="btn sm" data-act="mu-import">导入本地音乐</button><button class="btn sm" data-act="mu-link">添加链接</button><button class="btn sm danger" data-act="mu-clearall">清空音乐库</button></div>'+
+  '<div class="btnrow"><button class="btn sm danger" data-act="mu-clearall">清空音乐库</button></div>'+
   (muDeadCount()?'<div class="btnrow" style="margin-top:8px"><button class="btn sm" data-act="mu-deadclear" style="width:100%">清理无法播放的歌曲（'+muDeadCount()+' 首）</button></div>':"")+'</div>'}
 ACT["mu-deadclear"]=()=>{const n=muDeadCount();if(!n)return toast("没有需要清理的歌曲");
  confirmDlg("清理 "+n+" 首没有音源的歌曲？只是从曲库移除","清理",true).then(function(ok){if(!ok)return;
@@ -2020,14 +2020,25 @@ function muImportPlaylist(pid,tgt){
  let cancel=false,finishFn=null;
  sh.onclick=function(e){
   if(e.target.closest("[data-mskip]")){if(finishFn)finishFn(true);return}
+  if(e.target.closest("[data-mretry]")){cancel=true;closeModal();muImportPlaylist(pid,tgt);return}
   if(e.target.closest("[data-r]")){cancel=true;closeModal()}};
  const body=function(){return document.getElementById("mupbody")};
  const bar=function(r,txt){return '<div class="muprog" style="margin:10px 0 8px"><span class="mufill" style="width:'+Math.max(2,Math.round(r*100))+'%"></span></div><div class="muted" style="line-height:1.7">'+txt+"</div>"};
- fetch("https://api.injahow.cn/meting/?type=playlist&id="+pid).then(function(r){return r.json()}).then(function(j){
+  /* 带超时的 fetch：网络卡住时给出明确提示，不会一直转圈；失败时显示真正原因 + 重试 */
+  const fetchT=function(url,ms){return new Promise(function(res,rej){
+   let done=false;const t=setTimeout(function(){if(done)return;done=true;rej(new Error("请求超时（"+Math.round(ms/1000)+" 秒无响应）"))},ms);
+   fetch(url).then(function(r){if(done)return;done=true;clearTimeout(t);res(r)},function(e){if(done)return;done=true;clearTimeout(t);rej(e)})})};
+  const fail=function(why){
+   if(cancel)return;
+   body().innerHTML='<div style="padding:4px 2px 10px;line-height:1.75">没能读取这个歌单。'+
+    '<div class="muted" style="padding:6px 0 8px">具体原因：'+esc(String(why||"未知"))+'</div>'+
+    '常见情况：<br>· 浏览器访问不到解析接口（网络被拦截 / 接口暂时挂了）→ 点「重试」<br>· 歌单仍是<b>私密</b>的：网易云 → 歌单 → 编辑 → 隐私设置 → 改成<b>公开</b><br>· 歌单不存在 / 链接里的 id 不对</div>'+
+    '<div class="btnrow"><button class="btn" data-mretry="1" style="flex:1">重试</button><button class="btn pri" data-r="x" style="flex:1">关闭</button></div>'};
+  const API="https://api.injahow.cn/meting/?type=playlist&id="+pid;
+ fetchT(API,20000).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(j){
   if(cancel)return;
   if(!Array.isArray(j)||!j.length){
-   body().innerHTML='<div style="padding:4px 2px 10px;line-height:1.75">没能读取这个歌单，常见原因：<br>· 歌单是<b>私密</b>的：网易云里进入歌单 → 编辑 → 隐私设置 → 改成<b>公开</b><br>· 歌单不存在 / 链接里的 id 不对</div>'+(j&&j.error?'<div class="muted" style="padding:0 2px 10px">接口返回：'+esc(String(j.error))+"</div>":"")+'<div class="btnrow"><button class="btn" data-r="x" style="flex:1">知道了</button></div>';
-   return}
+   fail((j&&j.error)?("接口返回："+String(j.error)):"接口没有返回任何歌曲");return}
   const seen={},items=[];let dup=0;
   j.forEach(function(x){
    const m=String(x.url||"").match(/[?&]id=(\d+)/);const nid=m?m[1]:"";if(!nid)return;
@@ -2064,7 +2075,7 @@ function muImportPlaylist(pid,tgt){
     rs.forEach(function(x){if(x)ok.push(x);else dead++});
     paint();next()})};
   paint();next();
- }).catch(function(e){ if(!cancel)body().innerHTML='<div style="padding:4px 2px 10px;line-height:1.75">读取失败：'+esc(String(e&&e.message?e.message:"网络错误"))+'<br>手机需要能联网，且歌单要设为公开。</div><div class="btnrow"><button class="btn" data-r="x" style="flex:1">知道了</button></div>'})}
+ }).catch(function(e){ if(!cancel){try{fail(e&&e.message?e.message:"")}catch(x){};return}body().innerHTML='<div style="padding:4px 2px 10px;line-height:1.75">读取失败：'+esc(String(e&&e.message?e.message:"网络错误"))+'<br>手机需要能联网，且歌单要设为公开。</div><div class="btnrow"><button class="btn" data-r="x" style="flex:1">知道了</button></div>'})}
 function muAddLink(nm,ar,raw,tgt){
  const s=String(raw||""),listId=(tgt===undefined||tgt===null)?(muState().listId||""):String(tgt),where=muListName(listId);
  if(/playlist/i.test(s)){const pm=s.match(/[?&]id=(\d+)/);if(!pm)return toast("没认出这个歌单链接");return muImportPlaylist(pm[1],tgt)}
@@ -2105,6 +2116,7 @@ ACT["mu-more"]=el=>{const a=S.audios.find(function(x){return x.id===el.dataset.i
   "</div>"+
   (ls.length?'<div class="sect" style="margin:12px 2px 6px">加入歌单</div><div class="chips">'+ls.map(function(l){return '<button class="chip'+(a.listId===l.id?" on":"")+'" data-ml2="'+esc(l.id)+'">'+esc(l.name)+(a.listId===l.id?" ✓":"")+"</button>"}).join("")+"</div>":"")+
   (a.listId?'<div class="btnrow" style="margin-top:10px"><button class="btn" data-mm="out" style="width:100%">移出歌单（'+esc(muListName(a.listId))+'）</button></div>':""),true);
+ sh.classList.add("mmsheet");
  sh.onclick=function(e){const b=e.target.closest("[data-mm]"),b2=e.target.closest("[data-ml2]");
   if(b2){a.listId=b2.dataset.ml2;save("audios");closeModal();render();toast("已加入「"+muListName(a.listId)+"」");return}
   if(b){const k=b.dataset.mm;

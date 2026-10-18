@@ -712,11 +712,16 @@ html[data-dark="1"]{--ink:#cbcbcb;--ink-soft:rgba(203,203,203,.14);--ink-line:rg
 .mufloat .mubtn{width:36px;height:36px;border:none;background:transparent;color:var(--text);display:flex;align-items:center;justify-content:center;padding:0}
 .mufloat .mubtn svg{width:20px;height:20px}
 [data-seek]{cursor:pointer}
-.muhero{display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:10px}
+.muhero{display:flex;align-items:center;gap:6px;padding:10px 12px;margin-bottom:10px}
+/* 歌单名 / 曲目数不再被右侧两个按钮挤成省略号：允许换行，按钮收窄一点 */
+.muhero>.mumid{min-width:0}
+.muhero>.mumid b{font-size:15px;line-height:1.3;white-space:normal;overflow:visible;text-overflow:clip}
+.muhero>.mumid span{line-height:1.35;white-space:normal;overflow:visible;text-overflow:clip}
 .muhero .mumid b{font-size:16px}
-.muhero .btn.mumode{width:96px;padding:8px 4px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.muhero .btn.mumode{width:auto;min-width:58px;padding:8px 6px;display:inline-flex;align-items:center;justify-content:center;gap:4px}
 .muhero .btn.mumode svg{width:17px;height:17px}
-.muhero .btn.mumode span{font-size:13px}
+.muhero .btn.mumode span{font-size:12px}
+.muhero .btn.pri{padding:8px 8px;font-size:13px}
 .muhero .btn{flex:none}
 .mufloat{position:fixed;right:16px;bottom:96px;z-index:66;border-radius:50%;background:#fff;box-shadow:0 8px 26px rgba(0,0,0,.22);width:60px;height:60px;padding:5px;overflow:hidden;touch-action:none;display:flex;align-items:center;justify-content:center}
 .mufloat.open{width:auto;height:auto;min-width:272px;max-width:336px;border-radius:22px;overflow:visible;display:block;padding:10px 12px 12px;touch-action:none}
@@ -755,11 +760,18 @@ html[data-dark="1"]{--ink:#cbcbcb;--ink-soft:rgba(203,203,203,.14);--ink-line:rg
 .msetrow .mfl span{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
 .mhint{font-size:12px;line-height:1.6;color:var(--muted);padding:9px 2px 3px}
 .msetbtns{display:flex;gap:8px;margin-top:10px}
-.mmgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.mmgrid button{display:flex;align-items:center;gap:8px;padding:11px 11px;border:1px solid var(--line);background:var(--card);border-radius:14px;font-size:13.5px;color:var(--text);text-align:left;white-space:nowrap}
+.mmgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mmgrid button{display:flex;align-items:center;gap:8px;padding:11px 11px;border:1px solid var(--line);background:var(--card);border-radius:14px;font-size:13.5px;color:var(--text);text-align:left;white-space:normal;word-break:break-word;line-height:1.3;min-width:0}
 .mmgrid button .mi{width:30px;height:30px;flex:none;border-radius:9px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--icon,var(--primary))}
 .mmgrid button .mi svg{width:17px;height:17px}
+/* ---------- 歌曲操作 / 音乐菜单面板：固定尺寸、不横向滚动、内容完整可见 ---------- */
+#modal .sheet.mmsheet{width:100%;max-width:min(420px,100%);box-sizing:border-box;overflow-x:hidden;overflow-y:auto}
+#modal .sheet.mmsheet .mmgrid{width:100%}
+#modal .sheet.mmsheet .mucard{width:100%;box-sizing:border-box;min-width:0}
+#modal .sheet.mmsheet .chips{max-width:100%}
 .mmgrid button:last-child{grid-column:1/-1}
+/* ---------- 居中弹窗（歌曲操作 / 音乐菜单等）：固定尺寸、不横向滚动、内容完整可见 ---------- */
+#modal.center .sheet{box-sizing:border-box;max-width:min(420px,100%);overflow-x:hidden}
 .mmgrid button.danger{color:var(--danger)}
 .mmgrid button.danger .mi{color:var(--danger)}
 .mucard{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:16px;margin-bottom:10px}
