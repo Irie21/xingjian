@@ -579,7 +579,7 @@ PAGES.chat={html(){const s=S.settings;
   '<button class="ibtn" data-act="chat-set" title="聊天设置">'+ico("star")+'</button></div>'+
   '<div class="chatscroll" id="chatscroll"><div class="msgs" id="msgs"></div></div>'+
   '<div id="abovebar"><div class="typing" id="typing">对方正在输入…</div><div id="quotebar"></div><div id="multibar"></div></div>'+
-  '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button type="button" class="ibtn" data-act="chat-menu" title="功能">'+ico("heart")+'</button><button type="button" class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
+  '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button type="button" class="ibtn" data-act="chat-menu" title="功能">'+ico("moon")+'</button><button type="button" class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
   '<div id="chatpanel"></div><div id="msgmenu"></div>'},
  init(){renderMsgs("bottom");setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});renderTabbar()}};
 let curChatStatus="在线";
@@ -4306,11 +4306,11 @@ ACT["quizset-open"]=el=>{const m=(S.chats||[]).find(x=>x.id===el.dataset.id);if(
 function initVoiceToggle(inp){let t=null;inp.addEventListener("pointerdown",()=>{t=setTimeout(()=>{t=null;setVoiceMode(true)},450)});["pointerup","pointerleave","pointercancel"].forEach(ev=>inp.addEventListener(ev,()=>{if(t){clearTimeout(t);t=null}}))}
 function setVoiceMode(on){const bar=$("#chatbar");if(!bar)return;
  if(on){const allowed=!!(S.settings.chat&&S.settings.chat.voice);
-  bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("heart")+'</button><button class="voicemode'+(allowed?"":" disabled")+'" id="vbtn">按住 说话</button><button class="ibtn" data-act="chat-kbd">'+ico("keyboard")+'</button>';
+  bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("moon")+'</button><button class="voicemode'+(allowed?"":" disabled")+'" id="vbtn">按住 说话</button><button class="ibtn" data-act="chat-kbd">'+ico("keyboard")+'</button>';
   const vb=$("#vbtn");
   vb.addEventListener("pointerdown",e=>{e.preventDefault();if(!allowed){voicePermDialog();return}startRecord()});
   vb.addEventListener("pointerup",()=>{if(mediaRec&&mediaRec.state==="recording")mediaRec.stop()})}
- else{bar.innerHTML='<button type="button" class="ibtn" data-act="chat-menu">'+ico("heart")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});initVoiceToggle(inp)}}
+ else{bar.innerHTML='<button type="button" class="ibtn" data-act="chat-menu">'+ico("moon")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});initVoiceToggle(inp)}}
 /* ---- 问卷自动作答 ---- */
 /* ================= 底部面板 / 消息操作 / 引用 / 多选 / 收藏 ================= */
 let chatPanelMode=null;
