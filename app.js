@@ -928,7 +928,7 @@ function chatVoiceSheet(){actionSheet("发送语音",["录制语音","从语音�
 function startRecord(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){S.settings.chat.voice=false;save("settings");voicePermDialog();return}if(!S.settings.chat.voice){voicePermDialog();return}navigator.mediaDevices.getUserMedia({audio:true}).then(st=>{mediaRec=new MediaRecorder(st);recChunks=[];mediaRec.ondataavailable=e=>recChunks.push(e.data);mediaRec.onstop=()=>{const b=new Blob(recChunks,{type:"audio/webm"});st.getTracks().forEach(t=>t.stop());pushChat({from:"me",type:"voice",data:b,dur:Math.max(1,Math.round(b.size/1600))});playBlock("me")};mediaRec.start();toast("录音中…再次点击停止");setTimeout(()=>{if(mediaRec&&mediaRec.state==="recording")mediaRec.stop()},30000)}).catch(()=>{S.settings.chat.voice=false;save("settings");setVoiceMode(true);voicePermDialog()})}
 /* ================= CALL（参考 mochi 通话） ================= */
 function callCfg(){const c=S.settings.reply.call||{};return {incoming:(c.prob==null?10:+c.prob),pickup:(c.pickup==null?60:+c.pickup),busy:(c.busy==null?10:+c.busy),reject:(c.reject==null?10:+c.reject),hangup:(c.hangup==null?5:+c.hangup),nohangup:!!c.nohangup};}
-let callState=null,callTick=null,callCd=null,miniDragged=false;
+let callState=null,callTick=null,callCd=null,miniDragged=false,miniTapGuard=false;
 function fmtCallDur(s){s=Math.max(0,s|0);return pad(Math.floor(s/60))+":"+pad(s%60)}
 function callName(){return S.settings.taName||"TA"}
 function callAvInner(){const url=S.assets.ava_ta;return url?'<img src="'+url+'">':esc(callName()).slice(0,1)}
@@ -981,7 +981,9 @@ function miniClamp(){
  const m=$("#callMini");if(!m||m.style.display==="none")return;
  const r=m.getBoundingClientRect();if(!r.width||!r.height)return;
  const vw=window.innerWidth||0,vh=window.innerHeight||0,pad=8;
- if(!miniDragged){m.style.left="";m.style.top="";m.style.bottom="";m.style.transform="";return}
+ /* 没有内联位置 = 用户从没摆过 → 保持 CSS 默认居中，这里什么都不做；
+    有内联位置就一定是用户摆的（或刚还原的），只做「越界拉回」，绝不回中间 */
+ if(!m.style.left&&!m.style.top)return;
  let l=r.left,t=r.top,moved=false;
  if(l<pad){l=pad;moved=true}
  if(t<pad){t=pad;moved=true}
@@ -997,8 +999,11 @@ function callMinimize(){const ov=$("#callov");if(ov)ov.classList.remove("on");co
  /* 只有「从全屏回到小窗」时才回到屏幕中间；小窗已经显示时（用户拖动过）保持原位，不再闪回中间 */
  const wasHidden=(m.style.display==="none"||!m.style.display);
  if(wasHidden){m.style.left="";m.style.top="";m.style.bottom="";m.style.transform=""}
- m.style.display="flex";m.innerHTML='<span class="cmi-av">'+callAvInner()+'</span><span class="cmi-info"><span class="cmi-name">'+esc(callName())+'</span><span class="cmi-time" id="cmTime">'+fmtCallDur(callDurSec())+'</span></span><button class="cmbtn hang" data-act="call-end" title="挂断">'+ico("hangup")+"</button>";refreshCallVisuals()}
-function callRestore(){const m=$("#callMini");if(m)m.style.display="none";const ov=$("#callov");if(ov&&callState)ov.classList.add("on")}
+ m.style.display="flex";m.innerHTML='<span class="cmi-av">'+callAvInner()+'</span><span class="cmi-info"><span class="cmi-name">'+esc(callName())+'</span><span class="cmi-time" id="cmTime">'+fmtCallDur(callDurSec())+'</span></span><button class="cmbtn hang" data-act="call-end" title="挂断">'+ico("hangup")+"</button>";refreshCallVisuals();
+ /* ★ 形态一变就立刻落盘：被系统回收重开时才知道"该恢复成小窗"（含小窗位置） */
+ try{callSaveState(true)}catch(e){}}
+function callRestore(){const m=$("#callMini");if(m)m.style.display="none";const ov=$("#callov");if(ov&&callState)ov.classList.add("on");
+ try{callSaveState(true)}catch(e){}}
 function hideCallMini(){const m=$("#callMini");if(m)m.style.display="none"}
 function callEnd(text){stopRing();stopCallTick();if(callCd){clearInterval(callCd);callCd=null}const st=callState;hideCallMini();const ov=$("#callov");if(ov){ov.classList.remove("on");ov.innerHTML=""}callState=null;try{callKeepAliveSync()}catch(e){}try{S.misc.lastCall=Date.now();save("misc")}catch(e){}
  if(!st)return;const name=callName();const dur=st.connectedTime?Math.max(0,Math.floor((Date.now()-st.connectedTime)/1000)):0;let res=text;
@@ -1054,13 +1059,24 @@ function callKeepAliveSync(){
  try{silentSync()}catch(e){}
  try{bgStart()}catch(e){}
  try{if(callState)callMediaOn();else callMediaOff()}catch(e){}}
+/* 小窗位置：有内联 left/top 就说明用户摆过（或刚还原过），直接取；否则让它走 CSS 默认居中 */
+function miniPos(){try{
+ const m=$("#callMini");if(!m)return null;
+ const l=parseFloat(m.style.left),t=parseFloat(m.style.top);
+ if(!isFinite(l)||!isFinite(t))return null;
+ return {left:Math.round(l),top:Math.round(t)}}catch(e){return null}}
+/* 还原小窗位置；还原过就标记为"用户摆过"，这样 miniClamp 只做越界纠正、不会把它拉回中间 */
+function applyMiniPos(p){try{
+ if(!p||typeof p.left!=="number"||typeof p.top!=="number")return;
+ const m=$("#callMini");if(!m)return;
+ miniDragged=true;m.style.transform="none";m.style.left=p.left+"px";m.style.top=p.top+"px";m.style.bottom="auto"}catch(e){}}
 /* 通话状态落盘：切后台、被冻结、甚至被系统回收后回来，都能接着恢复（时长不归零）
    now=true → 走 kvSet 立刻写 IndexedDB（不走 250ms 防抖），用于「马上要冻结 / 可能被回收」的场合 */
 function callSaveState(now){try{
  if(!callState){delete S.misc.callSave;if(now&&typeof kvSet==="function")kvSet("misc",S.misc);else save("misc");return}
  S.misc.callSave={dir:callState.dir,mode:callState.mode,status:callState.status,at:Date.now(),
   startedAt:callState.startTime||Date.now(),connectedTime:callState.connectedTime||0,
-  mini:callMiniShown()};
+  mini:callMiniShown(),miniPos:miniPos()};
  if(now&&typeof kvSet==="function")kvSet("misc",S.misc);else save("misc")}catch(e){}}
 /* 从落盘状态恢复通话：文件里有两处保活 IIFE（网页版 + 立即落盘版），统一调这里，
    避免两份实现互相抢、把已经通话的时长冲成 00:00 */
@@ -1078,8 +1094,8 @@ function callRestoreSaved(){try{
  if(s.mode==="active"){try{startCallDuration()}catch(e){}}
  else if(s.mode==="calling"){setTimeout(function(){callResolvePickup(callState,Math.random()*100)},1500)}
  else if(s.mode==="ringing"){setTimeout(function(){if(callState&&callState.mode==="ringing")callEnd("未接听")},25000)}
- /* 界面形态也照旧：被回收前是迷你小窗，重开就还是迷你小窗（不再默认弹成全屏） */
- if(s.mini){try{callMinimize();setTimeout(function(){try{miniClamp()}catch(e){}},60)}catch(e){}}
+ /* 界面形态也照旧：被回收前是迷你小窗，重开就还是迷你小窗（连同当时摆的位置） */
+ if(s.mini){try{callMinimize();applyMiniPos(s.miniPos);setTimeout(function(){try{miniClamp()}catch(e){}},60)}catch(e){}}
  return true;
 }catch(e){return false}}
 /* 一次「接通判定」：原本写在 callStart 的 setTimeout 里，抽出来给「恢复被中断的拨号」复用 */
@@ -1093,7 +1109,7 @@ function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)ret
  let sx=0,sy=0,ox=0,oy=0,drag=false;
  m.addEventListener("pointerdown",e=>{
   if(e.target.closest("button"))return;
-  drag=true;miniDragged=false;
+  drag=true;miniTapGuard=false;   /* 只清「刚拖过」的临时闸门，绝不动 miniDragged */
   const r=m.getBoundingClientRect();
   m.style.transform="none";m.style.left=r.left+"px";m.style.top=r.top+"px";m.style.bottom="auto";
   sx=e.clientX;sy=e.clientY;ox=r.left;oy=r.top;
@@ -1102,7 +1118,7 @@ function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)ret
  m.addEventListener("pointermove",e=>{
   if(!drag)return;
   const dx=e.clientX-sx,dy=e.clientY-sy;
-  if(Math.abs(dx)>4||Math.abs(dy)>4)miniDragged=true;
+  if(Math.abs(dx)>4||Math.abs(dy)>4){miniDragged=true;miniTapGuard=true}
   const r=m.getBoundingClientRect();
   const nx=Math.max(4,Math.min(ox+dx,window.innerWidth-r.width-4));
   const ny=Math.max(4,Math.min(oy+dy,window.innerHeight-r.height-4));
@@ -1110,7 +1126,10 @@ function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)ret
  });
  const end=()=>{drag=false};
  m.addEventListener("pointerup",end);m.addEventListener("pointercancel",end);
- m.addEventListener("click",e=>{if(miniDragged){e.stopPropagation();e.preventDefault();miniDragged=false}},true);
+ /* 拖完浏览器会补一个 click：只把它吃掉（否则会误触发"点小窗回全屏"），
+    ★ 但 miniDragged 必须保留 —— 它代表"用户自己摆过位置"，
+      是位置能不能被记住、会不会被 miniClamp 拉回中间的关键 */
+ m.addEventListener("click",e=>{if(miniTapGuard){e.stopPropagation();e.preventDefault();miniTapGuard=false}},true);
  /* 视口变化（横竖屏切换 / 键盘收起 / 从后台回来）后把小窗收回屏幕内 */
  window.addEventListener("resize",function(){try{miniClamp()}catch(e){}});
  window.addEventListener("orientationchange",function(){setTimeout(function(){try{miniClamp()}catch(e){}},250)});
@@ -3254,9 +3273,24 @@ function uiStateSave(){
   sessionStorage.setItem(UI_STATE_KEY,JSON.stringify({
    route:cur,param:curParam||"",at:Date.now(),
    appTop:app?app.scrollTop:0,chatTop:sc?sc.scrollTop:0,
-   call:callState?{mode:callState.mode,mini:callMiniShown()}:null}))
+   call:callState?{mode:callState.mode,mini:callMiniShown(),miniPos:miniPos()}:null}))
  }catch(e){}}
 function uiStateLoad(){try{const s=sessionStorage.getItem(UI_STATE_KEY);return s?JSON.parse(s):null}catch(e){return null}}
+/* 只负责「通话形态」：没恢复出通话就返回 false，让调用方稍后重试（重开页面时通话是异步恢复的） */
+function uiStateApplyCall(){
+ const st=uiStateLoad();if(!st||!st.call)return true;
+ if(!callState)return false;
+ if(Date.now()-(st.at||0)>=6*3600000)return true;
+ suppressChatBottom=true;setTimeout(function(){suppressChatBottom=false},900);
+ try{
+  const wantMini=!!st.call.mini,isMini=callMiniShown();
+  if(wantMini){if(!isMini)callMinimize();applyMiniPos(st.call.miniPos)}
+  else if(isMini)callRestore();
+  setTimeout(function(){try{miniClamp()}catch(e){}},60)}catch(e){}
+ /* 把"最终落定的形态"再写回盘里：这样连续被回收两次也能一直保持小窗＋原位置 */
+ suppressChatBottom=false;
+ try{callSaveState(true)}catch(e){}
+ return true}
 function uiStateRestore(){
  const st=uiStateLoad();if(!st)return;
  /* 路由：被回收重开后回到离开时那一页 */
@@ -3268,14 +3302,8 @@ function uiStateRestore(){
    if(app&&st.appTop)app.scrollTop=st.appTop;
    if(sc&&st.chatTop)sc.scrollTop=st.chatTop}catch(e){}};
  put();setTimeout(put,120);setTimeout(put,420);
- /* 通话形态：还原成离开前的样子（迷你就还是迷你，全屏就还是全屏） */
- if(callState&&st.call&&(Date.now()-(st.at||0)<6*3600000)){
-  suppressChatBottom=true;setTimeout(function(){suppressChatBottom=false},900);
-  try{
-   const wantMini=!!st.call.mini,isMini=callMiniShown();
-   if(wantMini&&!isMini)callMinimize();
-   else if(!wantMini&&isMini)callRestore();
-   setTimeout(function(){try{miniClamp()}catch(e){}},60)}catch(e){}}}
+ /* 通话形态：还原成离开前的样子（迷你就还是迷你＋原位置，全屏就还是全屏） */
+ if(!uiStateApplyCall()){let n=0;const t=setInterval(function(){if(uiStateApplyCall()||++n>8){clearInterval(t)}},500)}}
 document.addEventListener("visibilitychange",function(){
  if(document.hidden){try{uiStateSave()}catch(e){};return}
  try{uiStateRestore()}catch(e){}});
@@ -5398,6 +5426,10 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
 /* PWA：注册 Service Worker（Chrome / Edge 安装到手机桌面需要它）*/
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 boot();
+/* 页面（很可能是被系统回收后重新载入的）起来后，把离开前的通话形态 / 小窗位置 / 滚动位置再兜一次：
+   重开页面时通话是异步恢复的，uiStateRestore 会自己重试直到通话回来为止 */
+setTimeout(function(){try{uiStateRestore()}catch(e){}},2900);
+window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateRestore()}catch(e){}},700)});
 /* ================= 信箱增强补丁（覆盖式，避免改动原函数体）================= */
 (function () {
   try {

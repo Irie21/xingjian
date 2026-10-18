@@ -1232,11 +1232,10 @@ html[data-idle="1"] .msgpop{transition:none !important}
 .mlcard.edit.imgfirst #lepic{order:3;margin-bottom:6px}
 .mlcard.edit.imgfirst #lt2{order:1}
 .mlcard.edit.imgfirst #lc2{order:2}
-/* ---------- 引用定位：整行消息闪烁 ---------- */
-.msg.flashrow{border-radius:16px;animation:msgRowFlash 1.25s ease-out 2}
-@keyframes msgRowFlash{0%,100%{background-color:rgba(0,0,0,0)}30%{background-color:rgba(110,110,110,.26)}}
-
-/* ---------- 引用定位：整行闪烁并延伸到屏幕两端 ---------- */
+/* ---------- 引用定位 / 搜索定位：整行闪烁并延伸到屏幕两端 ----------
+   只保留下面这条「贯穿整屏的闪烁带」；
+   原来还有一份 .msg.flashrow 的圆角长方形底色闪烁（msgRowFlash），
+   两份叠在一起就是两层高亮，这里已去掉，只留底层这一层。 */
 .msg.flashrow{position:relative}
 .msg.flashrow:before{content:"";position:absolute;left:50%;width:100vw;transform:translateX(-50%);
  top:-5px;bottom:-5px;background:rgba(110,110,110,.26);border-radius:0;pointer-events:none;
