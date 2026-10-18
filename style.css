@@ -1475,3 +1475,10 @@ html body #app .ava-hit,html body #app .ava-hit *,
 html body #app .msg .ava,html body #app .msg .ava img{
  -webkit-user-select:none !important;user-select:none !important;-webkit-user-drag:none !important;
  -webkit-touch-callout:none !important;touch-action:manipulation}
+/* 数据管理里的「清空数据」这类破坏性操作：单独一整行、占满宽度、文字居中 */
+.btnrow.full{gap:0;justify-content:stretch}
+.btnrow.full>.btn{flex:1 1 100%;width:100% !important;min-width:0;justify-content:center;text-align:center;white-space:normal;line-height:1.3;padding-left:10px;padding-right:10px}
+/* 数据管理：导出 / 导入 / 清空 三个按钮并排，等宽居中 */
+.btnrow.even3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:stretch}
+.btnrow.even3>.btn{width:100%;min-width:0;justify-content:center;text-align:center;
+ white-space:normal;line-height:1.28;font-size:13px;padding-left:6px;padding-right:6px}

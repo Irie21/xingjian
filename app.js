@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v31";
+const APP_BUILD="v33";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -2890,7 +2890,7 @@ function periodDataHtml(){const n=S.periods.length;let bytes=0;try{bytes=new Blo
  return '<div class="sect">经期 · 数据管理</div><div class="card">'+
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>经期 · 数据管理</b></span><span class="val" data-act="period-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+n+" 次记录 · "+fmtBytes(bytes)+"</div>"+
-  '<div class="btnrow"><button class="btn sm" data-act="period-export">导出数据</button><button class="btn sm" data-act="period-import">导入数据</button><button class="btn sm danger" data-act="period-clearall">清空数据</button></div>'+
+  '<div class="btnrow even3"><button class="btn sm" data-act="period-export">导出数据</button><button class="btn sm" data-act="period-import">导入数据</button><button class="btn sm danger" data-act="period-clearall">清空数据</button></div>'+
  "</div>"}
 function pcMon(){if(typeof S.misc.pcMon!=="string"||S.misc.pcMon.length!==7)S.misc.pcMon=pcDay().slice(0,7);return S.misc.pcMon}
 function pcYmd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
@@ -3198,7 +3198,7 @@ function memoDataHtml(){const l=memos();let bytes=0;try{bytes=new Blob([JSON.str
  return '<div class="sect">备忘录 · 数据管理</div><div class="card">'+
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>备忘录 · 数据管理</b></span><span class="val" data-act="memo-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+l.length+" 项 · "+fmtBytes(bytes)+"</div>"+
-  '<div class="btnrow"><button class="btn sm" data-act="memo-export">导出数据</button><button class="btn sm" data-act="memo-import">导入数据</button><button class="btn sm danger" data-act="memo-clearall">清空数据</button></div></div>'}
+  '<div class="btnrow even3"><button class="btn sm" data-act="memo-export">导出数据</button><button class="btn sm" data-act="memo-import">导入数据</button><button class="btn sm danger" data-act="memo-clearall">清空数据</button></div></div>'}
 PAGES.memo={html(){const list=memos(),un=list.filter(m=>!m.done),c=memoCfg(),nr=S.misc.memoNewRemind,rows=memoSorted();
  return phead("备忘录",'<button class="ibtn" data-act="memo-set" title="设置">'+ico("dotsLine")+'</button>')+
  '<div class="card">'+
