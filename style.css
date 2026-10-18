@@ -1283,11 +1283,21 @@ html[data-glass="1"] #chatpanel,html[data-glass="1"] #stkpane,
 html[data-glass="1"] #lbox,html[data-glass="1"] .mletter{
  -webkit-overflow-scrolling:touch}
 
-/* ---------- 音乐页：大容器保持扁平透明，不套玻璃材质（否则整页像蒙了一层白纱）---------- */
+/* ================= 隐藏滚动条但保留滚动（信箱读信弹窗 / 页面 / 聊天）=================
+   信件阅读弹窗实测会占掉 17px 宽的原生滚动条（最右侧那条灰竖条），这里整条隐藏：
+   滚动能力完全保留，只是不再画那条灰条。 */
+#modal .sheet,#app,.chatscroll{scrollbar-width:none;-ms-overflow-style:none}
+#modal .sheet::-webkit-scrollbar,#app::-webkit-scrollbar,.chatscroll::-webkit-scrollbar{
+ display:none !important;width:0 !important;height:0 !important}
+
+/* ================= 音乐页歌单列表：实色、通透、无任何玻璃/遮罩 =================
+   之前是透明容器，结果把整页的主题渐变透了出来，看着像蒙了一层白灰的雾；
+   这里改成实色 var(--card)（浅色主题就是纯白），并彻底去掉边框、阴影、滤镜与所有伪元素遮罩。 */
 html[data-glass="1"] .mulist,html[data-glass="1"] .muhero,html[data-glass="1"] .card#musearch{
- background:transparent;background-image:none;border:none;box-shadow:none;text-shadow:none;
+ background:var(--card);background-image:none;border:none;box-shadow:none;text-shadow:none;filter:none;
  -webkit-backdrop-filter:none;backdrop-filter:none}
-html[data-glass="1"] .mulist:before,html[data-glass="1"] .muhero:before,html[data-glass="1"] .card#musearch:before{content:none}
+html[data-glass="1"] .mulist:before,html[data-glass="1"] .muhero:before,html[data-glass="1"] .card#musearch:before,
+html[data-glass="1"] .mulist:after,html[data-glass="1"] .muhero:after,html[data-glass="1"] .card#musearch:after{content:none}
 
 /* 3) 「滑不动」：玻璃模式绝不允许把"能滚"改没。所有滚动容器保持可纵滑。 */
 html[data-glass="1"] #app,html[data-glass="1"] .chatscroll,html[data-glass="1"] #chatpanel,

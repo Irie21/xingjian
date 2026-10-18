@@ -913,7 +913,8 @@ function callAvInner(){const url=S.assets.ava_ta;return url?'<img src="'+url+'">
 /* 头像 / 背景变化后即时刷新通话界面（面板头像+背景、小框头像+背景） */
 function refreshCallVisuals(){if(!callState)return;const bg=S.assets.callbg;
  const ov=$("#callov");if(ov){const panel=ov.querySelector(".call-panel");if(panel){if(bg){panel.classList.add("has-bg");panel.style.backgroundImage="url("+bg+")"}else{panel.classList.remove("has-bg");panel.style.backgroundImage=""}}const av=ov.querySelector(".call-av");if(av)av.innerHTML=callAvInner()}
- const m=$("#callMini");if(m&&m.style.display!=="none"){const mb=S.assets.callmini;if(mb){m.style.backgroundImage="url("+mb+")";m.style.backgroundSize="cover";m.style.backgroundPosition="center"}else{m.style.backgroundImage=""}const a=m.querySelector(".cmi-av");if(a)a.innerHTML=callAvInner()}}
+ const m=$("#callMini");if(m&&m.style.display!=="none"){const mb=S.assets.callmini;if(mb){m.style.backgroundImage="url("+mb+")";m.style.backgroundSize="cover";m.style.backgroundPosition="center"}else{m.style.backgroundImage=""}const a=m.querySelector(".cmi-av");if(a)a.innerHTML=callAvInner()}
+ try{if(callState)callMediaOn()}catch(e){}}
 function callPanelHtml(mode,status){const bg=S.assets.callbg;
  return '<div class="call-panel'+(bg?" has-bg":"")+'"'+(bg?' style="background-image:url('+bg+')"':"")+'>'+
   '<div class="call-head"><span class="call-title">语音通话</span><button class="call-minimize" data-act="call-min" title="缩小"'+(mode==="ringing"?" hidden":"")+">"+ico("chevdown")+"</button></div>"+
@@ -927,16 +928,29 @@ function callPanelHtml(mode,status){const bg=S.assets.callbg;
    '<button class="call-btn reject" data-act="call-reject"'+(mode==="ringing"?"":" hidden")+">"+ico("hangup")+"拒绝</button>"+
    '<button class="call-btn answer" data-act="call-accept"'+(mode==="ringing"?"":" hidden")+">"+ico("answer")+"接听</button>"+
   "</div></div>"}
-function callOpen(st){const ov=$("#callov");if(!ov)return;ov.innerHTML=callPanelHtml(st.mode,st.status);ov.classList.add("on");st.startTime=st.startTime||Date.now();callState=st;hideCallMini();refreshCallVisuals()}
+function callOpen(st){const ov=$("#callov");if(!ov)return;ov.innerHTML=callPanelHtml(st.mode,st.status);ov.classList.add("on");st.startTime=st.startTime||Date.now();callState=st;hideCallMini();refreshCallVisuals();callKeepAliveSync()}
 function callSetMode(mode,status){if(!callState)return;callState.mode=mode;if(status!=null)callState.status=status;const sEl=$("#callStatus");if(sEl)sEl.textContent=callState.status;const ov=$("#callov");if(!ov)return;
  const h=ov.querySelector(".hang"),rj=ov.querySelector(".reject"),an=ov.querySelector(".answer"),mn=ov.querySelector(".call-minimize");
- if(h)h.hidden=!(mode==="calling"||mode==="active");if(rj)rj.hidden=mode!=="ringing";if(an)an.hidden=mode!=="ringing";if(mn)mn.hidden=mode==="ringing"}
+ if(h)h.hidden=!(mode==="calling"||mode==="active");if(rj)rj.hidden=mode!=="ringing";if(an)an.hidden=mode!=="ringing";if(mn)mn.hidden=mode==="ringing";
+ try{callSaveState();callKeepAliveSync()}catch(e){}}
 function callDurSec(){if(!callState)return 0;const b=callState.connectedTime||callState.startTime;return Math.max(0,Math.floor((Date.now()-b)/1000))}
 function updateCallDur(){const d=callDurSec();const el=$("#callDur");if(el)el.textContent=fmtCallDur(d);const m=$("#cmTime");if(m)m.textContent=fmtCallDur(d);if(callState)callState.durationSec=d}
 function stopCallTick(){if(callTick){clearInterval(callTick);callTick=null}}
+/* 通话心跳：抽出来给两处共用 —— 前台的 1s 定时器 + 后台的 Worker 心跳（见 bgRunAll） */
+function callTickRun(){
+ if(!callState)return;
+ updateCallDur();
+ if(callState.mode==="active"&&!callState.hangupAt)callState.hangupAt=Date.now()+180000;
+ if(callState.mode==="active"&&Date.now()>=callState.hangupAt){
+  callState.hangupAt=Date.now()+60000;
+  const cc=callCfg();
+  if(!(cc.nohangup||cc.hangup<=0)&&Math.random()*100<cc.hangup)callEnd("对方挂断了电话")}}
+/* 回到前台：定时器可能被系统冻结过，先确保心跳在跑，再按时间戳把时长补正 */
+function callResync(){if(!callState)return;if(!callTick)startCallDuration();else callTickRun()}
 function startCallDuration(){stopCallTick();if(!callState)return;callState.connectedTime=callState.connectedTime||Date.now();updateCallDur();
  if(!callState.hangupAt)callState.hangupAt=callState.connectedTime+180000;
- callTick=setInterval(()=>{updateCallDur();if(callState&&callState.mode==="active"&&Date.now()>=callState.hangupAt){callState.hangupAt=Date.now()+60000;const cc=callCfg();if(!(cc.nohangup||cc.hangup<=0)&&Math.random()*100<cc.hangup)callEnd("对方挂断了电话")}},1000)}
+ callTick=setInterval(callTickRun,1000);
+ try{callSaveState()}catch(e){}}
 function callMinimize(){const ov=$("#callov");if(ov)ov.classList.remove("on");const m=$("#callMini");if(!m||!callState)return;
  /* 只有「从全屏回到小窗」时才回到屏幕中间；小窗已经显示时（用户拖动过）保持原位，不再闪回中间 */
  const wasHidden=(m.style.display==="none"||!m.style.display);
@@ -944,16 +958,12 @@ function callMinimize(){const ov=$("#callov");if(ov)ov.classList.remove("on");co
  m.style.display="flex";m.innerHTML='<span class="cmi-av">'+callAvInner()+'</span><span class="cmi-info"><span class="cmi-name">'+esc(callName())+'</span><span class="cmi-time" id="cmTime">'+fmtCallDur(callDurSec())+'</span></span><button class="cmbtn hang" data-act="call-end" title="挂断">'+ico("hangup")+"</button>";refreshCallVisuals()}
 function callRestore(){const m=$("#callMini");if(m)m.style.display="none";const ov=$("#callov");if(ov&&callState)ov.classList.add("on")}
 function hideCallMini(){const m=$("#callMini");if(m)m.style.display="none"}
-function callEnd(text){stopRing();stopCallTick();if(callCd){clearInterval(callCd);callCd=null}const st=callState;hideCallMini();const ov=$("#callov");if(ov){ov.classList.remove("on");ov.innerHTML=""}callState=null;try{S.misc.lastCall=Date.now();save("misc")}catch(e){}
+function callEnd(text){stopRing();stopCallTick();if(callCd){clearInterval(callCd);callCd=null}const st=callState;hideCallMini();const ov=$("#callov");if(ov){ov.classList.remove("on");ov.innerHTML=""}callState=null;try{callKeepAliveSync()}catch(e){}try{S.misc.lastCall=Date.now();save("misc")}catch(e){}
  if(!st)return;const name=callName();const dur=st.connectedTime?Math.max(0,Math.floor((Date.now()-st.connectedTime)/1000)):0;let res=text;
  if(dur>0&&st.connectedTime){if(text==="对方挂断了电话")res="对方已挂断";else if(text==="已挂断")res="通话已挂断";else res="通话已结束";res+=" · 时长 "+fmtCallDur(dur)}
  pushChat({type:"sys",text:(st.dir==="in"?name+" 来电":"我拨打 "+name)+" · "+res})}
-function callStart(){if(callState)return toast("已有通话中");callOpen({dir:"out",mode:"calling",status:"正在呼叫…"});pushChat({type:"sys",text:callName()+" 语音通话"});const ref=callState;const cc=callCfg();const r=Math.random()*100;
- setTimeout(()=>{if(callState!==ref||ref.mode!=="calling")return;
-  if(r<cc.busy){toast("对方忙线中");callEnd("忙线中")}
-  else if(r<cc.busy+cc.reject){toast("对方已拒绝");callEnd("对方已拒绝")}
-  else if(r<cc.busy+cc.reject+cc.pickup){callSetMode("active","正在通话…");toast("通话已接通");pushChat({type:"sys",text:"通话已接通"});startCallDuration();setTimeout(()=>{if(callState===ref&&ref.mode==="active")callMinimize()},2000)}
-  else{toast("对方未接通");callEnd("未接通")}},1800+Math.random()*1500)}
+function callStart(){if(callState)return toast("已有通话中");callOpen({dir:"out",mode:"calling",status:"正在呼叫…"});pushChat({type:"sys",text:callName()+" 语音通话"});const ref=callState;const r=Math.random()*100;
+ setTimeout(()=>callResolvePickup(ref,r),1800+Math.random()*1500)}
 function answerCall(){if(!callState||callState.mode!=="ringing")return;stopRing();if(callCd){clearInterval(callCd);callCd=null}const cd=$("#callCd");if(cd)cd.hidden=true;callSetMode("active","正在通话…");pushChat({type:"sys",text:"通话已接通"});startCallDuration();setTimeout(()=>{if(callState&&callState.mode==="active")callMinimize()},2000)}
 function rejectCall(){if(!callState||callState.mode!=="ringing")return;callEnd("已拒绝")}
 function userHangup(){if(!callState)return;if(callState.mode==="ringing"){callEnd("已取消");return}callEnd("已挂断")}
@@ -963,6 +973,77 @@ function incomingCall(){if(callState)return;startRing();pushChat({type:"sys",tex
  callCd=setInterval(()=>{if(!callState||callState.mode!=="ringing"){clearInterval(callCd);callCd=null;return}n--;if(n<=0){clearInterval(callCd);callCd=null;callEnd("未接听")}else if(cd)cd.textContent=n+" 秒后未接听"},1000)}
 function maybeIncoming(){if(callState)return;const now=Date.now();const last=Math.min(S.misc.lastCall||0,now);if(now-last<300000)return;if(Math.random()*100>=callCfg().incoming)return;if(document.hidden)return;incomingCall()}
 function callIncomingLoop(){setTimeout(()=>{try{maybeIncoming()}catch(e){};callIncomingLoop()},rnd(60000,120000))}
+/* ================= 通话保活（纯网页 / PWA 能做的那几件事）=================
+   手机系统要省电，迟早会挂起后台的 JS，这点网页层面无法阻止；但可以显著改善：
+   ① 后台把通话心跳挂到 Web Worker 上（Worker 被「密集节流」的概率远低于主线程定时器）；
+   ② visibilitychange / Page Lifecycle resume：切回前台的一瞬立刻重新同步（时长按时间戳重算，
+     不依赖被冻结的定时器），并把中断的挂断判定补上；
+   ③ 通话期间保持「静音音频 + Media Session」：向系统声明本页正在播音频 / 正在通话，
+     锁屏出现通话控制项，同时明显降低后台被冻结、被回收的概率；
+   ④ 通话状态落盘（callSaveState）：即使真被系统回收，重开也能接着恢复。 */
+function callMediaOn(){
+ if(!("mediaSession" in navigator))return;
+ try{
+  const art=[];
+  const av=avatarSrc("ta");
+  /* 头像若是 data: / http(s) 就拿来当封面 */
+  if(av&&/^data:image\//i.test(av))art.push({src:av,sizes:"256x256",type:(av.indexOf("data:image/png")===0?"image/png":(av.indexOf("data:image/webp")===0?"image/webp":"image/jpeg"))});
+  else if(av&&/^https?:/i.test(av))art.push({src:av,sizes:"256x256"});
+  art.push({src:"icon-192.png",sizes:"192x192",type:"image/png"});
+  art.push({src:"icon-512.png",sizes:"512x512",type:"image/png"});
+  navigator.mediaSession.metadata=new MediaMetadata({title:callName(),artist:"语音通话",album:"星笺",artwork:art});
+  navigator.mediaSession.playbackState="playing";
+  const set=function(id,fn){try{navigator.mediaSession.setActionHandler(id,fn||null)}catch(e){}};
+  set("hangup",function(){try{userHangup()}catch(e){}});
+  set("stop",function(){try{userHangup()}catch(e){}});
+  set("pause",function(){try{userHangup()}catch(e){}});      /* 通话没有「暂停」，锁屏按暂停按挂断处理 */
+  set("play",function(){try{if(callState&&callState.mode==="ringing")answerCall()}catch(e){}});
+  set("nexttrack",null);set("previoustrack",null);
+ }catch(e){}}
+function callMediaOff(){
+ if(!("mediaSession" in navigator))return;
+ try{
+  navigator.mediaSession.playbackState="none";
+  navigator.mediaSession.metadata=null;
+  ["hangup","stop","pause","play"].forEach(function(id){try{navigator.mediaSession.setActionHandler(id,null)}catch(e){}});
+ }catch(e){}}
+/* 通话期间的保活总开关：静音音频 + Worker 心跳 + 媒体会话 一起上（不依赖设置里的「后台保活」） */
+function callKeepAliveSync(){
+ try{silentSync()}catch(e){}
+ try{bgStart()}catch(e){}
+ try{if(callState)callMediaOn();else callMediaOff()}catch(e){}}
+/* 通话状态落盘：切后台、被冻结、甚至被系统回收后回来，都能接着恢复（时长不归零）
+   now=true → 走 kvSet 立刻写 IndexedDB（不走 250ms 防抖），用于「马上要冻结 / 可能被回收」的场合 */
+function callSaveState(now){try{
+ if(!callState){delete S.misc.callSave;if(now&&typeof kvSet==="function")kvSet("misc",S.misc);else save("misc");return}
+ S.misc.callSave={dir:callState.dir,mode:callState.mode,status:callState.status,at:Date.now(),
+  startedAt:callState.startTime||Date.now(),connectedTime:callState.connectedTime||0};
+ if(now&&typeof kvSet==="function")kvSet("misc",S.misc);else save("misc")}catch(e){}}
+/* 从落盘状态恢复通话：文件里有两处保活 IIFE（网页版 + 立即落盘版），统一调这里，
+   避免两份实现互相抢、把已经通话的时长冲成 00:00 */
+function callRestoreSaved(){try{
+ const s=S.misc&&S.misc.callSave;
+ if(!s||callState)return false;
+ const age=Date.now()-(s.at||0);
+ if(s.mode==="ringing"&&age>50000){delete S.misc.callSave;save("misc");return false}
+ if(s.mode!=="active"&&s.mode!=="ringing"&&s.mode!=="calling"){delete S.misc.callSave;save("misc");return false}
+ window.__xjRestoring=true;
+ callOpen({dir:s.dir,mode:s.mode,status:s.status,startTime:s.startedAt||s.at||Date.now(),connectedTime:s.connectedTime||0});
+ window.__xjRestoring=false;
+ try{toast("通话已恢复")}catch(e){}
+ /* 恢复后把被中断的流程接上：通话中 → 继续计时；拨号中 → 重新走接通判定；响铃中 → 补一个未接超时 */
+ if(s.mode==="active"){try{startCallDuration()}catch(e){}}
+ else if(s.mode==="calling"){setTimeout(function(){callResolvePickup(callState,Math.random()*100)},1500)}
+ else if(s.mode==="ringing"){setTimeout(function(){if(callState&&callState.mode==="ringing")callEnd("未接听")},25000)}
+ return true;
+}catch(e){return false}}
+/* 一次「接通判定」：原本写在 callStart 的 setTimeout 里，抽出来给「恢复被中断的拨号」复用 */
+function callResolvePickup(ref,r){const cc=callCfg();
+ if(callState!==ref||ref.mode!=="calling")return;
+ if(r<cc.busy){toast("对方忙线中");callEnd("忙线中")}
+ else if(r<cc.busy+cc.reject){toast("对方已拒绝");callEnd("对方已拒绝")}
+ else if(r<cc.busy+cc.reject+cc.pickup){callSetMode("active","正在通话…");toast("通话已接通");pushChat({type:"sys",text:"通话已接通"});startCallDuration();setTimeout(()=>{if(callState===ref&&ref.mode==="active")callMinimize()},2000)}
+ else{toast("对方未接通");callEnd("未接通")}}
 function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)return;m.dataset.dragInit="1";
  let sx=0,sy=0,ox=0,oy=0,drag=false;
  m.addEventListener("pointerdown",e=>{
@@ -1178,7 +1259,7 @@ function feedBarHtml(bk,rk){const i=bk.findIndex(function(b){return b.k===rk});
   '<button class="fnav" data-act="moment-range" data-fr="next" '+(i<bk.length-1?"":"disabled")+'>'+ico("next")+"</button></div>"}
 PAGES.moments={html(){const un=feedUnread();
  return phead("朋友圈",'<button class="ibtn" data-act="moment-notice" title="通知提醒">'+ico("bell")+(un?'<span class="fdot">'+(un>99?"99+":un)+"</span>":"")+'</button><button class="ibtn" data-act="moment-new" title="发布">'+ico("plus")+'</button><button class="ibtn" data-act="moment-data" title="数据管理">'+ico("dotsLine")+'</button><button class="ibtn" data-act="moment-clear" title="删除动态">'+ico("trash")+"</button>")+
- '<div class="fcover"'+(feedCover()?' style="background-image:url('+feedCover()+')"':"")+' data-act="moment-cover"><span class="favme"><span class="favav" data-act="moment-myavatar">'+avatarHtml({src:S.assets.ava_me,name:S.settings.myName,me:true})+'</span><span class="favnm" data-act="moment-myname">'+esc(S.settings.myName||"我")+"</span></span></div>"+
+ '<div class="fcover"'+(feedCover()?' style="background-image:url('+feedCover()+')"':"")+' data-act="moment-cover"><span class="favme"><span class="favav" data-act="moment-myavatar">'+avatarHtml({src:avatarSrc("me"),name:S.settings.myName,me:true})+'</span><span class="favnm" data-act="moment-myname">'+esc(S.settings.myName||"我")+"</span></span></div>"+
  feedBarHtml(feedBuckets(),feedRange())+
  '<div id="mbox"></div>'},
  init(){renderMoments()}};
@@ -1254,7 +1335,7 @@ function renderMoments(){const box=$("#mbox");if(!box)return;
  box.innerHTML=list.map(function(p){const mine=p.who==="me";
   const liked=(p.likesWho||[]).indexOf(me)>=0,taLiked=(p.likesWho||[]).indexOf(ta)>=0;
   const cmts=(p.cmts||[]).map(function(c,i){return '<div class="fcmt"><b class="'+(c.who===ta?"ta":"")+'" data-act="feed-reply" data-id="'+p.id+'" data-i="'+i+'">'+esc(c.who)+"</b>"+(c.to?(" 回复 "+esc(c.to)):"")+"："+(c.img?'<img class="zoomable fcimg" data-act="img-view" src="'+c.img+'">':"")+esc(c.text||"")+(c.voiceData?'<button class="btn sm" data-act="play-voice" data-id="'+c.id+'" style="margin-left:4px">'+ico("play")+" 语音</button>":"")+"</div>"}).join("");
-  return '<div class="card post"><div class="who">'+avatarHtml({src:mine?S.assets.ava_me:S.assets.ava_ta,name:mine?me:ta,me:mine})+'<div><b>'+esc(mine?me:ta)+'</b><br><time>'+mailDate(p.ts)+'</time></div>'+
+  return '<div class="card post"><div class="who">'+avatarHtml({src:avatarSrc(mine?"me":"ta"),name:mine?me:ta,me:mine})+'<div><b>'+esc(mine?me:ta)+'</b><br><time>'+mailDate(p.ts)+'</time></div>'+
    '<button class="ibtn" data-act="moment-del" data-id="'+p.id+'" style="margin-left:auto">'+ico("trash")+"</button></div>"+
    '<div class="txt">'+esc(p.content)+"</div>"+(p.imgs&&p.imgs.length?'<div class="pics">'+p.imgs.map(function(i){return '<img class="zoomable" data-act="img-view" src="'+i+'">'}).join("")+"</div>":"")+
    (p.voice?'<button class="btn sm" data-act="play-voice" data-id="'+p.id+'" style="margin-bottom:6px">'+ico("play")+" 语音</button>":"")+
@@ -3054,9 +3135,14 @@ function mallBoxSheet(){const m=mallCfg();
  const sh=$("#modal .sheet");sh.onclick=function(e){if(e.target.closest("[data-r]"))closeModal()}}
 /* ================= system loops ================= */
 let wakeLock=null,silentNode=null;
+/* 静音音频：设置里开了「后台保活」→ 一直保持；否则只要在通话，就临时保持音频会话 */
+function silentWanted(){return !!((S.settings.system&&S.settings.system.keepalive)||callState)}
+function silentSync(){
+ if(silentWanted()){const a=ac();if(a&&!silentNode){try{const b=a.createBuffer(1,a.sampleRate,a.sampleRate);silentNode=a.createBufferSource();silentNode.buffer=b;silentNode.loop=true;const g=a.createGain();g.gain.value=.0001;silentNode.connect(g);g.connect(a.destination);silentNode.start()}catch(e){silentNode=null}}}
+ else if(silentNode){try{silentNode.stop()}catch(e){}silentNode=null}}
 function applySystem(){const s=S.settings.system;
- if(s.keepalive){const a=ac();if(a&&!silentNode){const b=a.createBuffer(1,a.sampleRate,a.sampleRate);silentNode=a.createBufferSource();silentNode.buffer=b;silentNode.loop=true;const g=a.createGain();g.gain.value=.0001;silentNode.connect(g);g.connect(a.destination);silentNode.start()}}
- else{if(silentNode){try{silentNode.stop()}catch(e){}silentNode=null}if(wakeLock){wakeLock.release();wakeLock=null}}
+ silentSync();
+ if(!s.keepalive&&wakeLock){try{wakeLock.release()}catch(e){}wakeLock=null}
  if(s.notify&&("Notification" in window)&&Notification.permission==="default")Notification.requestPermission();
  bgStart()}
 /* ================= 后台保活：Worker 心跳 + 回到前台自动补课 ================= */
@@ -3064,14 +3150,16 @@ let bgWorker=null,bgHiddenAt=0,bgLastTick=0;
 function bgRunAll(){
  if(Date.now()-bgLastTick<3000)return;
  bgLastTick=Date.now();
+ try{callTickRun()}catch(e){}
  try{trCheck()}catch(e){} try{locCheck()}catch(e){} try{locHintTick()}catch(e){}
  try{memoTick()}catch(e){} try{memoSysDue()}catch(e){}
  try{taMomentCheck()}catch(e){} try{taLetterCheck()}catch(e){}
  try{quizSetTickAll()}catch(e){} try{catchUpAsks()}catch(e){}
  try{mallAuto()}catch(e){} try{periodCareCheck()}catch(e){} try{avTick()}catch(e){}
 }
-/* 后台时用 Worker 心跳继续跑：Worker 不会被浏览器的「密集节流」压到 1 分钟一次 */
-function bgStart(){const s=S.settings.system;const want=!!s.keepalive;
+/* 后台时用 Worker 心跳继续跑：Worker 不会被浏览器的「密集节流」压到 1 分钟一次
+   通话期间强制启用（不看「后台保活」开关），这样通话计时与挂断判定不会被冻住 */
+function bgStart(){const s=S.settings.system;const want=!!s.keepalive||!!callState;
  if(want&&!bgWorker){
   try{const url=URL.createObjectURL(new Blob(["let n=0;setInterval(function(){n++;postMessage(n)},12000)"],{type:"text/javascript"}));
    bgWorker=new Worker(url);bgWorker.onmessage=function(){if(document.hidden)bgRunAll()};
@@ -3092,8 +3180,11 @@ document.addEventListener("visibilitychange",function(){
   else delete document.documentElement.dataset.idle;
  }catch(e){}
  if(document.hidden)bgHiddenAt=Date.now();
- else bgCatchUp()});
+ else{bgCatchUp();try{callResync()}catch(e){}}});
 window.addEventListener("focus",function(){if(!document.hidden&&bgHiddenAt)bgCatchUp()});
+/* Page Lifecycle：标签页被系统冻结 / 解冻（安卓后台常见）→ 冻结前落盘，解冻后立刻同步 */
+document.addEventListener("freeze",function(){try{callSaveState()}catch(e){}});
+document.addEventListener("resume",function(){try{if(callState)callResync()}catch(e){}});
 /* 离线消息提醒：离开 ≥10 分钟，回来按离开时长补 1~4 条 TA 的消息并提示 */
 function offlineCheck(force){
  const s=S.settings;if(!s.system.offline)return;
@@ -3133,12 +3224,15 @@ else if(m.type==="quiz")inner=quizBubbleHtml(m);
    ? '<span class="retback" data-act="view-retract" data-id="'+m.id+'" title="点击收回">'+inner+"</span>"
    : '<span class="retline" data-act="view-retract" data-id="'+m.id+'" title="点击查看原文"><i class="muted">'+(me?"我":"对方")+"撤回了一条消息</i></span>";
  }
- const avaImg=me?S.assets.ava_me:S.assets.ava_ta;
+ const avaImg=avatarSrc(me?"me":"ta");
  const ava=avatarHtml({src:avaImg,size:c.avaSize,shape:c.avaShape,name:me?s.myName:s.taName,me:me});
  const rd=(me&&c.read&&m.read)?'<span class="rd">已读</span>':"";
  const meta='<span class="meta"><span class="tm">'+fmtMsgTime(m.timestamp||m.ts)+'</span>'+rd+'</span>';
  const selc=(msgMulti&&msgSel.has(m.id))?" selected":"";
  return '<div class="msg '+(me?"me":"")+selc+'" data-id="'+m.id+'"><button class="ava-hit" data-act="ava-tap" data-who="'+(me?"me":"ta")+'" title="点击更换头像 · 双击拍一拍">'+ava+'</button><div class="msgcol"><div class="bub message '+(me?"message-sent":"message-received")+(m.type==="ask"||m.type==="quizset"||m.type==="quiz"||m.type==="transfer"||m.type==="redpacket"?" wfix":"")+(m.tag?" hastag":"")+'" data-act="msg-tap" data-id="'+m.id+'">'+inner+'</div>'+(me?"":(m.mood||m.mood2?'<span class="bubmoods">'+(m.mood?'<span class="bubmood" data-act="mood-tap" data-id="'+m.id+'">'+esc(m.mood)+"</span>":"")+(m.mood2?'<span class="bubmood2">'+esc(m.mood2)+"</span>":"")+"</span>":""))+meta+"</div>"+(msgMulti?'<span class="selbox" data-act="msg-tap" data-id="'+m.id+'"></span>':"")+"</div>"}
+/* 全站头像唯一数据源：聊天 / 朋友圈 / 通话 / 媒体会话 / 设置预览一律实时读这两个字段，
+   业务数据（朋友圈、消息、信件…）里绝不存头像快照，避免「换了头像别处还是旧的」 */
+function avatarSrc(who){return who==="me"?(S.assets.ava_me||""):(S.assets.ava_ta||"")}
 /* 可复用头像组件：参数 src / size / shape / name（不传 size 时使用全局 --ava-size/--ava-radius，便于实时预览） */
 function avatarHtml(o){o=o||{};const src=o.src;let st="";if(o.size){const s=o.size,r=(o.shape==="circle")?"50%":"10px";st=' style="width:'+s+"px;height:"+s+"px;border-radius:"+r+'"'}return '<span class="ava'+(o.me?" me":"")+'"'+st+">"+(src?'<img src="'+src+'">':esc((o.name||"").slice(0,1)))+"</span>"}
 /* ================= LIBRARY L1 ================= */
@@ -4557,15 +4651,25 @@ function applyMyNick(name){const old=S.settings.myName||"我";const v=cleanNick(
  S.settings.myName=v;save("settings");
  if(old!==nw)sysNickChanged(old,"me");
  syncAvSheet();if(cur==="chatset")render()}
-/* 头像应用统一入口（参考 mochi applyAvatarImg 口径：气泡头像原位改 src、值没变不碰节点，避免整列闪烁） */
+/* 头像应用统一入口（参考 mochi applyAvatarImg 口径：气泡头像原位改 src、值没变不碰节点，避免整列闪烁）
+   ★ 强制刷新：聊天气泡 + 朋友圈动态 + 朋友圈封面三处的头像节点一起原位改，
+     不依赖「退出页面再进来」，也保证永远和全局头像一致 */
 function setAvatar(who,dataUrl){const k=who==="me"?"ava_me":"ava_ta";
  if(dataUrl)S.assets[k]=dataUrl;else delete S.assets[k];
- save("assets");applyAvatarDom(who,dataUrl||"");try{refreshCallVisuals()}catch(e){};syncAvSheet();if(cur!=="chat")render()}
-function applyAvatarDom(who,url){if(cur!=="chat")return;
- const nodes=document.querySelectorAll(who==="me"?".msg.me .ava":'.msg:not(.me) .ava');
+ save("assets");
+ applyAvatarDom(who,dataUrl||"");
+ try{refreshCallVisuals()}catch(e){}
+ syncAvSheet();
+ /* 正在看朋友圈 / 其它页面时，整页重画一次（朋友圈列表实时读全局头像，重画即最新） */
+ try{if(cur==="moments")renderMoments();else if(cur!=="chat")render()}catch(e){}}
+function applyAvatarDom(who,url){
+ const me=who==="me";
+ const sel=me?[".msg.me .ava","#mbox .post .who .ava.me",".fcover .favav .ava"]
+            :[".msg:not(.me) .ava","#mbox .post .who .ava:not(.me)"];
+ const nodes=document.querySelectorAll(sel.join(","));
  for(let i=0;i<nodes.length;i++){const el=nodes[i];if(el.__avApplied===url)continue;el.__avApplied=url;
   if(url){const img=el.querySelector("img");if(img)img.src=url;else el.innerHTML='<img src="'+url+'">'}
-  else{const nm=who==="me"?(S.settings.myName||"我"):(S.settings.taName||"TA");el.textContent=nm.slice(0,1)}}}
+  else{const nm=me?(S.settings.myName||"我"):(S.settings.taName||"TA");el.textContent=nm.slice(0,1)}}}
 /* ---- 池内点选立即更换（参考 mochi switchXxxFromLib：TA 侧掷 50% 邀请回应、其中 70% 同意；手动更换重置 1-8 小时计时） ---- */
 function switchTaAvatar(src){const p=nickPool();if(!src||p.taAva.indexOf(src)<0)return;
  const before=S.assets.ava_ta||"";
@@ -5051,6 +5155,18 @@ document.addEventListener("input",e=>{const t=e.target;
  if(t.matches("[data-pknum]")){let v=+t.value;if(!isFinite(v))v=0;if(v<0)v=0;if(v>100)v=100;const p=pkState();p.prob=v;t.value=v;save("pickup");return}});
 /* ================= seed & boot ================= */
 const SEED={"主字卡":["今天也在想你呀","吃饭了吗？别饿着自己","晚安，梦里见","抱抱你","我在呢，慢慢说","想听你说说话","外面降温了，多穿点","累了吗？靠一会儿吧","你笑的样子真好看","不管多晚我都等你"],"情绪字卡":["开心到想转圈","有点小委屈","想你想得发呆","心里暖暖的","酸酸的，是想你了","安静得只听见心跳"],"拍一拍":["的肩膀说辛苦了","的头说乖","的小手说牵住不放","的背说我在呢"],"拍一拍·我":["的头发说好软","的脸颊说亲一下","的手说牵紧不放","的脑袋说想你了","的肩膀说靠一下","的额头说晚安","的后背说抱抱","的心口说我在"],"状态":["在看书","在散步","在发呆想你","在做饭","在听歌","睡着了","在忙里偷闲"],"寻踪·在哪里":["在家","在公司","在咖啡店","在公园","在图书馆","在路上","在朋友家","在健身房","在超市","在电影院","在便利店","在书店","在地铁上","在阳台","在河边","在小区楼下","在面包店","在车站","在自习室"],"寻踪·在做什么":["刷手机","看书","发呆","听歌","写东西","吃零食","喝奶茶","散步","玩游戏","想你","看电影","追剧","刷视频","等快递","收拾房间","洗衣服","做饭","泡茶","吃水果","拍照"],"寻踪·想对你说":["想你了","记得按时吃饭","今天也很喜欢你","早点休息","有空给我回消息","别太累","喝水了吗","今天开心吗","我今天有点累","我今天很开心","我今天有点想你","我今天有点无聊","今天过得怎么样","记得多穿点","路上注意安全","晚安"],"颜文字":["(｡･ω･｡)","(≧▽≦)","(´･ω･`)","(｡>ω<｡)","(っ´▽`)っ","(｡•́︿•̀｡)","(＾▽＾)","╭(′▽`)╯"],"位置·方向":["在你左边","在你右边","在你身后","在你前面","离你两步","抬头就能看到","在你看不到的地方偷看你"],"位置·距离":["再近一点","再远一点","就停这儿","马上到你身边","一直在原地等你"],"位置·状态":["跟在你后面","陪你走着","停下来等你","绕着你转圈","在你身边"],"位置·感觉":["在你看不到的地方","隔着世界在你身边","感觉到了吗","能摸到我吗","一直没走远","隐约在你身旁"],"Emoji":["❤","✨","🌙","🌸","😊","🎵","💌"]};
+/* 历史数据兼容：旧版本可能在朋友圈 / 评论 / 消息 / 信件里存过头像快照 → 一律剔除，
+   渲染时统一实时读全局头像（avatarSrc），避免"换了头像别处还是旧的" */
+function stripLegacyAvatarSnapshots(){
+ const KEYS=["avatar","ava","avatarUrl","avaUrl","avatarSrc","ava_src"];
+ let n=0;
+ const strip=function(o){if(!o||typeof o!=="object")return;KEYS.forEach(function(k){if(Object.prototype.hasOwnProperty.call(o,k)){try{delete o[k]}catch(e){};n++}})};
+ try{(S.moments||[]).forEach(function(p){strip(p);(p.cmts||[]).forEach(strip)})}catch(e){}
+ try{(S.chats||[]).forEach(function(m){strip(m);(m.cmts||[]).forEach(strip)})}catch(e){}
+ try{(S.letters||[]).forEach(function(l){strip(l);strip(l.myReply);strip(l.taReply)})}catch(e){}
+ try{(S.audios||[]).forEach(strip)}catch(e){}
+ if(n){try{save("moments")}catch(e){}try{save("chats")}catch(e){}try{save("letters")}catch(e){}try{save("audios")}catch(e){}}
+ return n}
 async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))document.documentElement.classList.add("wxweb")}catch(e){}
  await idbOpen();
  for(const k of SAVEKEYS){const v=await kvGet(k);if(v!==undefined)S[k]=v}
@@ -5080,6 +5196,8 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
  try{const q=localStorage.getItem(QUOTE_KEY);if(q)S.settings.quote=q}catch(e){}
  try{const n=localStorage.getItem("nickname");if(n)S.settings.taName=n}catch(e){}
  S.misc=S.misc||{};S.assets=S.assets||{};S.misc.groups=S.misc.groups||{};
+ /* 历史数据兼容（一次性）：清掉朋友圈 / 消息 / 信件里遗留的头像快照字段 */
+ try{if(S.misc.avaSnapMig!==1){const _n=stripLegacyAvatarSnapshots();S.misc.avaSnapMig=1;save("misc");if(_n>0)console.log("[星笺] 已清理历史头像快照 "+_n+" 处")}}catch(e){}
  try{pkSyncPool();save("cards")}catch(e){}
  if(!S.misc.seeded){for(const c in SEED)SEED[c].forEach(t=>S.cards.push({id:uid(),cat:c,type:"text",content:t,group:""}));S.misc.seeded=true;S.misc.lastSeen=Date.now();save("cards");save("misc")}
  /* 新增分类（寻踪字卡池）补齐：老用户 seeded 已置位时也要有内容 */
@@ -5252,16 +5370,14 @@ boot();
     } catch (e) {}
   };
 
-  /* ② 通话保活：把通话状态落盘；切后台、甚至被系统回收后再回来，通话不会被挂断 */
+  /* ② 通话保活：把通话状态落盘；切后台、甚至被系统回收后再回来，通话不会被挂断
+       —— 真正落盘统一走 callSaveState()（含已通话时长），这里只在 callOpen 之后补存一次 */
   var _open = window.callOpen, _end = window.callEnd;
   if (_open) {
     window.callOpen = function (o) {
-      try {
-        o = o || {};
-        S.misc.callSave = { dir: o.dir, mode: o.mode, status: o.status, at: Date.now(), startedAt: (typeof callState !== "undefined" && callState && callState.startedAt) || Date.now() };
-        save("misc");
-      } catch (e) {}
-      return _open.apply(null, arguments);
+      var r = _open.apply(this, arguments);
+      try { callSaveState(); } catch (e) {}
+      return r;
     };
   }
   if (_end) {
@@ -5271,18 +5387,8 @@ boot();
     };
   }
   function restoreCall() {
-    try {
-      var s = S.misc && S.misc.callSave;
-      if (!s || typeof callState === "undefined" || callState) return;
-      var el = Date.now() - (s.at || 0);
-      if (s.mode === "ringing" && el > 50000) { delete S.misc.callSave; save("misc"); return; }  /* 响铃太久：当作已挂断 */
-      if (s.mode === "ringing" || s.mode === "active") {
-        window.__xjRestoring = true;
-        window.callOpen({ dir: s.dir, mode: s.mode, status: s.status, startedAt: s.startedAt });
-        window.__xjRestoring = false;
-        toast("通话已恢复");
-      } else { delete S.misc.callSave; save("misc"); }
-    } catch (e) {}
+    /* 统一走 callRestoreSaved()：保留已通话时长，并把被中断的拨号 / 响铃流程接上 */
+    try { callRestoreSaved(); } catch (e) {}
   }
   setTimeout(restoreCall, 2200);                                              /* 启动后恢复 */
   document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(restoreCall, 500); });
@@ -5402,25 +5508,14 @@ ACT["notify-perm"] = function () {
     var _open = window.callOpen;
     if (_open) {
       window.callOpen = function (o) {
-        try {
-          o = o || {};
-          S.misc.callSave = { dir: o.dir, mode: o.mode, status: o.status, at: Date.now(), startedAt: (typeof callState !== "undefined" && callState && callState.startedAt) || Date.now() };
-          kvSet("misc", S.misc);                       /* 立刻落盘，不防抖 */
-        } catch (e) {}
-        return _open.apply(null, arguments);
+        var r = _open.apply(this, arguments);        /* 先真正打开，再落盘 → 存到的是准确状态 */
+        try { callSaveState(true); } catch (e) {}    /* 立刻写 IndexedDB，不走防抖 */
+        return r;
       };
     }
     var _restore = function () {
-      try {
-        var s = S.misc && S.misc.callSave;
-        if (!s || (typeof callState !== "undefined" && callState)) return;
-        var el = Date.now() - (s.at || 0);
-        if (s.mode === "ringing" && el > 50000) { delete S.misc.callSave; kvSet("misc", S.misc); return; }
-        if (s.mode === "active" || s.mode === "ringing") {
-          window.callOpen({ dir: s.dir, mode: s.mode, status: s.status, startedAt: s.startedAt });
-          try { toast("通话已恢复"); } catch (e) {}
-        }
-      } catch (e) {}
+      /* 与另一处保活统一走 callRestoreSaved()：保留已通话时长，两份实现不再互相抢 */
+      try { callRestoreSaved(); } catch (e) {}
     };
     setTimeout(_restore, 900);
     setTimeout(_restore, 2600);
