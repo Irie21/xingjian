@@ -923,6 +923,18 @@ textarea.qzedit{display:block;width:100%;min-height:212px;box-sizing:border-box;
 /* 卡片式弹窗（如「编辑字卡」）：左对齐标题 + 全宽输入 + 并排双按钮 */
 #modal.center .sheet.dlgcard{width:min(264px,calc(100vw - 64px));max-width:none;border-radius:18px;padding:20px}
 #modal .sheet.dlgcard .mtitle{font-size:18px;font-weight:700;justify-content:flex-start;margin-bottom:14px}
+/* ---------- 搜索聊天记录（功能菜单 → 搜索聊天）---------- */
+.cssearch{display:flex;align-items:center;gap:8px}
+.cssearch input{flex:1;min-width:0}
+.csres{max-height:54vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:0 -2px}
+.csres::-webkit-scrollbar{display:none}
+.csrow{display:flex;align-items:baseline;gap:8px;width:100%;border:none;background:transparent;border-bottom:1px solid var(--line);padding:10px 4px;font:inherit;font-size:13px;color:var(--text);text-align:left;cursor:pointer}
+.csrow:last-child{border-bottom:none}
+.csrow:active{opacity:.6}
+.csrow .cswho{flex:none;font-size:12px;font-weight:600;color:var(--muted);max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.csrow .cstx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.csrow .cstime{flex:none;font-size:11px;color:var(--muted)}
+.csrow .cshl{background:rgba(172,142,206,.3);background:color-mix(in srgb,var(--primary) 30%,transparent);border-radius:4px;padding:0 2px;font-weight:600;color:inherit}
 #modal .sheet.dlgcard textarea,#modal .sheet.dlgcard input#pv{border-radius:14px;padding:12px 14px;font-size:15px}
 #modal .sheet.dlgcard .btnrow{margin-top:16px;gap:12px;flex-wrap:nowrap}
 #modal .sheet.dlgcard .btnrow .btn{flex:1 1 0;height:52px;min-width:0;border-radius:14px;font-size:16px;padding:0 10px}

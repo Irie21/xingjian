@@ -504,7 +504,7 @@ function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let ra
   if(kbOpen){st.setProperty("--kb",kb+"px");document.documentElement.classList.add("kb-open")}
   else{st.setProperty("--kb","0px");document.documentElement.classList.remove("kb-open")}
  };
- const toBottom=()=>{const sc=document.getElementById("chatscroll");if(sc)sc.scrollTop=sc.scrollHeight};
+ const toBottom=()=>{if(suppressChatBottom)return;const sc=document.getElementById("chatscroll");if(sc)sc.scrollTop=sc.scrollHeight};
  const on=()=>{if(raf)return;raf=requestAnimationFrame(()=>{
   const wasOpen=kbOpen;apply();
   if(cur==="chat"){
@@ -967,13 +967,12 @@ function callTickRun(){
   callState.hangupAt=Date.now()+60000;
   const cc=callCfg();
   if(!(cc.nohangup||cc.hangup<=0)&&Math.random()*100<cc.hangup)callEnd("对方挂断了电话")}}
-/* 回到前台：先把心跳与时长补正，再把通话恢复成「完整通话页」
-   —— 挂后台久了回来如果还停在进后台前那个小窗（甚至是老位置），
-      看着就像卡住了；恢复全屏才符合"回到通话"的直觉。 */
+/* 回到前台：只负责把心跳与时长补正、把小窗收回屏幕内。
+   ⚠️ 通话界面保持「切后台前的形态」（迷你就还是迷你、全屏就还是全屏），
+      由 uiStateRestore() 按 sessionStorage 里记的状态还原，不再强制切成全屏。 */
 function callResync(){
  if(!callState)return;
  if(!callTick)startCallDuration();else callTickRun();
- try{const m=$("#callMini");if(m&&m.style.display!=="none")callRestore()}catch(e){}
  try{miniClamp()}catch(e){}
 }
 /* 小窗位置纠正：旋转屏幕 / 键盘收起 / 后台回来导致视口变化时，
@@ -1060,7 +1059,8 @@ function callKeepAliveSync(){
 function callSaveState(now){try{
  if(!callState){delete S.misc.callSave;if(now&&typeof kvSet==="function")kvSet("misc",S.misc);else save("misc");return}
  S.misc.callSave={dir:callState.dir,mode:callState.mode,status:callState.status,at:Date.now(),
-  startedAt:callState.startTime||Date.now(),connectedTime:callState.connectedTime||0};
+  startedAt:callState.startTime||Date.now(),connectedTime:callState.connectedTime||0,
+  mini:callMiniShown()};
  if(now&&typeof kvSet==="function")kvSet("misc",S.misc);else save("misc")}catch(e){}}
 /* 从落盘状态恢复通话：文件里有两处保活 IIFE（网页版 + 立即落盘版），统一调这里，
    避免两份实现互相抢、把已经通话的时长冲成 00:00 */
@@ -1078,6 +1078,8 @@ function callRestoreSaved(){try{
  if(s.mode==="active"){try{startCallDuration()}catch(e){}}
  else if(s.mode==="calling"){setTimeout(function(){callResolvePickup(callState,Math.random()*100)},1500)}
  else if(s.mode==="ringing"){setTimeout(function(){if(callState&&callState.mode==="ringing")callEnd("未接听")},25000)}
+ /* 界面形态也照旧：被回收前是迷你小窗，重开就还是迷你小窗（不再默认弹成全屏） */
+ if(s.mini){try{callMinimize();setTimeout(function(){try{miniClamp()}catch(e){}},60)}catch(e){}}
  return true;
 }catch(e){return false}}
 /* 一次「接通判定」：原本写在 callStart 的 setTimeout 里，抽出来给「恢复被中断的拨号」复用 */
@@ -3237,8 +3239,46 @@ document.addEventListener("visibilitychange",function(){
  else{bgCatchUp();try{callResync()}catch(e){}}});
 window.addEventListener("focus",function(){if(!document.hidden&&bgHiddenAt)bgCatchUp()});
 /* Page Lifecycle：标签页被系统冻结 / 解冻（安卓后台常见）→ 冻结前落盘，解冻后立刻同步 */
-document.addEventListener("freeze",function(){try{callSaveState()}catch(e){}});
-document.addEventListener("resume",function(){try{if(callState)callResync()}catch(e){}});
+document.addEventListener("freeze",function(){try{callSaveState()}catch(e){};try{uiStateSave()}catch(e){}});
+document.addEventListener("resume",function(){try{if(callState)callResync()}catch(e){};try{uiStateRestore()}catch(e){}});
+/* ================= 前后台切换：保存 / 恢复界面状态 =================
+   ① 通话保持切后台前的形态（迷你半框 / 全屏）＋小窗位置；
+   ② 页面滚动位置（#app 与聊天消息列表）切回来停在原处，不跳到底；
+   ③ 路由与通话状态一起存进 sessionStorage，被系统回收重开也能接着来。 */
+const UI_STATE_KEY="xjUiState";
+let suppressChatBottom=false;
+function callMiniShown(){try{const m=$("#callMini");return !!(m&&m.style.display&&m.style.display!=="none")}catch(e){return false}}
+function uiStateSave(){
+ try{
+  const sc=document.getElementById("chatscroll"),app=document.getElementById("app");
+  sessionStorage.setItem(UI_STATE_KEY,JSON.stringify({
+   route:cur,param:curParam||"",at:Date.now(),
+   appTop:app?app.scrollTop:0,chatTop:sc?sc.scrollTop:0,
+   call:callState?{mode:callState.mode,mini:callMiniShown()}:null}))
+ }catch(e){}}
+function uiStateLoad(){try{const s=sessionStorage.getItem(UI_STATE_KEY);return s?JSON.parse(s):null}catch(e){return null}}
+function uiStateRestore(){
+ const st=uiStateLoad();if(!st)return;
+ /* 路由：被回收重开后回到离开时那一页 */
+ if(st.route&&st.route!==cur){try{go(st.param?st.route:st.route,st.param||undefined)}catch(e){}}
+ /* 滚动位置：立刻放一次，再在布局稳定后补两次（键盘收起 / 补发离线消息都会改高度） */
+ const put=function(){
+  try{
+   const app=document.getElementById("app"),sc=document.getElementById("chatscroll");
+   if(app&&st.appTop)app.scrollTop=st.appTop;
+   if(sc&&st.chatTop)sc.scrollTop=st.chatTop}catch(e){}};
+ put();setTimeout(put,120);setTimeout(put,420);
+ /* 通话形态：还原成离开前的样子（迷你就还是迷你，全屏就还是全屏） */
+ if(callState&&st.call&&(Date.now()-(st.at||0)<6*3600000)){
+  suppressChatBottom=true;setTimeout(function(){suppressChatBottom=false},900);
+  try{
+   const wantMini=!!st.call.mini,isMini=callMiniShown();
+   if(wantMini&&!isMini)callMinimize();
+   else if(!wantMini&&isMini)callRestore();
+   setTimeout(function(){try{miniClamp()}catch(e){}},60)}catch(e){}}}
+document.addEventListener("visibilitychange",function(){
+ if(document.hidden){try{uiStateSave()}catch(e){};return}
+ try{uiStateRestore()}catch(e){}});
 /* 离线消息提醒：离开 ≥10 分钟，回来按离开时长补 1~4 条 TA 的消息并提示 */
 function offlineCheck(force){
  const s=S.settings;if(!s.system.offline)return;
@@ -4018,8 +4058,54 @@ PAGES.chatset={html(){const c=S.settings.chat;
  '<div class="sect">聊天数据</div><div class="card" style="padding:0 12px">'+actionRow("down","导出聊天数据",'data-act="chat-export"')+actionRow("up","导入聊天数据",'data-act="chat-import"')+actionRow("trash","清除全部聊天数据",'data-act="chat-clear"',true)+'</div>'},
  init(){}};
 /* ---- 聊天功能菜单与弹层 ---- */
-const CHAT_MENU=[["call","phone","通话"],["rp","redpacket","红包"],["pat","hand","拍一拍"],["avainter","users","头像和昵称"],["decide","dice","帮我决定"],["quiz","quiz","问卷"],["trace","trace","寻踪"],["continue","chatMore","继续说"]];
-function chatMenuRun(id){const fn={call:()=>callStart(),rp:transferSheet,pat:openPatSheet,avainter:()=>openAvNick(),decide:askSheet,quiz:()=>go("quizset"),trace:()=>go("trace"),sticker:()=>ACT["chat-sticker"](),continue:()=>taContinue()}[id];if(fn)fn()}
+const CHAT_MENU=[["call","phone","通话"],["rp","redpacket","红包"],["pat","hand","拍一拍"],["avainter","users","头像和昵称"],["decide","dice","帮我决定"],["quiz","quiz","问卷"],["trace","trace","寻踪"],["continue","chatMore","继续说"],["search","search","搜索聊天"]];
+function chatMenuRun(id){const fn={call:()=>callStart(),rp:transferSheet,pat:openPatSheet,avainter:()=>openAvNick(),decide:askSheet,quiz:()=>go("quizset"),trace:()=>go("trace"),sticker:()=>ACT["chat-sticker"](),continue:()=>taContinue(),search:chatSearchOpen}[id];if(fn)fn()}
+/* ---------- 搜索聊天记录（功能菜单 → 搜索聊天）----------
+   直接在 S.chats 里按关键字过滤（各种消息都用 msgPlain 转成可搜文本：
+   红包 → "[红包] 1314.00"、图片 → "[图片]"、语音 → "[语音]"…），
+   点结果跳到那条消息并闪一下（复用引用定位的 flashrow 动效）。 */
+/* 可搜文本：msgPlain 兜底（红包/图片/语音等都有可读文案）+ 红包附言 + 被引用的原文 */
+function chatSearchText(m){let t=msgPlain(m)||"";
+ if(m&&m.note&&t.indexOf(m.note)<0)t+=" "+m.note;
+ if(m&&m.quote&&m.quote.text&&t.indexOf(m.quote.text)<0)t+=" "+m.quote.text;
+ return t}
+function hlText(s,q){const src=String(s==null?"":s);if(!q)return esc(src);
+ const low=src.toLowerCase();const out=[];let i=0;
+ while(i<src.length){const k=low.indexOf(q,i);
+  if(k<0){out.push(esc(src.slice(i)));break}
+  out.push(esc(src.slice(i,k)),'<b class="cshl">'+esc(src.slice(k,k+q.length))+"</b>");i=k+q.length}
+ return out.join("")}
+function chatSearchOpen(){
+ const sh=openSheet('<div class="mtitle"><span class="mtt">搜索聊天记录</span><button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
+  '<div class="cssearch"><input id="csq" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="搜关键词：红包 / 晚安 / 图片…"></div>'+
+  '<div class="muted" id="cscount" style="padding:8px 2px 6px">输入关键词开始搜索</div>'+
+  '<div class="csres" id="csres"></div>',true);
+ const inp=sh.querySelector("#csq"),box=sh.querySelector("#csres"),cnt=sh.querySelector("#cscount");
+ const paint=function(){
+  const raw=String(inp.value||"").trim(),q=raw.toLowerCase();
+  if(!q){box.innerHTML="";cnt.textContent="输入关键词开始搜索";return}
+  const hits=[];
+  for(let i=S.chats.length-1;i>=0;i--){const m=S.chats[i];if(!m)continue;
+   const t=chatSearchText(m);if(t.toLowerCase().indexOf(q)>=0)hits.push({m:m,t:t})}
+  cnt.textContent=hits.length?("共 "+hits.length+" 条 · 从新到旧"+(hits.length>100?"（只列最近 100 条）":"")):("没有找到包含「"+raw+"」的消息");
+  box.innerHTML=hits.slice(0,100).map(function(h){
+   return '<button class="csrow" data-csjump="'+h.m.id+'"><span class="cswho">'+(h.m.from==="me"?"我":esc(S.settings.taName||"TA"))+'</span>'+
+    '<span class="cstx">'+hlText(h.t,q)+'</span><span class="cstime">'+fmtMsgTime(h.m.timestamp||h.m.ts)+"</span></button>"}).join("")};
+ sh.oninput=function(e){if(e.target&&e.target.id==="csq")paint()};
+ sh.onclick=function(e){
+  if(e.target.closest("[data-r]")){closeModal();return}
+  const b=e.target.closest("[data-csjump]");
+  if(b){const id=b.dataset.csjump;closeModal();setTimeout(function(){jumpToMsg(id)},180)}};
+ setTimeout(function(){try{inp.focus()}catch(e){}},120);
+}
+function jumpToMsg(id){
+ const jump=function(){
+  const el=document.querySelector('.msg[data-id="'+id+'"]');
+  if(!el)return toast("这条消息不在当前聊天里（可能已删除）");
+  try{el.scrollIntoView({block:"center"})}catch(e){}
+  el.classList.remove("flashrow");
+  setTimeout(function(){el.classList.add("flashrow");setTimeout(function(){el.classList.remove("flashrow")},2600)},60)};
+ if(cur==="chat")jump();else{go("chat");setTimeout(jump,320)}}
 function taContinue(){const s=S.settings.reply.chat;const delay=rnd(s.speedMin,s.speedMax)*1000;showTyping(true,delay);setTimeout(()=>{showTyping(false);S.chats.forEach(x=>{if(x.from==="me")x.read=true});pushChat({from:"ta",type:"text",text:taTextContent()});playBlock("ta")},delay)}
 function toggleVoicePerm(){const c=S.settings.chat;
  if(c.voice){c.voice=false;save("settings");toast("语音输入已关闭");return}
@@ -4144,8 +4230,13 @@ PAGES.txrec={html(){const list=txAll().slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
   '<div class="chips" style="margin:14px 0 6px">'+tab("all","全部")+tab("in","对方发给我")+tab("out","我发给对方")+"</div>"+
   '<div class="card" style="padding:4px 12px">'+(shown.length?shown.map(txRow).join(""):'<div class="empty">还没有红包记录</div>')+"</div>"+
   '<div class="sect">对方红包金额</div><div class="card" style="padding:0 12px">'+
-   '<div class="row"><span class="lab">金额方式</span><span class="chips" style="gap:6px">'+[["fix","固定 4 位数"],["rand","随机 4 位数"]].map(function(x){return '<button class="chip'+(rpCfg().mode===x[0]?" on":"")+'" data-act="rp-mode" data-v="'+x[0]+'">'+x[1]+"</button>"}).join("")+"</span></div>"+
-   (rpCfg().mode==="fix"?'<div class="row"><span class="lab">固定数额 <span class="sub">4 位数字</span></span><input type="number" data-set="rp.fix" value="'+rpCfg().fix+'" style="width:96px;flex:none"></div>':'<div class="row"><span class="lab">随机范围 <span class="sub">1000 ~ 9999（固定 4 位数）</span></span></div>')+
+   '<div class="row"><span class="lab">金额方式</span><span class="chips" style="gap:6px">'+[["fix","固定金额"],["rand","随机金额"]].map(function(x){return '<button class="chip'+(rpCfg().mode===x[0]?" on":"")+'" data-act="rp-mode" data-v="'+x[0]+'">'+x[1]+"</button>"}).join("")+"</span></div>"+
+   (rpCfg().mode==="fix"
+    ?'<div class="row"><span class="lab">固定数额 <span class="sub">元，可任意填（5.20 / 1314 / 5200.88）</span></span><input type="number" step="0.01" min="0.01" inputmode="decimal" data-set="rp.fix" value="'+esc(String(rpCfg().fix))+'" style="width:118px;flex:none"></div>'+
+     '<div class="chips" style="padding:0 0 12px">'+[52,520,1314,5200].map(function(q){return '<button class="chip" data-act="rp-fix-chip" data-v="'+q+'">¥'+q+"</button>"}).join("")+"</div>"
+    :'<div class="row"><span class="lab">随机下限 <span class="sub">元</span></span><input type="number" step="0.01" min="0.01" inputmode="decimal" data-set="rp.min" value="'+esc(String(rpCfg().min))+'" style="width:118px;flex:none"></div>'+
+     '<div class="row"><span class="lab">随机上限 <span class="sub">元</span></span><input type="number" step="0.01" min="0.01" inputmode="decimal" data-set="rp.max" value="'+esc(String(rpCfg().max))+'" style="width:118px;flex:none"></div>'+
+     '<div class="muted" style="padding:0 0 12px">每次在这两个数之间随机；两数都是整数时只随机整数。填反了会自动交换。</div>')+
   "</div>"+
   '<div class="sect">对方红包里的语录</div><div class="card" style="padding:2px 12px">'+
    (txNotes().length?txNotes().map(function(t,i){return '<div class="row"><span class="lab">'+esc(t||"（不写语录 · 只发红包）")+'</span><button class="ibtn" data-act="rp-note-del" data-i="'+i+'" title="删除">'+ico("trash")+"</button></div>"}).join(""):'<div class="empty">还没有语录</div>')+
@@ -4157,17 +4248,25 @@ ACT["rp-note-add"]=()=>{promptDlg("新增红包语录","").then(function(t){if(t
 ACT["rp-note-del"]=el=>{const n=txNotes();n.splice(+el.dataset.i,1);save("settings");render();toast("已删除")};
 ACT["rp-note-reset"]=()=>{const r=S.settings.reply=S.settings.reply||{};r.txNotes=TX_NOTES.slice();save("settings");render();toast("已恢复默认语录")};
 ACT["rp-mode"]=el=>{rpCfg().mode=el.dataset.v;save("settings");render()};
+ACT["rp-fix-chip"]=el=>{rpCfg().fix=+el.dataset.v||1314;save("settings");render();toast("对方红包金额 ¥"+txAmtTxt(rpCfg().fix))};
 ACT["tx-filter"]=el=>{S.misc.txFilter=el.dataset.v;save("misc");render()};
 /* ---------- 对方主动转账 / 主动退还（概率硬编码，无时间与次数拦截） ---------- */
 const TRANSFER_PROBABILITY=0.20; /* 对方主动转账概率 20% */
 const REFUND_PROBABILITY=0.07;   /* 对方主动退还概率 7% */
-/* 对方红包金额：可固定（4 位数字）或随机（固定 4 位数 1000~9999） */
+/* 对方红包金额：固定（任意金额，支持小数）或随机（自定义区间，整数区间出整数） */
 function rpCfg(){const s=S.settings;if(!s.rp||typeof s.rp!=="object")s.rp={};
  if(s.rp.mode!=="fix"&&s.rp.mode!=="rand")s.rp.mode="fix";
- if(!(s.rp.fix>0))s.rp.fix=1314;return s.rp}
+ if(!(s.rp.fix>0))s.rp.fix=1314;
+ if(!(s.rp.min>0))s.rp.min=1000;
+ if(!(s.rp.max>0))s.rp.max=9999;
+ if(s.rp.max<s.rp.min){const t2=s.rp.min;s.rp.min=s.rp.max;s.rp.max=t2}
+ return s.rp}
 function randAmt(){const c=rpCfg();
- if(c.mode==="rand")return String(rnd(1000,9999));
- const f=String(Math.floor(c.fix)).slice(0,4);return f.length===4?f:"1314"}
+ if(c.mode==="rand"){
+  const lo=Math.min(c.min,c.max),hi=Math.max(c.min,c.max);
+  const whole=(Math.abs(lo-Math.round(lo))<1e-9)&&(Math.abs(hi-Math.round(hi))<1e-9);
+  return txAmtTxt(whole?rnd(Math.round(lo),Math.round(hi)):(rnd(Math.round(lo*100),Math.round(hi*100))/100))}
+ return txAmtTxt(c.fix)}
 function tryTaTransfer(){
  if(Math.random()>=TRANSFER_PROBABILITY)return;
  const amount=randAmt(),note=taTransferNote();
