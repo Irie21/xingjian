@@ -119,9 +119,10 @@ html[data-glass="1"] #modal .sheet:before{content:none}
 .card{background:var(--card);border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .card h3{font-size:15px;margin-bottom:8px}
 .card.sfxoff{opacity:.5}
-.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .row:last-child{border-bottom:none}
-.row .lab{flex:1;min-width:0;font-size:14px}
+/* 标签至少保留 5 个字宽：右侧胶囊/按钮放不下时换到下一行，而不是把标题挤成“一列一个字” */
+.row .lab{flex:1 1 auto;min-width:5em;font-size:14px}
 /* 防挤压：普通行内的下拉/输入不会吃掉整行导致标签竖排（标签改到控件上方用 .row.sliderrow） */
 .row:not(.sliderrow)>select{flex:0 1 auto;width:auto;min-width:0;max-width:70%}
 .row.sliderrow{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:6px}
@@ -759,7 +760,7 @@ html[data-dark="1"]{--ink:#cbcbcb;--ink-soft:rgba(203,203,203,.14);--ink-line:rg
 .msetrow .mfl b{display:block;font-size:14px;font-weight:500;line-height:1.3}
 .msetrow .mfl span{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
 .mhint{font-size:12px;line-height:1.6;color:var(--muted);padding:9px 2px 3px}
-.msetbtns{display:flex;gap:8px;margin-top:10px}
+.msetbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .mmgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .mmgrid button{display:flex;align-items:center;gap:8px;padding:11px 11px;border:1px solid var(--line);background:var(--card);border-radius:14px;font-size:13.5px;color:var(--text);text-align:left;white-space:normal;word-break:break-word;line-height:1.3;min-width:0}
 .mmgrid button .mi{width:30px;height:30px;flex:none;border-radius:9px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--icon,var(--primary))}
@@ -777,7 +778,7 @@ html[data-dark="1"]{--ink:#cbcbcb;--ink-soft:rgba(203,203,203,.14);--ink-line:rg
 .mucard{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:16px;margin-bottom:10px}
 .mucard .mucov{width:46px;height:46px}
 .mucard .mumid{flex:1;min-width:0}
-.msetbtns .btn{flex:1;white-space:nowrap;font-size:13px;padding:7px 6px}
+.msetbtns .btn{flex:1 1 calc(50% - 4px);min-width:0;white-space:normal;word-break:break-word;line-height:1.3;font-size:13px;padding:8px 6px}
 .mufloat .mfroll{width:30px;height:30px;flex:none;border:none;border-radius:50%;background:var(--bg);color:var(--text);display:flex;align-items:center;justify-content:center;padding:0}
 .mufloat .mfroll svg{width:17px;height:17px}
 .mufloat.open{min-width:272px;max-width:336px}

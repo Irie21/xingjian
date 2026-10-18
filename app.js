@@ -4,6 +4,9 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
+/* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
+   它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
+const APP_BUILD="v25";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -26,7 +29,7 @@ function readAsDataURL(f){return new Promise(res=>{const r=new FileReader();r.on
 function readAsText(f){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsText(f)})}
 function pickFile(accept,multi,cb){const inp=$("#fileinp");inp.accept=accept;inp.multiple=!!multi;inp.onchange=()=>{const fs=[...inp.files];inp.value="";if(fs.length)cb(fs)};inp.click()}
 function download(name,text,mime){const b=new Blob([text],{type:mime||"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}
-/* ================= 通用「左右滑动关闭」手势（触摸 + 鼠标）=================
+/* ================= 通用「左右滑动关闭」手势（触摸 + 鼠标）================
    同时给两种顶部提示用：① 消息弹窗 toast（小胶囊）② 桌面消息弹窗 msgpop（消息横幅）。
    规则：只有明确的横向手势才接管，竖向完全不拦（照常滑页面）；
         滑过阈值（80px 或屏幕宽度的 1/3）→ 朝该方向飞走并淡出；
@@ -892,7 +895,7 @@ function sysNotif(title,opts){
  pageNotif(title,opts);
 }
 /* 应用内消息横幅（对应设置里的「桌面消息弹窗」）
-   ★ 支持左右滑动关闭：绑 swipeBind（见文件开头的通用手势）；
+   * 支持左右滑动关闭：绑 swipeBind（见文件开头的通用手势）；
      轻点仍然保留原来的「进聊天」行为，横滑之后不会误触发点击。 */
 let _mpTimer=null;
 function msgPop(text){
@@ -1022,12 +1025,12 @@ function maybeIncoming(){if(callState)return;const now=Date.now();const last=Mat
 function callIncomingLoop(){setTimeout(()=>{try{maybeIncoming()}catch(e){};callIncomingLoop()},rnd(60000,120000))}
 /* ================= 通话保活（纯网页 / PWA 能做的那几件事）=================
    手机系统要省电，迟早会挂起后台的 JS，这点网页层面无法阻止；但可以显著改善：
-   ① 后台把通话心跳挂到 Web Worker 上（Worker 被「密集节流」的概率远低于主线程定时器）；
-   ② visibilitychange / Page Lifecycle resume：切回前台的一瞬立刻重新同步（时长按时间戳重算，
+   * 后台把通话心跳挂到 Web Worker 上（Worker 被「密集节流」的概率远低于主线程定时器）；
+   * visibilitychange / Page Lifecycle resume：切回前台的一瞬立刻重新同步（时长按时间戳重算，
      不依赖被冻结的定时器），并把中断的挂断判定补上；
-   ③ 通话期间保持「静音音频 + Media Session」：向系统声明本页正在播音频 / 正在通话，
+   * 通话期间保持「静音音频 + Media Session」：向系统声明本页正在播音频 / 正在通话，
      锁屏出现通话控制项，同时明显降低后台被冻结、被回收的概率；
-   ④ 通话状态落盘（callSaveState）：即使真被系统回收，重开也能接着恢复。 */
+   * 通话状态落盘（callSaveState）：即使真被系统回收，重开也能接着恢复。 */
 function callMediaOn(){
  if(!("mediaSession" in navigator))return;
  try{
@@ -1078,7 +1081,7 @@ function callSaveState(now){try{
   startedAt:callState.startTime||Date.now(),connectedTime:callState.connectedTime||0,
   mini:callMiniShown(),miniPos:miniPos()};
  if(now&&typeof kvSet==="function")kvSet("misc",S.misc);else save("misc")}catch(e){}}
-/* 从落盘状态恢复通话：文件里有两处保活 IIFE（网页版 + 立即落盘版），统一调这里，
+/* 从落盘状态恢复通话：文件里有两处保活IIFE（网页版 + 立即落盘版），统一调这里，
    避免两份实现互相抢、把已经通话的时长冲成 00:00 */
 function callRestoreSaved(){try{
  const s=S.misc&&S.misc.callSave;
@@ -1090,11 +1093,11 @@ function callRestoreSaved(){try{
  callOpen({dir:s.dir,mode:s.mode,status:s.status,startTime:s.startedAt||s.at||Date.now(),connectedTime:s.connectedTime||0});
  window.__xjRestoring=false;
  try{toast("通话已恢复")}catch(e){}
- /* 恢复后把被中断的流程接上：通话中 → 继续计时；拨号中 → 重新走接通判定；响铃中 → 补一个未接超时 */
+ /* 恢复后把被中断的流程接上：通话 → 继续计时；拨号中 → 重新走接通判定；响铃 → 补一个未接超时判定*/
  if(s.mode==="active"){try{startCallDuration()}catch(e){}}
  else if(s.mode==="calling"){setTimeout(function(){callResolvePickup(callState,Math.random()*100)},1500)}
- else if(s.mode==="ringing"){setTimeout(function(){if(callState&&callState.mode==="ringing")callEnd("未接听")},25000)}
- /* 界面形态也照旧：被回收前是迷你小窗，重开就还是迷你小窗（连同当时摆的位置） */
+ else if(s.mode==="ringing"){setTimeout(function(){if(callState&&callState.mode==="ringing")callEnd("未接来电")},25000)}
+ /* 界面形态也照旧：被回收前是迷你小窗，重开就还是迷你小窗（连同当时摆的位置）*/
  if(s.mini){try{callMinimize();applyMiniPos(s.miniPos);setTimeout(function(){try{miniClamp()}catch(e){}},60)}catch(e){}}
  return true;
 }catch(e){return false}}
@@ -1127,7 +1130,7 @@ function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)ret
  const end=()=>{drag=false};
  m.addEventListener("pointerup",end);m.addEventListener("pointercancel",end);
  /* 拖完浏览器会补一个 click：只把它吃掉（否则会误触发"点小窗回全屏"），
-    ★ 但 miniDragged 必须保留 —— 它代表"用户自己摆过位置"，
+    · miniDragged 必须保留 —— 它代表"用户自己摆过位置"，
       是位置能不能被记住、会不会被 miniClamp 拉回中间的关键 */
  m.addEventListener("click",e=>{if(miniTapGuard){e.stopPropagation();e.preventDefault();miniTapGuard=false}},true);
  /* 视口变化（横竖屏切换 / 键盘收起 / 从后台回来）后把小窗收回屏幕内 */
@@ -1869,7 +1872,51 @@ function muDataHtml(){let n=0;try{S.audios.forEach(function(a){if(a.blob)n+=(a.b
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>音乐 · 数据管理</b></span><span class="val" data-act="mu-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+S.audios.length+" 首 · 本地缓存 "+fmtBytes(n)+"</div>"+
   '<div class="btnrow"><button class="btn sm danger" data-act="mu-clearall">清空音乐库</button></div>'+
-  (muDeadCount()?'<div class="btnrow" style="margin-top:8px"><button class="btn sm" data-act="mu-deadclear" style="width:100%">清理无法播放的歌曲（'+muDeadCount()+' 首）</button></div>':"")+'</div>'}
+  (muDeadCount()?'<div class="btnrow" style="margin-top:8px"><button class="btn sm" data-act="mu-deadclear" style="width:100%">清理无法播放的歌曲（'+muDeadCount()+' 首）</button></div>':"")+'</div>'+
+  '<div class="sect">导出 / 导入</div><div class="card" style="padding:0 12px">'+
+   actionRow("down","导出音乐数据",'data-act="mu-export"')+
+   actionRow("up","导入音乐数据",'data-act="mu-import-data"')+
+   '<div class="muted" style="padding:2px 2px 10px;line-height:1.6">导出会把曲库、歌单、TA 的音乐设置一起打包；若已「下载到本机」，音频也会一并写进文件（可能几百 MB）。导入会覆盖当前曲库。</div>'+
+  "</div>"}
+/* ---------- 音乐数据 导出 / 导入（曲库 + 歌单 + TA 音乐设置 + 本机音频） ---------- */
+async function muExportData(){
+ const st=muState();
+ const data={app:"xingjian",ver:1,kind:"music",data:{
+  audios:await prepExport("audios"),
+  muLists:S.misc.muLists||[],
+  mu:{tab:st.tab,listId:st.listId,mode:st.mode,favs:st.favs||[],recent:st.recent||[],queue:st.queue||[]},
+  muTaFavs:S.misc.muTaFavs||[],
+  muDead:S.misc.muDead||{},
+  muFloatBg:S.misc.muFloatBg||"",
+  muCfg:S.settings.mu||{}
+ }};
+ download("星笺音乐_"+dayKey(Date.now())+".json",JSON.stringify(data));
+ toast("已导出音乐数据")}
+async function muImportDataObj(o){
+ const d=(o&&o.data)?o.data:o;
+ if(!d||typeof d!=="object")throw new Error("文件内容不对");
+ if(Array.isArray(d.audios))S.audios=await restoreVal("audios",JSON.parse(JSON.stringify(d.audios)));
+ if(Array.isArray(d.muLists))S.misc.muLists=d.muLists;
+ if(d.mu&&typeof d.mu==="object"){const st=muState();
+  ["tab","listId","mode","favs","recent","queue"].forEach(function(k){if(d.mu[k]!==undefined)st[k]=d.mu[k]})}
+ if(Array.isArray(d.muTaFavs))S.misc.muTaFavs=d.muTaFavs;
+ if(d.muDead&&typeof d.muDead==="object")S.misc.muDead=d.muDead;
+ if(typeof d.muFloatBg==="string")S.misc.muFloatBg=d.muFloatBg;
+ if(d.muCfg&&typeof d.muCfg==="object")S.settings.mu=deepMerge(S.settings.mu||{},d.muCfg);
+ save("audios");save("misc");save("settings");
+ if(muAudio){try{muAudio.pause()}catch(e){}}
+ try{muPaint()}catch(e){};render();toast("已导入音乐数据："+S.audios.length+" 首")}
+ACT["mu-export"]=async()=>{try{toast("正在打包…");await muExportData()}catch(e){toast("导出失败："+(e&&e.message||e))}};
+ACT["mu-import-data"]=()=>pickFile("application/json,.json",false,fs=>{const f=fs&&fs[0];if(!f)return;
+ readAsText(f).then(async function(t){
+  let o=null;try{o=JSON.parse(t)}catch(e){}
+  if(!o)return toast("文件解析失败");
+  const d=(o&&o.data)?o.data:o;
+  const n=Array.isArray(d&&d.audios)?d.audios.length:0;
+  const yes=await confirmDlg("导入音乐数据？\n\n当前 "+S.audios.length+" 首 → 文件里 "+n+" 首（会覆盖当前曲库）","导入",true);
+  if(!yes)return;
+  try{await muImportDataObj(o);closeModal();render()}catch(e){toast("导入失败："+(e&&e.message||e))}
+ }).catch(function(){toast("读取文件失败")})});
 ACT["mu-deadclear"]=()=>{const n=muDeadCount();if(!n)return toast("没有需要清理的歌曲");
  confirmDlg("清理 "+n+" 首没有音源的歌曲？只是从曲库移除","清理",true).then(function(ok){if(!ok)return;
   const dm=muDead();S.audios=S.audios.filter(function(a){return !dm[a.id]});
@@ -3370,9 +3417,9 @@ window.addEventListener("focus",function(){if(!document.hidden&&bgHiddenAt)bgCat
 document.addEventListener("freeze",function(){try{callSaveState()}catch(e){};try{uiStateSave()}catch(e){}});
 document.addEventListener("resume",function(){try{if(callState)callResync()}catch(e){};try{uiStateRestore()}catch(e){}});
 /* ================= 前后台切换：保存 / 恢复界面状态 =================
-   ① 通话保持切后台前的形态（迷你半框 / 全屏）＋小窗位置；
-   ② 页面滚动位置（#app 与聊天消息列表）切回来停在原处，不跳到底；
-   ③ 路由与通话状态一起存进 sessionStorage，被系统回收重开也能接着来。 */
+   * 通话保持切后台前的形态（迷你半框 / 全屏）＋小窗位置；
+   * 页面滚动位置（#app 与聊天消息列表）切回来停在原处，不跳到底；
+   * 路由与通话状态一起存进 sessionStorage，被系统回收重开也能接着来。 */
 const UI_STATE_KEY="xjUiState";
 let suppressChatBottom=false;
 function callMiniShown(){try{const m=$("#callMini");return !!(m&&m.style.display&&m.style.display!=="none")}catch(e){return false}}
@@ -4133,14 +4180,19 @@ function storageHtml(info){const {usage,quota,persisted}=info;
   if(over)head+='<div class="storwarn">占用已达 '+pct+'%，超过提醒阈值 '+warn+'%，建议清理数据。</div>';
   head+='<div class="storbar'+(over?" danger":"")+'"><i style="width:'+Math.max(1,pct)+'%"></i></div>'+
    '<div class="stortext"><span><b>'+fmtBytes(usage)+'</b> 已用</span><span class="muted">可用 '+fmtBytes(quota)+' · 占用 '+pct+'%</span></div>'}
- else{head+='<div class="stortext"><span id="stortotal"><b>计算中…</b> 估算占用</span><span class="muted">当前环境不支持配额查询</span></div>'}
+ else{head+='<div class="stortext"><span id="stortotal"><b>计算中</b> 估算占用</span><span class="muted">当前环境不支持配额查询</span></div>'}
  let persist;
  if(persisted==null){persist='<div class="storrow2"><span class="sname2">持久化存储</span><span class="muted">检测中…</span></div>'}
  else if(persisted){persist='<div class="storrow2"><span class="sname2">持久化存储</span><span class="stpill on">已持久化</span></div>'+
   '<div class="muted" style="padding:0 0 2px">已持久化（浏览器承诺不自动清理）：磁盘空间紧张或长期未访问时，也不会删除这里的聊天、字卡与设置。</div>'}
  else{persist='<div class="storrow2"><span class="sname2">持久化存储</span><span class="stpill">未持久化</span><button class="btn sm" data-act="storage-persist">申请持久化存储</button></div>'+
   '<div class="muted" style="padding:0 0 2px">未持久化：空间紧张或长期未访问时，浏览器可能自动清理本应用数据。可点右侧按钮向浏览器申请。</div>'}
- return head+persist}
+ /* 版本号：用来确认手机上跑的到底是哪一版（若这里不是最新版，说明离线缓存还没更新，关掉重开两次即可）*/
+ let swState="浏览器标签页";
+ try{if(navigator.serviceWorker&&navigator.serviceWorker.controller)swState="离线缓存已接管"}catch(e){}
+ const build='<div class="storrow2"><span class="sname2">应用版本</span><span class="stpill">'+esc(APP_BUILD)+' · '+swState+'</span></div>'+
+  '<div class="muted" style="padding:0 0 2px">更新后若版本号没变，把星笺从最近任务里完全划掉再打开（必要时两次），离线缓存就会更新。</div>';
+ return head+persist+build}
 
 /* ================= export / import ================= */
 async function prepExport(k){const v=S[k];
@@ -4197,7 +4249,7 @@ PAGES.chatset={html(){const c=S.settings.chat;
 /* ---- 聊天功能菜单与弹层 ---- */
 const CHAT_MENU=[["call","phone","通话"],["rp","redpacket","红包"],["pat","hand","拍一拍"],["avainter","users","头像和昵称"],["decide","dice","帮我决定"],["quiz","quiz","问卷"],["trace","trace","寻踪"],["continue","chatMore","继续说"],["search","search","搜索聊天"]];
 function chatMenuRun(id){const fn={call:()=>callStart(),rp:transferSheet,pat:openPatSheet,avainter:()=>openAvNick(),decide:askSheet,quiz:()=>go("quizset"),trace:()=>go("trace"),sticker:()=>ACT["chat-sticker"](),continue:()=>taContinue(),search:chatSearchOpen}[id];if(fn)fn()}
-/* ---------- 搜索聊天记录（功能菜单 → 搜索聊天）----------
+/* ---------- 搜索聊天记录（功能菜单 → 搜索聊天）---------
    直接在 S.chats 里按关键字过滤（各种消息都用 msgPlain 转成可搜文本：
    红包 → "[红包] 1314.00"、图片 → "[图片]"、语音 → "[语音]"…），
    点结果跳到那条消息并闪一下（复用引用定位的 flashrow 动效）。 */
@@ -4805,7 +4857,7 @@ function patAva(who){const pool=patPool();const card=pool.length?pick(pool):"";s
 document.addEventListener("dblclick",e=>{const el=e.target.closest&&e.target.closest(".ava-hit");if(!el)return;clearTimeout(avaTapT);avaTapT=null;patAva(el.dataset.who||"ta")});
 /* ================= 拍一拍工具弹窗 =================
    一级分类（公用 / 特定人物 / 符号图标）× 二级分类（未分组 / 预设 / 我的新增 / 自定义分组）
-   ＋ 列表选取、内联编辑删除、底部「存入 / 发送」 */
+   * 列表选取、内联编辑删除、底部「存入 / 发送」 */
 const PAT_CATS=["拍一拍","拍一拍·我"];
 /* 一级分类：跟随昵称变化 —— 【TA】的拍一拍 /【我】的拍一拍 */
 function patPrimaryList(){return [["pub","【"+(S.settings.taName||"TA")+"】","拍一拍"],["who","【"+(S.settings.myName||"我")+"】","拍一拍·我"]]}
@@ -4942,7 +4994,7 @@ function applyMyNick(name){const old=S.settings.myName||"我";const v=cleanNick(
  if(old!==nw)sysNickChanged(old,"me");
  syncAvSheet();if(cur==="chatset")render()}
 /* 头像应用统一入口（参考 mochi applyAvatarImg 口径：气泡头像原位改 src、值没变不碰节点，避免整列闪烁）
-   ★ 强制刷新：聊天气泡 + 朋友圈动态 + 朋友圈封面三处的头像节点一起原位改，
+   * 强制刷新：聊天气泡 + 朋友圈动态 + 朋友圈封面三处的头像节点一起原位改，
      不依赖「退出页面再进来」，也保证永远和全局头像一致 */
 function setAvatar(who,dataUrl){const k=who==="me"?"ava_me":"ava_ta";
  if(dataUrl)S.assets[k]=dataUrl;else delete S.assets[k];
@@ -5542,7 +5594,7 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
 /* ================= 信箱增强补丁（覆盖式，避免改动原函数体）================= */
 (function () {
   try {
-    /* ① 对方写信正文：从主字卡随机抽 minCards~maxCards 张，用「，」连成一段，
+    /* 生成对方写信正文：从主字卡随机抽 minCards~maxCards 张，用「，」连成一段，
           一行写不下自然换行（不再一句一行）——与聊天「拼字卡」同一套逻辑 */
     window.letterContent = function () {
       const r = S.settings.reply.letter;
@@ -5550,15 +5602,15 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
       const pool = [].concat(cardTexts("主字卡"), cardTexts("情绪字卡"));
       const lines = [];
       for (let i = 0; i < n; i++) lines.push(pool.length ? pick(pool) : "见字如面，甚是思念");
-      let txt = "见字如面：" + lines.join("，") + "。盼复";
+      let txt = "见字如面" + lines.join("，") + "。盼复";
       if (chance(r.kaomoji)) { const k = cardTexts("颜文字"); if (k.length) txt += " " + pick(k); }
       if (chance(r.emoji)) { const e = cardTexts("Emoji"); if (e.length) txt += pick(e); }
       return txt;
     };
   } catch (e) {}
 
-  /* ② 记「谁先谁后」：先写字再选表情包 → 图在文字后面；先选表情包再写字 → 图在文字前面
-        （编辑页用 CSS order 立刻换位，发送时把顺序一起存进信件里） */
+  /* 标记「谁先谁后」：先写字再选表情包 → 图在文字后面；先选表情包再写字 → 图在文字前面
+        （编辑页用 CSS order 立刻换位，发送时把顺序一起存进信件里）*/
   function markOrder() {
     try {
       const c = document.querySelector(".mlcard.edit");
@@ -5592,7 +5644,7 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
 /* ================= 卡死自愈补丁 =================
    现象：偶尔整页点不动，必须刷新。最常见原因是「弹窗遮罩 #modal 残留」——
    它是一个铺满全屏的固定层，只要 .on 没被摘掉，就会把全屏点击都吞掉（而背景是透明的，看不出有东西挡着）。
-   这里做三件事：1) 定时自检并清理空遮罩；2) 页面报错 / Promise 未处理时立刻自愈；3) 点击被吞时强制清一次。 */
+   这里做三件事：1) 定时自检并清理空遮罩；2) 页面报错 / Promise 未处理时立刻自愈；3) 点击被吞时强制清一次 */
 (function () {
   function heal() {
     try {
@@ -5630,7 +5682,7 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
 })();
 /* ================= 通知自检 + 通话保活 ================= */
 (function () {
-  /* ① 设置→系统 里加两个按钮：一键测试通知、检查权限 */
+  /* 在设置→系统里加两个按钮：一键测试通知、检查权限 */
   try {
     var oldSys = PAGES.setsys.html;
     PAGES.setsys.html = function () {
@@ -5644,10 +5696,10 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
   ACT["notify-test"] = function () {
     try {
       if (!("Notification" in window)) return toast("此浏览器不支持通知");
-      if (Notification.permission !== "granted") return toast("通知权限未开启（当前：" + Notification.permission + "）");
+      if (Notification.permission !== "granted") return toast("通知权限未开启（当前" + Notification.permission + "）");
       if (!document.hidden) toast("提示：现在应用在前台，前台只弹应用内横幅；退到后台才会走系统通知");
       sysNotif("星笺 · 测试通知", { body: "能看到这条，说明通知链路是通的 ✓", icon: "icon-192.png", badge: "icon-192.png", tag: "xj-test", renotify: true, vibrate: [80, 40, 80] });
-      toast("已发送，请看通知栏");
+      toast("已发送，请看通知");
     } catch (e) { toast("发送失败：" + e.message); }
   };
   ACT["notify-perm"] = function () {
@@ -5660,12 +5712,12 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
           if (Notification.permission === "default" && r && r.showNotification) Notification.requestPermission();
           toast(msg + " · Service Worker：" + sw);
         }).catch(function () { toast(msg); });
-      } else { toast(msg + " · 无 Service Worker 支持"); }
+      } else { toast(msg + " · Service Worker 支持"); }
     } catch (e) {}
   };
 
-  /* ② 通话保活：把通话状态落盘；切后台、甚至被系统回收后再回来，通话不会被挂断
-       —— 真正落盘统一走 callSaveState()（含已通话时长），这里只在 callOpen 之后补存一次 */
+  /* 通话保活：把通话状态落盘；切后台、甚至被系统回收后再回来，通话不会被挂；
+       ——真正落盘统一 callSaveState()（含已通话时长），这里只在 callOpen 之后补存一次 */
   var _open = window.callOpen, _end = window.callEnd;
   if (_open) {
     window.callOpen = function (o) {
@@ -5681,14 +5733,14 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
     };
   }
   function restoreCall() {
-    /* 统一走 callRestoreSaved()：保留已通话时长，并把被中断的拨号 / 响铃流程接上 */
+    /* 统一 callRestoreSaved()：保留已通话时长，并把被中断的拨号 / 响铃流程接上 */
     try { callRestoreSaved(); } catch (e) {}
   }
   setTimeout(restoreCall, 2200);                                              /* 启动后恢复 */
   document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(restoreCall, 500); });
   window.addEventListener("pageshow", function () { setTimeout(restoreCall, 500); });
 })();
-/* ================= 引用定位整行闪烁 + 输入框防自动填充条 ================= */
+/* ================= 引用定位整行闪烁 + 输入框防自动填充 ================= */
 (function () {
   window.locateQuote = function (qid) {
     try {
@@ -5747,7 +5799,7 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
     };
   } catch (e) {}
 })();
-/* ================= 引用定位：改回原来的小闪烁块（不整行）================= */
+/* ================= 引用定位：改回原来的小闪烁块（不整行闪烁） ================ */
 window.locateQuote = function (qid) {
   try {
     var t = document.querySelector('.msg[data-id="' + qid + '"]');
@@ -5763,10 +5815,10 @@ window.locateQuote = function (qid) {
 /* ================= 后台通知 全链路自检 ================= */
 ACT["notify-perm"] = function () {
   var L = [], ok = 0, bad = 0;
-  function add(good, t) { L.push((good === null ? "• " : (good ? "✓ " : "✗ ")) + t); if (good === true) ok++; if (good === false) bad++; }
+  function add(good, t) { L.push((good === null ? "?" : (good ? "✓" : "✗")) + t); if (good === true) ok++; if (good === false) bad++; }
   var s = (S.settings && S.settings.system) || {};
-  add(("Notification" in window), "浏览器支持通知 API" + ("Notification" in window ? "" : "（当前浏览器不支持 → 只能用应用内横幅）"));
-  add(Notification.permission === "granted", "通知权限：" + (typeof Notification !== "undefined" ? Notification.permission : "无") + (Notification.permission === "granted" ? "" : "（未授权 → 去浏览器站点设置里改成「允许」）"));
+  add(("Notification" in window), "浏览器支持通知 API" + ("Notification" in window ? "" : "（当前浏览器不支持通知 API，只能用应用内横幅）"));
+  add(Notification.permission === "granted", "通知权限：" + (typeof Notification !== "undefined" ? Notification.permission : "未定义") + (Notification.permission === "granted" ? "" : "（未授权 → 去浏览器站点设置里改成「允许」）"));
   add(!!navigator.serviceWorker, "浏览器支持 Service Worker");
   var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
   add(null, "运行方式：" + (standalone ? "已安装到桌面（PWA / APK）" : "浏览器标签页（建议先安装到桌面，安卓通知更稳）"));
@@ -5774,20 +5826,20 @@ ACT["notify-perm"] = function () {
   add(!!s.keepalive, "设置里「后台保活」已打开" + (s.keepalive ? "" : "（没开 → 后台不会跑逻辑，自然没有通知）"));
   add(!document.hidden, "当前页面可见性：" + (document.hidden ? "后台（会走系统通知）" : "前台（只会弹应用内横幅，不进通知栏）"));
   add(document.visibilityState === "visible" ? null : true, "提示：测试时请点完按钮后立刻切到后台/回桌面");
-  var sh = openSheet('<div class="mtitle">通知自检<button class="ibtn" data-r="x">' + ico("close") + '</button></div><div id="ntout" class="muted" style="line-height:1.9;font-size:13px;white-space:pre-wrap">检测中…</div><div class="btnrow" style="margin-top:12px"><button class="btn sm" data-r="x">关闭</button></div>', true);
+  var sh = openSheet('<div class="mtitle">通知自检<button class="ibtn" data-r="x">' + ico("close") + '</button></div><div id="ntout" class="muted" style="line-height:1.9;font-size:13px;white-space:pre-wrap">检测中</div><div class="btnrow" style="margin-top:12px"><button class="btn sm" data-r="x">关闭</button></div>', true);
   sh.onclick = function (e) { if (e.target.closest("[data-r]")) closeModal(); };
   var out = function () { var el = document.getElementById("ntout"); if (el) el.textContent = L.join("\n") + "\n\n通过 " + ok + " 项，失败 " + bad + " 项"; };
   (function () {
     var p = (navigator.serviceWorker && navigator.serviceWorker.getRegistration) ? navigator.serviceWorker.getRegistration() : Promise.resolve(null);
     p.then(function (reg) {
-      add(!!reg, "Service Worker 已注册" + (reg ? "" : "（没有 SW → 安卓系统通知一定失败）"));
+      add(!!reg, "Service Worker 已注册" + (reg ? "" : "（没有注册 SW → 安卓系统通知一定失败）"));
       if (reg) {
         add(!!reg.active, "SW 状态：" + (reg.active ? "active" : (reg.waiting ? "waiting（重新打开一次网页）" : "installing")));
         add(!!navigator.serviceWorker.controller, "SW 已接管本页" + (navigator.serviceWorker.controller ? "" : "（刷新一次即可接管）"));
         if (Notification.permission === "granted" && reg.showNotification) {
           reg.showNotification("星笺 · 自检通知", { body: "看到这条 = 系统通知链路完全正常 ✓", icon: "icon-192.png", badge: "icon-192.png", tag: "xj-diag", renotify: true, vibrate: [80, 40, 80] })
             .then(function () { add(true, "实际发送系统通知：成功（请查看通知栏）"); out(); })
-            .catch(function (e) { add(false, "实际发送系统通知：失败 → " + e.message); out(); });
+            .catch(function (e) { add(false, "实际发送系统通知：失败：" + e.message); out(); });
           out(); return;
         } else { add(false, "未尝试发送：" + (Notification.permission !== "granted" ? "权限不是 granted" : "SW 不支持 showNotification")); }
       } else { add(false, "未尝试发送：没有 Service Worker"); }
@@ -5797,7 +5849,7 @@ ACT["notify-perm"] = function () {
 };
 /* ================= 通话存档立刻落盘 + 红包强制实色（inline 优先级最高）================= */
 (function () {
-  /* 通话：用 kvSet 立即写入 IndexedDB（不走 250ms 防抖），切后台/被系统杀掉也不丢 */
+  /* 通话：用 kvSet 立即写入 IndexedDB（不走 250ms 防抖），切后台被系统杀掉也不丢 */
   try {
     var _open = window.callOpen;
     if (_open) {
@@ -5808,7 +5860,7 @@ ACT["notify-perm"] = function () {
       };
     }
     var _restore = function () {
-      /* 与另一处保活统一走 callRestoreSaved()：保留已通话时长，两份实现不再互相抢 */
+      /* 与另一处保活统一 callRestoreSaved()：保留已通话时长，两份实现不再互相抢 */
       try { callRestoreSaved(); } catch (e) {}
     };
     setTimeout(_restore, 900);
@@ -5817,7 +5869,7 @@ ACT["notify-perm"] = function () {
     window.addEventListener("pageshow", function () { setTimeout(_restore, 400); });
   } catch (e) {}
 })();
-/* ================= 红包卡片：内联强制「扁平纯白」（覆盖旧的内联阴影）================= */
+/* ================= 红包卡片：内联强制「扁平纯白」（覆盖旧的内联阴影） ================ */
 (function () {
   function flatReds() {
     try {
@@ -5834,7 +5886,7 @@ ACT["notify-perm"] = function () {
         b.style.webkitBackdropFilter = "none";
         b.style.textShadow = "none";
       }
-      /* 卡片内部所有元素：去阴影/去滤镜；分割线改极浅实色 */
+      /* 卡片内部所有元素：去阴影、去滤镜；分割线改极浅实色 */
       var inner = document.querySelectorAll(".bub .transfer, .bub .transfer *");
       for (var k = 0; k < inner.length; k++) {
         var e = inner[k];
