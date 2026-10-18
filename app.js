@@ -26,55 +26,71 @@ function readAsDataURL(f){return new Promise(res=>{const r=new FileReader();r.on
 function readAsText(f){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsText(f)})}
 function pickFile(accept,multi,cb){const inp=$("#fileinp");inp.accept=accept;inp.multiple=!!multi;inp.onchange=()=>{const fs=[...inp.files];inp.value="";if(fs.length)cb(fs)};inp.click()}
 function download(name,text,mime){const b=new Blob([text],{type:mime||"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}
-/* ================= 消息弹窗：左右滑动即可手动关掉（触摸 + 鼠标） =================
-   只有明确的横向手势才接管，竖向滑动完全不拦（照常滑页面）。
-   滑过阈值（80px 或屏幕宽度的 1/3）→ 朝该方向飞走并淡出，动画结束从 DOM 移除；
-   没过阈值 → 平滑回弹原位并重新计时；轻点一下也直接关掉。
-   拖动过程中临时去掉 transition，保证弹窗实时跟手。 */
-const TOAST_LIFE=2600,TOAST_SWIPE=80;
-function toastKill(d,dir){                       /* dir:-1 左飞 / 1 右飞 / 0 原地淡出 */
- if(!d||d.__out)return;d.__out=1;
- try{clearTimeout(d.__t)}catch(e){}
- const off=dir?((dir<0?-1:1)*((d.offsetWidth||160)+48)):0;
- d.style.transition="transform .3s ease-out,opacity .3s ease-out";
- d.style.transform="translateX("+off+"px)";
- d.style.opacity="0";
- setTimeout(function(){try{d.remove()}catch(e){}},320)}
-function toastBind(d){
+/* ================= 通用「左右滑动关闭」手势（触摸 + 鼠标）=================
+   同时给两种顶部提示用：① 消息弹窗 toast（小胶囊）② 桌面消息弹窗 msgpop（消息横幅）。
+   规则：只有明确的横向手势才接管，竖向完全不拦（照常滑页面）；
+        滑过阈值（80px 或屏幕宽度的 1/3）→ 朝该方向飞走并淡出；
+        没过阈值 → 平滑回弹；拖动中临时去掉 transition，保证实时跟手。 */
+const SWIPE_PX=80;
+function swipeFly(el,dir,tail){                  /* dir:-1 左飞 / 1 右飞 / 0 原地淡出 */
+ el.style.transition="transform .3s ease-out,opacity .3s ease-out";
+ el.style.transform="translateX("+(dir?((dir<0?-1:1)*((el.offsetWidth||160)+48)):0)+"px)";
+ el.style.opacity="0";
+ setTimeout(function(){try{tail&&tail()}catch(e){}},320)}
+/* onOut(dir)：dir=-1/1 划走、0 轻点关闭；opts:{tap:是否接管轻点, onStart:按住时, onSettle:没划走松手时} */
+function swipeBind(el,onOut,opts){opts=opts||{};const tapClose=opts.tap!==false;
  let sx=0,sy=0,dx=0,on=false,axis="";
- const begin=function(x,y){if(d.__out)return;on=true;axis="";sx=x;sy=y;dx=0;
-  try{clearTimeout(d.__t)}catch(e){}};       /* 按住就暂停自动消失，免得拖到一半自己飞走 */
+ const begin=function(x,y){if(el.__out)return;on=true;axis="";sx=x;sy=y;dx=0;el.__swipeMoved=false;
+  try{opts.onStart&&opts.onStart()}catch(e){}};
  const shift=function(x,y,ev){
-  if(!on||d.__out)return;
+  if(!on||el.__out)return;
   const mx=x-sx,my=y-sy;
-  if(!axis){                                  /* 先判方向：横向才接管，竖向一律放行 */
+  if(!axis){                                   /* 先判方向：横向才接管，竖向一律放行 */
    if(Math.abs(mx)<8&&Math.abs(my)<8)return;
    if(Math.abs(mx)<=Math.abs(my)){axis="v";return}
-   axis="h";d.style.animation="none";d.style.transition="none"}
+   axis="h";el.__swipeMoved=true;el.style.animation="none";el.style.transition="none"}
   if(axis!=="h")return;
-  dx=mx;d.style.transform="translateX("+dx+"px)";
-  d.style.opacity=String(Math.max(.2,1-Math.abs(dx)/(TOAST_SWIPE*2)));
-  if(ev&&ev.cancelable)ev.preventDefault()};  /* 横向拖动时不许页面跟着滚 */
+  dx=mx;el.style.transform="translateX("+dx+"px)";
+  el.style.opacity=String(Math.max(.2,1-Math.abs(dx)/(SWIPE_PX*2)));
+  if(ev&&ev.cancelable)ev.preventDefault()};    /* 横向拖动时不许页面跟着滚 */
  const finish=function(tap){
   if(!on)return;on=false;
-  const rearm=function(){d.__t=setTimeout(function(){toastKill(d,0)},TOAST_LIFE)};
-  if(axis==="v"){rearm();return}               /* 竖向：不干预，交给页面滚动 */
-  if(axis===""){if(tap)toastKill(d,0);else rearm();return}   /* 轻点即关；被系统取消就继续计时 */
-  const th=Math.max(TOAST_SWIPE,(window.innerWidth||0)/3);
-  if(Math.abs(dx)>th){toastKill(d,dx<0?-1:1);return}
-  d.style.transition="transform .3s cubic-bezier(.2,.9,.3,1.2),opacity .3s";
-  d.style.transform="translateX(0)";d.style.opacity="1";     /* 回弹到中心原位 */
-  rearm()};                                                  /* 回弹后重新开始计时 */
- d.addEventListener("touchstart",function(e){const t=e.touches[0];if(t)begin(t.clientX,t.clientY)},{passive:true});
- d.addEventListener("touchmove",function(e){const t=e.touches[0];if(t)shift(t.clientX,t.clientY,e)},{passive:false});
- d.addEventListener("touchend",function(){finish(true)});
- d.addEventListener("touchcancel",function(){finish(false)});
- d.addEventListener("mousedown",function(e){if(e.button)return;e.preventDefault();begin(e.clientX,e.clientY);
+  const settle=function(){try{opts.onSettle&&opts.onSettle()}catch(e){}};
+  if(axis==="v"){settle();return}              /* 竖向：不干预，交给页面滚动 */
+  if(axis===""){if(tap&&tapClose)onOut(0);else settle();return}
+  const th=Math.max(SWIPE_PX,(window.innerWidth||0)/3);
+  if(Math.abs(dx)>th){onOut(dx<0?-1:1);return}
+  el.style.transition="transform .3s cubic-bezier(.2,.9,.3,1.2),opacity .3s";
+  el.style.transform="translateX(0)";el.style.opacity="1";     /* 回弹到原位 */
+  settle()};
+ el.addEventListener("touchstart",function(e){const t=e.touches[0];if(t)begin(t.clientX,t.clientY)},{passive:true});
+ el.addEventListener("touchmove",function(e){const t=e.touches[0];if(t)shift(t.clientX,t.clientY,e)},{passive:false});
+ el.addEventListener("touchend",function(){finish(true)});
+ el.addEventListener("touchcancel",function(){finish(false)});
+ el.addEventListener("mousedown",function(e){if(e.button)return;e.preventDefault();begin(e.clientX,e.clientY);
   const mv=function(ev){shift(ev.clientX,ev.clientY,ev)},
         up=function(){document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);finish(true)};
   document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up)})}
+/* ---------- ① 消息弹窗 toast：顶部小胶囊 ---------- */
+const TOAST_LIFE=2600;
+function toastKill(d,dir){if(!d||d.__out)return;d.__out=1;
+ try{clearTimeout(d.__t)}catch(e){}
+ swipeFly(d,dir,function(){try{d.remove()}catch(e){}})}
 function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;$("#toasts").appendChild(d);
- d.__t=setTimeout(function(){toastKill(d,0)},TOAST_LIFE);try{toastBind(d)}catch(e){}}
+ d.__t=setTimeout(function(){toastKill(d,0)},TOAST_LIFE);
+ try{swipeBind(d,function(dir){toastKill(d,dir)},{tap:true,
+  onStart:function(){try{clearTimeout(d.__t)}catch(e){}},
+  onSettle:function(){d.__t=setTimeout(function(){toastKill(d,0)},TOAST_LIFE)}})}catch(e){}}
+/* ---------- ② 桌面消息弹窗 msgpop：顶部消息横幅（同样支持左右划走）---------- */
+function msgPopHide(el,dir){if(!el||el.__hiding)return;el.__hiding=1;el.__out=1;
+ if(_mpTimer){clearTimeout(_mpTimer);_mpTimer=null}
+ swipeFly(el,dir||0,function(){try{
+  el.classList.remove("on");el.__hiding=0;el.__out=0;
+  el.style.transform="";el.style.transition="";el.style.opacity=""}catch(e){}})}
+function msgPopBind(el){if(el.__swipeBound)return;el.__swipeBound=1;
+ swipeBind(el,function(dir){msgPopHide(el,dir)},{tap:false,   /* 轻点仍走原来的"点击进聊天"逻辑 */
+  onStart:function(){if(_mpTimer){clearTimeout(_mpTimer);_mpTimer=null}},
+  onSettle:function(){if(_mpTimer)clearTimeout(_mpTimer);_mpTimer=setTimeout(function(){msgPopHide(el,0)},4300)}})}
 /* ================= icons (svg, no emoji) ================= */
 const SV=(p,extra)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'+(extra||"")+">"+p+"</svg>";
 const ICONS={
@@ -875,19 +891,25 @@ function sysNotif(title,opts){
  }catch(e){}
  pageNotif(title,opts);
 }
-/* 应用内消息横幅（对应设置里的「桌面消息弹窗」）*/
+/* 应用内消息横幅（对应设置里的「桌面消息弹窗」）
+   ★ 支持左右滑动关闭：绑 swipeBind（见文件开头的通用手势）；
+     轻点仍然保留原来的「进聊天」行为，横滑之后不会误触发点击。 */
 let _mpTimer=null;
 function msgPop(text){
  try{
   const s=S.settings;let el=document.getElementById("msgpop");
   if(!el){el=document.createElement("div");el.id="msgpop";el.className="msgpop";
-   el.addEventListener("click",function(){try{el.classList.remove("on");if(cur!=="chat")go("chat")}catch(e){}});
-   document.body.appendChild(el)}
+   el.addEventListener("click",function(){try{
+    if(el.__swipeMoved){el.__swipeMoved=false;return}        /* 刚才是横滑，不算点击 */
+    el.classList.remove("on");if(cur!=="chat")go("chat")}catch(e){}});
+   document.body.appendChild(el);msgPopBind(el)}
+  /* 复位上一次划走/淡出留下的内联样式，保证每次都能正常滑入 */
+  el.__out=0;el.__hiding=0;el.style.transform="";el.style.transition="";el.style.opacity="";
   const av=(S.assets.ava_ta?'<img src="'+S.assets.ava_ta+'">':esc(String(s.taName||"TA").slice(0,1)));
   el.innerHTML='<span class="mp-av">'+av+'</span><span class="mp-bd"><b>'+esc(s.taName||"TA")+'</b><span>'+esc(String(text||""))+"</span></span>";
   el.classList.add("on");
   if(_mpTimer)clearTimeout(_mpTimer);
-  _mpTimer=setTimeout(function(){el.classList.remove("on")},4300);
+  _mpTimer=setTimeout(function(){msgPopHide(el,0)},4300);
  }catch(e){}
 }
 function notifyTA(text){const s=S.settings;
@@ -945,8 +967,29 @@ function callTickRun(){
   callState.hangupAt=Date.now()+60000;
   const cc=callCfg();
   if(!(cc.nohangup||cc.hangup<=0)&&Math.random()*100<cc.hangup)callEnd("对方挂断了电话")}}
-/* 回到前台：定时器可能被系统冻结过，先确保心跳在跑，再按时间戳把时长补正 */
-function callResync(){if(!callState)return;if(!callTick)startCallDuration();else callTickRun()}
+/* 回到前台：先把心跳与时长补正，再把通话恢复成「完整通话页」
+   —— 挂后台久了回来如果还停在进后台前那个小窗（甚至是老位置），
+      看着就像卡住了；恢复全屏才符合"回到通话"的直觉。 */
+function callResync(){
+ if(!callState)return;
+ if(!callTick)startCallDuration();else callTickRun();
+ try{const m=$("#callMini");if(m&&m.style.display!=="none")callRestore()}catch(e){}
+ try{miniClamp()}catch(e){}
+}
+/* 小窗位置纠正：旋转屏幕 / 键盘收起 / 后台回来导致视口变化时，
+   不让小窗停在屏幕外或压在底栏下面；没拖动过就直接回到默认居中。 */
+function miniClamp(){
+ const m=$("#callMini");if(!m||m.style.display==="none")return;
+ const r=m.getBoundingClientRect();if(!r.width||!r.height)return;
+ const vw=window.innerWidth||0,vh=window.innerHeight||0,pad=8;
+ if(!miniDragged){m.style.left="";m.style.top="";m.style.bottom="";m.style.transform="";return}
+ let l=r.left,t=r.top,moved=false;
+ if(l<pad){l=pad;moved=true}
+ if(t<pad){t=pad;moved=true}
+ if(l>vw-r.width-pad){l=Math.max(pad,vw-r.width-pad);moved=true}
+ if(t>vh-r.height-pad){t=Math.max(pad,vh-r.height-pad);moved=true}
+ if(moved){m.style.left=l+"px";m.style.top=t+"px";m.style.bottom="auto";m.style.transform="none"}
+}
 function startCallDuration(){stopCallTick();if(!callState)return;callState.connectedTime=callState.connectedTime||Date.now();updateCallDur();
  if(!callState.hangupAt)callState.hangupAt=callState.connectedTime+180000;
  callTick=setInterval(callTickRun,1000);
@@ -1066,6 +1109,9 @@ function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)ret
  const end=()=>{drag=false};
  m.addEventListener("pointerup",end);m.addEventListener("pointercancel",end);
  m.addEventListener("click",e=>{if(miniDragged){e.stopPropagation();e.preventDefault();miniDragged=false}},true);
+ /* 视口变化（横竖屏切换 / 键盘收起 / 从后台回来）后把小窗收回屏幕内 */
+ window.addEventListener("resize",function(){try{miniClamp()}catch(e){}});
+ window.addEventListener("orientationchange",function(){setTimeout(function(){try{miniClamp()}catch(e){}},250)});
 }
 /* ================= MAIL ================= */
 /* ================= 信箱（按图：四个标签 + 本周/按月分组 + 信件卡片 + 信件数据） ================= */
@@ -2406,8 +2452,10 @@ const PC_IN=["经期辛苦啦，记得多喝热水、注意保暖","别硬撑，
 const PC_LATE=["经期好像推迟了，别太紧张，注意休息；要是迟迟不来记得看看医生","已经推迟几天啦，要不要记一下，或者去医院看看？"];
 function periodSet(){S.misc.periodSet=Object.assign({cycle:28,dur:5,luteal:14},S.misc.periodSet||{});
  const p=S.misc.periodSet;p.cycle=Math.max(15,Math.min(60,+p.cycle||28));p.dur=Math.max(2,Math.min(14,+p.dur||5));p.luteal=Math.max(7,Math.min(20,+p.luteal||14));return p}
-function pcCfg(){S.misc.pcRemind=Object.assign({en:true,adv:[3,1,0],hour:9,fired:{}},S.misc.pcRemind||{});const c=S.misc.pcRemind;
- if(!Array.isArray(c.adv))c.adv=[3,1,0];if(!c.fired||typeof c.fired!=="object")c.fired={};return c}
+function pcCfg(){S.misc.pcRemind=Object.assign({en:true,adv:[3,1,0],hour:9,prob:70,fired:{}},S.misc.pcRemind||{});const c=S.misc.pcRemind;
+ if(!Array.isArray(c.adv))c.adv=[3,1,0];if(!c.fired||typeof c.fired!=="object")c.fired={};
+ if(c.prob==null)c.prob=70;else c.prob=Math.max(0,Math.min(100,+c.prob||0));
+ return c}
 function pcDay(d){const x=d||new Date();return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate())}
 function pcMid(ds){const d=new Date(String(ds||"").slice(0,10)+"T00:00:00");d.setHours(0,0,0,0);return d.getTime()}
 function pcTodayMid(){const d=new Date();d.setHours(0,0,0,0);return d.getTime()}
@@ -2513,13 +2561,18 @@ function periodSetSheetHtml(){const p=periodSet(),c=pcCfg();
   '<div class="row"><span class="lab">开启提醒<br><span class="sub">'+esc(S.settings.taName||"TA")+' 会在经期和快来时在聊天里关心你</span></span><label class="sw"><input type="checkbox" data-pcr="en" '+(c.en?"checked":"")+'><i></i></label></div>'+
   '<div class="row"><span class="lab">提前几天提醒</span><span class="chips">'+adv+"</span></div>"+
   '<div class="row"><span class="lab">提醒时间 <span class="sub">点</span></span><input type="number" data-pch="1" value="'+c.hour+'" style="width:78px;flex:none"></div>'+
-  '<div class="muted" style="padding:4px 0 10px">23:00~06:00 不打扰；同一件事一天最多提醒一次。</div>'+
+  '<div class="row"><span class="lab">提醒概率 <span class="sub">%</span></span><span class="stepper"><button class="stbtn" data-pcp="-1">−</button><input class="stepnum" data-pcpnum value="'+c.prob+'" readonly><button class="stbtn" data-pcp="1">＋</button></span></div>'+
+  '<div class="muted" style="padding:4px 0 10px">23:00~06:00 不打扰；同一件事一天最多提醒一次；概率调到 0 就不再主动关心。</div>'+
  "</div>"+
  '<div class="btnrow" style="margin-top:10px"><button class="btn" data-act="period-caregodo" style="flex:1">立即关心一次</button></div>'+
  periodDataHtml()}
 ACT["period-set"]=()=>{const sh=openSheet('<div class="mtitle">经期设置<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+periodSetSheetHtml(),true);
  sh.onchange=function(e){const el=e.target.closest("[data-pcr]");if(!el)return;const c=pcCfg();c[el.dataset.pcr]=!!el.checked;save("misc");toast("已保存")};
- sh.onclick=function(e){if(e.target.closest("[data-r]"))closeModal()}};
+ sh.onclick=function(e){
+  if(e.target.closest("[data-r]")){closeModal();return}
+  const b=e.target.closest("[data-pcp]");        /* 提醒概率步进器：±5%，范围 0~100 */
+  if(b){const c=pcCfg();c.prob=Math.max(0,Math.min(100,Math.round((+c.prob||0)+(+b.dataset.pcp)*5)));save("misc");
+   const n=sh.querySelector("[data-pcpnum]");if(n)n.value=c.prob;toast("提醒概率 "+c.prob+"%");return}}};
 function renderPeriod(){if(cur==="period")render()}
 function periodPredict(){try{const i=periodInfo(),p=periodSet(),out=[];if(!i||!i.last)return out;const base=i.next||(pcMid(i.last.start)+i.cl*864e5);for(let k=0;k<12;k++){const s=base+k*i.cl*864e5;for(let d=0;d<p.dur;d++)out.push(s+d*864e5)}return out}catch(e){return []}}
 function periodCareCheck(force){try{const c=pcCfg();if(!c.en&&!force)return;
@@ -2528,11 +2581,12 @@ function periodCareCheck(force){try{const c=pcCfg();if(!c.en&&!force)return;
  const nm=S.settings.taName||"TA",today=pcDay();
  let ctx="",text="";
  if(info.inPeriod){ctx="in";
-  if(Math.random()*100>(info.day<=2?90:(info.day<=4?70:55)))return;
+  /* 提醒概率可在「经期设置」里用步进器调；手动「立即关心一次」不受概率限制 */
+  if(!force&&!chance(c.prob))return;
   text=info.day<=2?("经期第 "+info.day+" 天了，记得多喝热水、注意保暖"):pick(PC_IN)}
  else{const d=info.toNext;
   if(c.adv.indexOf(d)<0)return;ctx="adv"+d;
-  if(Math.random()*100>75)return;
+  if(!force&&!chance(c.prob))return;
   text=(d===0&&info.delay>=5)?pick(PC_LATE):pick(PC_SOON)}
  if(!text)return;
  const key=today+"_"+ctx;if(!force&&c.fired[key])return;
@@ -3399,8 +3453,8 @@ PAGES.setreply={html(){S.misc.replyMod=S.misc.replyMod||"chat";const mods=[["cha
  init(){}};
 /* 可收起的设置分组：标题行点一下向下展开 / 收起（状态记在 S.misc.replyFold） */
 function foldCard(key,title,body){const open=!!(S.misc.replyFold&&S.misc.replyFold[key]);
- return '<div class="card" style="padding:0 12px">'+
-  '<button class="row foldrow'+(open?" on":"")+'" data-act="reply-fold" data-k="'+key+'" style="width:100%;border:none;background:none;padding:14px 2px;text-align:left">'+
+ return '<div class="card foldcard">'+
+  '<button class="row foldrow'+(open?" on":"")+'" data-act="reply-fold" data-k="'+key+'" style="width:100%;background:none;padding:14px 2px;text-align:left">'+
    '<span class="lab"><b>'+title+'</b></span><span class="lv">'+ico("chevdown")+'</span></button>'+
   '<div class="foldbody" data-fold="'+key+'" style="'+(open?"":"display:none")+'">'+body+'</div></div>'}
 ACT["reply-fold"]=el=>{const k=el.dataset.k;const body=el.parentNode.querySelector('[data-fold="'+k+'"]');if(!body)return;

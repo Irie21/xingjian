@@ -1126,12 +1126,15 @@ html[data-glass="1"] #tabbar button.on{background:rgba(255,255,255,.26);border:1
 #liblist .stkgrid .cell.blocked .blk{background:var(--primary);color:var(--on-primary,#fff)}
 #liblist .stkgrid .cellck{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border-radius:50%;background:var(--primary);color:var(--on-primary,#fff);display:flex;align-items:center;justify-content:center}
 #liblist .stkgrid .cellck svg{width:12px;height:12px}
-/* ---------- 应用内消息横幅（设置里的「桌面消息弹窗」）---------- */
-.msgpop{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-150%);width:min(520px,calc(100vw - 24px));z-index:95;
+/* ---------- 应用内消息横幅（设置里的「桌面消息弹窗」）：可左右滑动关闭 ----------
+   居中方式改为 left/right + margin:auto（原来靠 transform:translateX(-50%)），
+   这样 transform 就完全留给滑动手势用，滑动时不会跑偏。 */
+.msgpop{position:fixed;left:0;right:0;margin:0 auto;top:calc(8px + env(safe-area-inset-top));transform:translateY(-150%);width:min(520px,calc(100vw - 24px));z-index:95;
  display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:16px;background:#fff;
  box-shadow:0 12px 32px rgba(0,0,0,.20);cursor:pointer;
+ touch-action:pan-y;user-select:none;-webkit-user-select:none;will-change:transform;
  transition:transform .3s cubic-bezier(.2,.9,.3,1.15),opacity .3s;opacity:0;pointer-events:none}
-.msgpop.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+.msgpop.on{transform:translateY(0);opacity:1;pointer-events:auto}
 .msgpop .mp-av{width:34px;height:34px;flex:none;border-radius:50%;overflow:hidden;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
 .msgpop .mp-av img{width:100%;height:100%;object-fit:cover;display:block}
 .msgpop .mp-bd{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
@@ -1315,6 +1318,30 @@ html[data-glass="1"] #modal .sheet.patsheet,html[data-glass="1"] #modal .sheet.a
  box-sizing:border-box;border:1px solid rgba(0,0,0,.1);border-radius:8px;overflow:hidden;padding:4px}
 /* 字卡库格子本来就有线框，只补一点内边距，和面板保持一致 */
 #liblist .stkgrid .cell{box-sizing:border-box;padding:4px}
+
+/* ================= 可收起设置分组（聊天回复 / 主动发送 / 主动发送标识）=================
+   症状：点标题栏会出现蓝色/粉色实色块、把卡片圆角顶破、收起后还残留色块。
+   根因：① 全局按下反馈 [data-act]:active 给标题栏刷了一块 color-mix(主色 42%) 的实色底；
+        ② 外层卡片 overflow:visible，色块没被圆角裁掉，方角顶破卡片圆角 → 看着像"拼接"；
+        ③ 安卓上 :active 会卡住不释放 → 收起后残留色块；
+        ④ 玻璃模式下卡片自带 46% 高的高光渐变，标题栏(在高光里)与内容区(在高光外)颜色不一致。
+   修法：只让最外层容器有背景（内部一律透明）；外层裁掉圆角；按下反馈改成文字变淡不再刷底色。 */
+.card.foldcard{background:var(--card);padding:0 12px;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+/* 标题栏 / 内容区一律透明：彻底杜绝"标题栏一块、内容区一块"的底色拼接与残留 */
+.card.foldcard>.foldrow,.card.foldcard>.foldrow:active,.card.foldcard>.foldbody{background:transparent !important}
+/* 标题栏紧贴外层容器：占满整行、零外边距、无独立边框与圆角（不再有"悬浮按钮"错觉） */
+.card.foldcard>.foldrow{width:100%;margin:0;border:none;border-radius:0;box-shadow:none;
+ display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 2px;text-align:left;font-size:14px;color:var(--text)}
+/* 分隔线只在展开态出现一条，收起态不残留任何线/块 */
+.card.foldcard>.foldrow.on{border-bottom:1px solid var(--line)}
+.card.foldcard>.foldbody{border-top:none;background:transparent}
+/* 内容层浮到高光/伪元素之上，玻璃模式下不会被压住 */
+.card.foldcard>.foldrow,.card.foldcard>.foldbody{position:relative;z-index:1}
+/* 按下反馈：改成文字与箭头变淡（不再用实色块，安卓 :active 卡住也不会留色块） */
+.card.foldcard>.foldrow:active .lab,.card.foldcard>.foldrow:active .lv{opacity:.55}
+/* 玻璃模式：这三块和关闭主题时长得一模一样（实色、无高光、无边框、同样 16px 圆角），消除色差 */
+html[data-glass="1"] .card.foldcard{background:var(--card);background-image:none;border:none;border-radius:16px;
+ box-shadow:0 1px 4px rgba(0,0,0,.06);text-shadow:none}
 
 /* ================= 【问题二】发红包弹窗：一屏显示，无需滑动 ================= */
 /* 尺寸：宽 ≤85vw 且水平居中，高 ≤75vh，box-sizing 统一按 border-box 计算，
