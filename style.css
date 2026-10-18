@@ -1482,3 +1482,18 @@ html body #app .msg .ava,html body #app .msg .ava img{
 .btnrow.even3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:stretch}
 .btnrow.even3>.btn{width:100%;min-width:0;justify-content:center;text-align:center;
  white-space:normal;line-height:1.28;font-size:13px;padding-left:6px;padding-right:6px}
+/* 音乐悬浮卡片：左上角的图片 = 上传/更换；有自定义图片时旁边多一个小 ✕ 可一键清除（卡片与小球同步） */
+.mufloat .mfbg{width:34px;height:34px}
+.mufloat .mfbg svg{width:16px;height:16px}
+
+.mufloat .mfbgclr svg{width:11px;height:11px}
+.mufloat .mfbgclr:active{background:rgba(0,0,0,.6)}
+/* 清除图片的小 ✕：绝对定位叠在图片右上角，不占布局空间 → 歌曲名不会被挤走 */
+.mufloat .mfbar{position:relative}
+.mufloat .mfbgclr{position:absolute;left:20px;top:-2px;width:18px;height:18px;border-radius:50%;border:none;padding:0;z-index:2;
+ background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.mufloat .mfbgclr svg{width:10px;height:10px}
+/* 娓呴櫎鍥剧墖鐨勫皬 鉁曪細搴曞浘鏀规垚銆岄€忔槑鐧姐€嶏紝鍙夌嚎鏀规垚绾㈣壊锛堝姞绮椾竴鐐规洿娓呮锛?*/
+.mufloat .mfbgclr{background:rgba(255,255,255,.72);color:var(--danger,#e2483d);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.mufloat .mfbgclr svg{stroke:currentColor;stroke-width:2.6}
+.mufloat .mfbgclr:active{background:rgba(255,255,255,.92)}

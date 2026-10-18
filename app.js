@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v41";
+const APP_BUILD="v44";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -2457,7 +2457,7 @@ function muFloatBgPick(){const cur=S.misc.muFloatBg||"";
  const doPick=function(){pickFile("image/*",false,function(fs){if(!fs||!fs[0])return;
   readAsDataURL(fs[0]).then(function(u){return compressImage(u,520,.82)}).then(function(u){S.misc.muFloatBg=u;save("misc");muFloatSync();toast("已设置小球背景")}).catch(function(){toast("图片读取失败")})})};
  if(!cur)return doPick();
- const sh=openSheet('<div class="mtitle">小球背景<button class="ibtn" data-r="x">'+ico("close")+'</button></div><div class="btnrow"><button class="btn" data-mbg="set" style="flex:1">更换背景</button><button class="btn" data-mbg="clr" style="flex:1">恢复默认</button></div>',true);
+ const sh=openSheet('<div class="mtitle">小球背景<button class="ibtn" data-r="x">'+ico("close")+'</button></div><div class="btnrow"><button class="btn" data-mbg="set" style="flex:1">更换图片</button><button class="btn" data-mbg="clr" style="flex:1">清除图片</button></div>',true);
  sh.onclick=function(e){const b=e.target.closest("[data-mbg]");
   if(b){closeModal();if(b.dataset.mbg==="clr"){S.misc.muFloatBg="";save("misc");muFloatSync();toast("已恢复默认背景")}else doPick();return}
   if(e.target.closest("[data-r]"))closeModal()}}
@@ -2489,6 +2489,7 @@ function muFloatSync(){try{const st=muState();
     if(k==="mode"){ACT["mu-mode"]();muTick();return}
     if(k==="queue"){ACT["mu-queue"]();return}
     if(k==="bg"){muFloatBgPick();return}
+     if(k==="bgclr"){S.misc.muFloatBg="";save("misc");muFloatSync();toast("已清除图片，卡片与小球都恢复默认");return}
     if(k==="roll"){f.open=false;save("misc");muFloatSync();return}
     return}
    if(!muFloatDown)return;muFloatDown=false;
@@ -2508,7 +2509,8 @@ function muFloatSync(){try{const st=muState();
    const _ct=muAudio&&muAudio.currentTime||0,_du=muAudio&&muAudio.duration||0,p=_du?Math.min(100,_ct/_du*100):0;
    const L=muLrcLines(a),l2=L.next||(a.artist||"");
    el.innerHTML='<div class="mfbar">'+
-    '<button class="mfbg" data-mf3="bg" title="自定义小球背景">'+(bg?'<img src="'+bg+'">':ico("img"))+'</button>'+
+    '<button class="mfbg" data-mf3="bg" title="上传 / 更换图片">'+(bg?'<img src="'+bg+'">':ico("img"))+'</button>'+
+    (bg?'<button class="mfbgclr" data-mf3="bgclr" title="清除图片">'+ico("close")+'</button>':'')+
     '<span class="mfname">'+esc(muName(a)||"未在播放")+'</span>'+
     '<button class="mfroll" data-mf3="roll" title="收起成小球">'+ico("chevup")+'</button></div>'+
    '<div class="mflrc"><b id="muf2lr1">'+esc(L.cur||(a.lrc?"":"（暂无歌词）"))+'</b><span id="muf2lr2">'+esc(l2)+'</span></div>'+
