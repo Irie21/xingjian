@@ -1434,7 +1434,7 @@ input[type="search"]::-webkit-search-results-button,
 input[type="search"]::-webkit-search-results-decoration{-webkit-appearance:none;appearance:none;display:none}
 
 /* ② 键盘弹起时：弹层高度收进可视区（输入法上方那条自动填充工具条也算在 --kb 里），底部按钮不再被盖住 */
-html.kb-open #modal .sheet{max-height:calc(100dvh - var(--kb,0px) - 18px) !important;overflow-y:auto;overscroll-behavior:contain}
+html.kb-open #modal .sheet{max-height:calc(100dvh - var(--kb,0px) - 26px) !important;overflow-y:auto;overscroll-behavior:contain}
 
 /* ③ 主页图标 / 顶栏 / 底栏：长按不再出现半透明蓝色选中框，也不能拖动图标 */
 .hgrid .app,.hgrid .app *,.phead,.phead *,#tabbar,#tabbar *,.chatbar,.chatbar *,.nav,.nav *{
@@ -1444,3 +1444,34 @@ html.kb-open #modal .sheet{max-height:calc(100dvh - var(--kb,0px) - 18px) !impor
 /* ④ 商品详情 / 商城数据管理：两列等宽，删除按钮可以整行 */
 .mgrid2>.btn{min-height:44px}
 .mgrid2>.btn.wide{grid-column:1/-1}
+
+/* 键盘弹出时：底部弹层整体抬到键盘（含输入法上方那条自动填充工具条）上面，底部按钮不再被挡住 */
+html.kb-open #modal .sheet:not(.panelsheet):not(.askpanel):not(.patsheet){margin-bottom:calc(var(--kb,0px) + 8px)}
+html.kb-open #modal.center{padding-bottom:calc(20px + var(--kb,0px))}
+/* 主页图标：任何内置主题 / 任何自定义颜色下，长按・按下・聚焦都不出现任何半透明底色或阴影。
+   这里用 id 选择器把优先级提到最高，保证主题规则不会被"盖回来"；图标方块本身的外观不受影响。 */
+html body #app .hgrid .app,
+html body #app .hgrid .app:active,
+html body #app .hgrid .app.active,
+html body #app .hgrid .app:hover,
+html body #app .hgrid .app:focus,
+html body #app .hgrid .app:focus-visible,
+html[data-glass="1"] .hgrid .app,
+html[data-glass="1"] .hgrid .app:active{
+ background:transparent !important;background-color:transparent !important;background-image:none !important;
+ box-shadow:none !important;outline:none !important;-webkit-tap-highlight-color:transparent !important;
+ -webkit-user-drag:none !important;-webkit-touch-callout:none !important}
+/* 聊天页双方头像：任何内置主题 / 自定义颜色下，点击或长按都不出现任何半透明色块（也不该被选中、拖动）。
+   头像按钮本身透明；头像方块自己的配色（字母底色 / 图片）保持不变。 */
+html body #app .ava-hit,
+html body #app .ava-hit:active,
+html body #app .ava-hit:hover,
+html body #app .ava-hit:focus,
+html body #app .ava-hit:focus-visible{
+ background:transparent !important;background-color:transparent !important;background-image:none !important;
+ box-shadow:none !important;outline:none !important;-webkit-tap-highlight-color:transparent !important}
+/* 只关交互反馈，不改头像配色 */
+html body #app .ava-hit,html body #app .ava-hit *,
+html body #app .msg .ava,html body #app .msg .ava img{
+ -webkit-user-select:none !important;user-select:none !important;-webkit-user-drag:none !important;
+ -webkit-touch-callout:none !important;touch-action:manipulation}

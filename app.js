@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v29";
+const APP_BUILD="v31";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -3742,7 +3742,7 @@ else if(m.type==="quiz")inner=quizBubbleHtml(m);
  const rd=(me&&c.read&&m.read)?'<span class="rd">已读</span>':"";
  const meta='<span class="meta"><span class="tm">'+fmtMsgTime(m.timestamp||m.ts)+'</span>'+rd+'</span>';
  const selc=(msgMulti&&msgSel.has(m.id))?" selected":"";
- return '<div class="msg '+(me?"me":"")+selc+'" data-id="'+m.id+'"><button class="ava-hit" data-act="ava-tap" data-who="'+(me?"me":"ta")+'" title="点击更换头像 · 双击拍一拍">'+ava+'</button><div class="msgcol"><div class="bub message '+(me?"message-sent":"message-received")+(m.type==="ask"||m.type==="quizset"||m.type==="quiz"||m.type==="transfer"||m.type==="redpacket"?" wfix":"")+(m.tag?" hastag":"")+'" data-act="msg-tap" data-id="'+m.id+'">'+inner+'</div>'+(me?"":(m.mood||m.mood2?'<span class="bubmoods">'+(m.mood?'<span class="bubmood" data-act="mood-tap" data-id="'+m.id+'">'+esc(m.mood)+"</span>":"")+(m.mood2?'<span class="bubmood2">'+esc(m.mood2)+"</span>":"")+"</span>":""))+meta+"</div>"+(msgMulti?'<span class="selbox" data-act="msg-tap" data-id="'+m.id+'"></span>':"")+"</div>"}
+ return '<div class="msg '+(me?"me":"")+selc+'" data-id="'+m.id+'"><button class="ava-hit">'+ava+'</button><div class="msgcol"><div class="bub message '+(me?"message-sent":"message-received")+(m.type==="ask"||m.type==="quizset"||m.type==="quiz"||m.type==="transfer"||m.type==="redpacket"?" wfix":"")+(m.tag?" hastag":"")+'" data-act="msg-tap" data-id="'+m.id+'">'+inner+'</div>'+(me?"":(m.mood||m.mood2?'<span class="bubmoods">'+(m.mood?'<span class="bubmood" data-act="mood-tap" data-id="'+m.id+'">'+esc(m.mood)+"</span>":"")+(m.mood2?'<span class="bubmood2">'+esc(m.mood2)+"</span>":"")+"</span>":""))+meta+"</div>"+(msgMulti?'<span class="selbox" data-act="msg-tap" data-id="'+m.id+'"></span>':"")+"</div>"}
 /* 全站头像唯一数据源：聊天 / 朋友圈 / 通话 / 媒体会话 / 设置预览一律实时读这两个字段，
    业务数据（朋友圈、消息、信件…）里绝不存头像快照，避免「换了头像别处还是旧的」 */
 function avatarSrc(who){return who==="me"?(S.assets.ava_me||""):(S.assets.ava_ta||"")}
@@ -5102,10 +5102,12 @@ ACT["chat-font-clr"]=()=>{S.settings.appFont="";delete S.assets.app_font;save("s
 /* ---- 头像更换（仅支持从相册/文件上传，不提供预设头像；落库口径与 mochi 头像池一致 256px/0.85） ---- */
 function changeAvatar(who){who=who||"me";pickFile("image/*",false,fs=>{const f=fs[0];if(!f)return;if(f.size>10*1024*1024){toast("图片过大，请选择更小的图片");return}toast("处理中…");readAsDataURL(f).then(u=>compressImage(u,256,.85)).then(c=>{setAvatar(who,c);toast("头像已更新")}).catch(()=>toast("头像处理失败，请重试"))})}
 let avaTapT=null;
-ACT["ava-tap"]=el=>{const who=el.dataset.who||"me";clearTimeout(avaTapT);avaTapT=setTimeout(()=>{avaTapT=null;changeAvatar(who)},260)};
+/* 聊天里的头像不再「点一下就换头像」（会弹出手机相册），避免误触；
+   想换头像去 聊天设置 → 我的头像 / 对方头像。双击头像仍然是原有的「拍一拍」。 */
+ACT["ava-tap"]=()=>{};
 /* 双击头像 = 拍一拍（参考 mochi：双击 TA 头像拍 TA，双击自己的头像拍自己） */
 function patAva(who){const pool=patPool();const card=pool.length?pick(pool):"";sendPat(card,who==="me"?"self":"me")}
-document.addEventListener("dblclick",e=>{const el=e.target.closest&&e.target.closest(".ava-hit");if(!el)return;clearTimeout(avaTapT);avaTapT=null;patAva(el.dataset.who||"ta")});
+/* 澶村儚涓嶅啀鏈夌偣鍑?/ 鍙屽嚮琛屼负锛堜互鍓嶅弻鍑绘槸銆屾媿涓€鎷嶃€嶏紝宸叉寜闇€姹傚幓鎺夛級 */
 /* ================= 拍一拍工具弹窗 =================
    一级分类（公用 / 特定人物 / 符号图标）× 二级分类（未分组 / 预设 / 我的新增 / 自定义分组）
    * 列表选取、内联编辑删除、底部「存入 / 发送」 */
