@@ -4,7 +4,7 @@
         页面导航 → 网络优先（离线回退缓存）；
         其它资源 → 缓存优先 + 后台静默更新（下次打开就是新版）。
           */
-const CACHE = 'xingjian-v25';
+const CACHE = 'xingjian-v29';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -29,6 +29,13 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   const req = e.request;
   if (req.method !== 'GET') return;
+  /* 只缓存同源的界面资源：网易云等跨域音源直接放行
+     —— 以前每首歌都会被这里再存一份进 Cache Storage，既白占一份空间，也多一层中转 */
+  let sameOrigin = false;
+  try { sameOrigin = (new URL(req.url).origin === self.location.origin); } catch (err) { sameOrigin = false; }
+  if (!sameOrigin) return;
+  /* 带 Range 的请求（音频拖进度）也别拦 */
+  if (req.headers && req.headers.get && req.headers.get('range')) return;
 
   /* 页面导航：网络优先，离线时回退缓存 */
   if (req.mode === 'navigate') {

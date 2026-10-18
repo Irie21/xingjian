@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v25";
+const APP_BUILD="v29";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -480,21 +480,62 @@ function applyChatBg(){const el=$("#chatbg");if(!el)return;
  el.style.backgroundImage=bg?"url("+bg+")":""}
 /* 关掉输入法的智能填充 / 密码卡片工具栏（安卓 Chrome 常见）
    聊天框与评论框统一用 type="search"：安卓 Chrome 对 search 类型不弹「🔑 💳 📍」自动填充条 */
-function msgInputAttrs(el){
- if(!el||el.__xjAttr)return;el.__xjAttr=1;
+/* ---------- 全站输入框加固：尽量让安卓 Chrome / 输入法不要弹出「🔑 💳 📍」自动填充工具条 ----------
+   实测经验：把普通文本输入框改成 type="search" 以后，安卓 Chrome 基本不再弹那条自动填充工具条；
+   原来该用什么键盘，就用 inputmode 保留（网址 / 邮箱 / 电话 / 小数）。
+   密码框不能改类型，改成 autocomplete="new-password" 也能让浏览器不再提示"保存密码"。
+   另外顺手去掉 name 属性（自动填充主要靠 name / id / placeholder 猜字段）。 */
+function hardenInput(el){
+ if(!el||el.__xjHard)return;el.__xjHard=1;
  try{
-  el.setAttribute("autocomplete","off");
+  const tag=String(el.tagName||"").toLowerCase();
+  if(tag==="input"){
+   const t=String(el.getAttribute("type")||"text").toLowerCase();
+   if(t==="text"||t==="email"||t==="tel"||t==="url"){
+    const im=t==="email"?"email":(t==="tel"?"tel":(t==="url"?"url":""));
+    el.setAttribute("type","search");
+    if(im&&!el.getAttribute("inputmode"))el.setAttribute("inputmode",im);
+   }else if(t==="password"){
+    el.setAttribute("autocomplete","new-password");
+   }else if(t==="number"&&!el.getAttribute("inputmode")){
+    el.setAttribute("inputmode","decimal");
+   }
+  }
+  if(!el.getAttribute("autocomplete")||el.getAttribute("autocomplete")!=="new-password")el.setAttribute("autocomplete","off");
+  el.setAttribute("data-form-type","other");
+  el.setAttribute("data-lpignore","true");
+  el.setAttribute("aria-autocomplete","none");
   el.setAttribute("autocorrect","off");
   el.setAttribute("autocapitalize","off");
   el.setAttribute("spellcheck","false");
-  /* 兜底：万一有其它代码路径重建了这两个输入框，这里补一次 */
+  try{if(el.hasAttribute("name"))el.removeAttribute("name")}catch(e){}
+ }catch(e){}}
+function hardenInputsIn(root){
+ try{const l=(root||document).querySelectorAll("input,textarea");for(let i=0;i<l.length;i++)hardenInput(l[i])}catch(e){}}
+function initAutofillHardening(){
+ hardenInputsIn(document);
+ try{
+  if(window.MutationObserver){const mo=new MutationObserver(function(muts){
+   for(let i=0;i<muts.length;i++){const add=muts[i].addedNodes;if(!add)continue;
+    for(let j=0;j<add.length;j++){const n=add[j];if(!n||n.nodeType!==1)continue;
+     if(n.matches&&n.matches("input,textarea"))hardenInput(n);
+     if(n.querySelectorAll)hardenInputsIn(n)}}});
+   mo.observe(document.documentElement,{childList:true,subtree:true})}
+ }catch(e){}}
+function msgInputAttrs(el){
+ if(!el)return;
+ hardenInput(el);
+ if(el.__xjAttr)return;el.__xjAttr=1;
+ try{
+  /* 兜底：万一有其它代码路径重建了聊天输入框，这里补一次 */
   if(el.id==="cin"||el.id==="fcin"){
    if((el.getAttribute("type")||"text").toLowerCase()==="text")el.setAttribute("type","search");
    el.setAttribute("enterkeyhint","send");
   }
- }catch(e){}
-}
-function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,kbOpen=false;
+ }catch(e){}}
+/* 鍏ㄧ珯杈撳叆妗嗗湪椤甸潰灏辩华鍚庣珛鍒诲姞鍥轰竴娆★紙涔嬪悗鏂板鐨勮緭鍏ユ鐢?MutationObserver / focusin 鍏滃簳锛?*/
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){try{initAutofillHardening()}catch(e){}});
+else try{initAutofillHardening()}catch(e){}function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,kbOpen=false;
  /* 键盘高度 = 键盘关闭时记下的视口高度 − 当前 visualViewport 高度
     ⚠️ 不能用 innerHeight−vv.height：安卓 Chrome 键盘弹出时 innerHeight 会一起变小，那样会算成 0（消息就不上移）*/
  const apply=()=>{
@@ -1681,53 +1722,231 @@ function muLists(){muState();return S.misc.muLists}
 function muSrc(a){if(!a)return "";
  if(a.blob){try{return a._u||(a._u=URL.createObjectURL(a.blob))}catch(e){}}
  return a.url||""}
-/* ---------- 把网络歌曲下载到本机（存进 IndexedDB，之后离线/歌单私密都能听） ----------
-   依次尝试：曲库里存的地址 → 网易云解析接口 → 网易云官方外链；
-   取回来先校验“确实是音频”，避免把私密歌单返回的网页/JSON 当音频存进去。
+/* ---------- 把网络歌曲下载到本机（存进 IndexedDB，之后离线 / 歌单转私密都能听） ----------
+   音源尝试顺序：网易云解析接口（nid）→ 曲库里存的地址 → 网易云官方外链。
+   为什么优先走解析接口：导入歌单时存下来的直链是「带时效」的 CDN 地址，放久了会 403，
+   每次都先试它等于白白浪费一个来回；失败过的那条会被记住（a.urlDead），下次直接跳过。
+   每个请求都带超时（默认 25 秒），卡住的连接不会再拖死整批下载；也支持外部中止信号。
+   取回来先校验「确实是音频」，避免把私密歌单返回的网页 / JSON 当音频存进去。
    注意：能不能下载取决于对方服务器是否允许跨域（CORS），失败会如实返回原因。 */
-function muLocalSave(id){
+/* ---------- 把网络歌曲下载到本机（存进 IndexedDB，之后离线 / 歌单转私密都能听） ----------
+   网易云的音频直链是「带时效」的 CDN 地址，而且不允许跨域，所以浏览器下载只能走
+   「解析接口」：解析接口 → 曲库里存的地址 → 网易云官方外链，逐个试。
+   公共解析接口经常限流 / 挂掉，所以这里做了三件事：
+     · 接口的报错（次数用完了 / 接口自己报错 / 返回空内容）会被认出来，然后冷却它，不再反复撞；
+     · 所有接口都不可用时，会在进度里说清楚"为什么"，并且立刻停掉整批 ——
+       不会像以前那样 270 首每首都白撞一遍（那才是最花时间的）；
+     · 想用自己的接口：音乐设置 → 下载音源，填地址后可以先"测试"再用。
+   每次请求都带超时（默认 25 秒），卡住的连接不会拖死整批；支持外部中止信号。
+   取回来先校验"确实是音频"，避免把私密歌单 / 会员限制返回的网页、JSON 当音频存进去。 */
+const MU_RESOLVERS=[
+ {name:"公共接口 1（injiahow）",tpl:"https://api.injahow.cn/meting/?type=url&id="},
+ {name:"公共接口 2（moeyao）",tpl:"https://api.moeyao.cn/meting/?type=url&id="},
+ {name:"公共接口 3（qijieya）",tpl:"https://api.qijieya.cn/meting/?type=url&id="}
+];
+let muCoolUntil=0,muResFail={},muNetVerdict=null;
+function muCool(ms){muCoolUntil=Math.max(muCoolUntil,Date.now()+ms)}
+function muResolverCustom(){const m=muCfg();return String(m.resolver||"").trim()}
+function muResolverList(){const out=[],c=muResolverCustom();if(c)out.push({name:"自定义接口",tpl:c});for(let i=0;i<MU_RESOLVERS.length;i++)out.push(MU_RESOLVERS[i]);return out}
+function muCoolTxt(ts){const d=ts-Date.now();if(d<=0)return "";const m=Math.ceil(d/60000);return m<60?(m+" 分钟"):(Math.ceil(m/60)+" 小时")}
+let muLastResWhy="";
+function muResWhy(txt){
+ const t=String(txt||"");
+ if(/上限|次数|限制|明天|Too Many|rate ?limit/i.test(t)){muLastResWhy="解析接口今天的次数用完了（一般是每天限量，请明天再试，或换一个自己的接口）";return {why:muLastResWhy,cool:6*3600*1000}}
+ if(/Deprecated|Fatal|Warning|<br|<b>|<\/?html|<\/?body/i.test(t)){muLastResWhy="解析接口自己报错了（接口暂时坏了）";return {why:muLastResWhy,cool:30*60*1000}}
+ if(!t.trim()){muLastResWhy="解析接口返回了空内容";return {why:muLastResWhy,cool:20*60*1000}}
+ return null}
+function muUrlIn(txt){const m=String(txt||"").match(/https?:\/\/[^\s"'<>\\]+/);return m?m[0]:""}
+function muNextRes(){let best=0;for(const k in muResFail){if(muResFail[k]>best)best=muResFail[k]}
+ if(!best)return "";const s=muCoolTxt(best);return s?("（大概 "+s+"后可再试）"):""}
+/* 只探一次：no-cors 能通说明"网络能连上、只是对方不给跨域"，连不上就是网络/拦截问题 */
+function muNetProbe(url){if(muNetVerdict)return Promise.resolve(muNetVerdict);
+ return fetch(url,{mode:"no-cors",credentials:"omit"}).then(function(){muNetVerdict="cors";return "cors"}).catch(function(){muNetVerdict="unreachable";return "unreachable"})}
+function muNetTxt(){if(muNetVerdict==="cors")return "看起来是「对方服务器不允许跨域」（网页版下载就是这样被卡住的）";
+ if(muNetVerdict==="unreachable")return "看起来是「网络连不上 / 被拦截」（换个网络或关掉代理、广告拦截再试）";
+ return ""}
+/* 解析一首歌的下载地址；顺利时要么直接拿到音频，要么拿到可以下载的地址 */
+function muResolveUrl(nid,signal,timeoutMs){
+ const TO=timeoutMs||20000;
+ if(!nid)return Promise.resolve({ok:false,why:"这首歌没有网易云编号"});
+ const list=muResolverList().filter(function(r){return !(muResFail[r.name]&&muResFail[r.name]>Date.now())});
+ if(!list.length)return Promise.resolve({ok:false,why:"解析接口暂时都用不了"+muNextRes()});
+ let i=0,lastWhy="解析失败";
+ const next=function(){
+  if(signal&&signal.aborted)return Promise.resolve({ok:false,why:"已停止"});
+  if(i>=list.length)return Promise.resolve({ok:false,why:lastWhy+muNextRes()});
+  const r=list[i++],url=r.tpl+nid;
+  const ctl=(typeof AbortController!=="undefined")?new AbortController():null;
+  const t0=Date.now();
+  const hardAbort=function(){if(ctl){try{ctl.abort()}catch(e){}}};
+  if(signal&&signal.addEventListener)signal.addEventListener("abort",hardAbort);
+  const timer=setTimeout(hardAbort,TO);
+  const fin=function(x){clearTimeout(timer);if(signal&&signal.removeEventListener)signal.removeEventListener("abort",hardAbort);return x};
+  return fetch(url,{mode:"cors",credentials:"omit",signal:ctl?ctl.signal:undefined}).then(function(res){
+   const ct=String(res.headers.get("content-type")||"").toLowerCase();
+   if(!res.ok)return res.text().then(function(t){
+    const rr=muResWhy(t);muResFail[r.name]=Date.now()+(rr?rr.cool:5*60*1000);
+    lastWhy=rr?rr.why:("解析接口返回 HTTP "+res.status);return next()}).catch(function(){
+    muResFail[r.name]=Date.now()+5*60*1000;lastWhy="解析接口返回 HTTP "+res.status;return next()});
+   if(ct.indexOf("audio")>=0||ct.indexOf("octet")>=0||ct.indexOf("mpeg")>=0||ct.indexOf("video")>=0)
+    return res.blob().then(function(b){muResFail[r.name]=0;return fin({ok:true,blob:b,ms:Date.now()-t0,via:r.name})});
+   return res.text().then(function(t){
+    const rr=muResWhy(t);
+    if(rr){muResFail[r.name]=Date.now()+rr.cool;lastWhy=rr.why;return next()}
+    const u=muUrlIn(t);
+    if(u){muResFail[r.name]=0;return fin({ok:true,url:u,via:r.name})}
+    muResFail[r.name]=Date.now()+20*60*1000;lastWhy="解析接口返回的内容看不懂";return next()})}).catch(function(e){
+   muResFail[r.name]=Date.now()+5*60*1000;
+   lastWhy=(e&&e.name==="AbortError")?("解析接口超时（"+Math.round(TO/1000)+" 秒）"):"连不上解析接口（网络或跨域被拦）";
+   if(signal&&signal.aborted)return fin({ok:false,why:"已停止"});
+   return fin({ok:false,why:lastWhy,net:true})})};
+ return next()}
+/* 抓一个音频（带超时 / 可中止 / 校验确实是音频） */
+function muGrab(url,timeoutMs,signal,storedSong){
+ const TO=timeoutMs||30000;
+ const ctl=(typeof AbortController!=="undefined")?new AbortController():null;
+ const t0=Date.now(),st={done:false};
+ const hardAbort=function(){if(ctl){try{ctl.abort()}catch(e){}}};
+ if(signal&&signal.addEventListener)signal.addEventListener("abort",hardAbort);
+ const timer=setTimeout(hardAbort,TO);
+ const fin=function(x){if(st.done)return x;st.done=true;clearTimeout(timer);if(signal&&signal.removeEventListener)signal.removeEventListener("abort",hardAbort);return x};
+ return fetch(url,{mode:"cors",credentials:"omit",signal:ctl?ctl.signal:undefined}).then(function(r){
+  if(r.status===429||r.status===503)muCool(1500);
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  return r.blob()}).then(function(b){
+  if(!b||!b.size)throw new Error("空文件");
+  const t=String(b.type||"").toLowerCase();
+  if(t.indexOf("html")>=0||t.indexOf("json")>=0||t.indexOf("text/")>=0||b.size<1024)throw new Error("拿到的不是音频（可能是歌单已私密 / 需要会员 / 直链过期）");
+  return fin({ok:true,blob:b,ms:Date.now()-t0})}).catch(function(e){
+  const aborted=(e&&e.name==="AbortError");
+  if(!aborted&&storedSong&&String(storedSong.url||"").indexOf("api.injahow.cn")<0)storedSong.urlDead=true;
+  return fin({ok:false,why:aborted?("超时（"+Math.round(TO/1000)+" 秒没下完）"):((e&&e.message)||"下载失败"),net:!aborted})})}
+function muEtaLeft(sec){sec=Math.max(0,Math.round(sec||0));
+ if(sec<60)return sec+" 秒";
+ const m=Math.floor(sec/60),s=sec%60;
+ if(m<60)return m+" 分"+(s?(" "+s+" 秒"):"");
+ return Math.floor(m/60)+" 小时 "+(m%60)+" 分"}
+function muLocalSave(id,signal,timeoutMs){
  return new Promise(function(res){
   const a=S.audios.find(function(x){return x.id===id});
   if(!a)return res({ok:false,why:"找不到这首歌"});
   if(a.blob)return res({ok:true,why:"already",bytes:a.blob.size||0});
-  const cand=[];
-  if(a.url)cand.push(a.url);
-  if(a.nid)cand.push("https://api.injahow.cn/meting/?type=url&id="+a.nid);
-  if(a.nid)cand.push("https://music.163.com/song/media/outer/url?id="+a.nid+".mp3");
-  if(!cand.length)return res({ok:false,why:"没有音源地址"});
-  let i=0,lastWhy="下载失败";
+  const TO=timeoutMs||30000;
+  const outer=a.nid?("https://music.163.com/song/media/outer/url?id="+a.nid+".mp3"):"";
+  const steps=[];
+  if(a.nid)steps.push("res");
+  if(a.url&&!a.urlDead)steps.push("stored");
+  if(outer)steps.push("outer");
+  if(a.url&&a.urlDead)steps.push("stored");
+  if(!steps.length)return res({ok:false,why:"没有音源地址"});
+  let i=0,resWhy="",lastWhy="下载失败";
+  const take=function(b,via){a.blob=b;a.dlAt=Date.now();a.dlBytes=b.size;delete a._u;res({ok:true,bytes:b.size,via:via})};
   const next=function(){
-   if(i>=cand.length)return res({ok:false,why:lastWhy});
-   const url=cand[i++];
-   fetch(url,{mode:"cors",credentials:"omit"}).then(function(r){
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    return r.blob()}).then(function(b){
-    if(!b||!b.size)throw new Error("空文件");
-    const t=String(b.type||"").toLowerCase();
-    if(t.indexOf("html")>=0||t.indexOf("json")>=0||t.indexOf("text/")>=0||b.size<1024)throw new Error("拿到的不是音频（可能是歌单已私密或需要会员）");
-    a.blob=b;a.dlAt=Date.now();a.dlBytes=b.size;delete a._u;save("audios");
-    res({ok:true,bytes:b.size})}).catch(function(e){lastWhy=(e&&e.message)||"下载失败";next()})};
+   if(signal&&signal.aborted)return res({ok:false,why:"已停止"});
+   if(i>=steps.length)return res({ok:false,why:resWhy||lastWhy,net:!!muNetVerdict});
+   const st=steps[i++];
+   if(st==="res"){
+    return muResolveUrl(a.nid,signal,Math.min(TO,20000)).then(function(rr){
+     if(rr.ok&&rr.blob)return take(rr.blob,rr.via);
+     if(rr.ok&&rr.url)return muGrab(rr.url,TO,signal,null).then(function(g){
+      if(g.ok)return take(g.blob,rr.via);
+      lastWhy=g.why;
+      return g.net?muNetProbe(rr.url):null}).then(next);
+     resWhy=rr.why;lastWhy=rr.why;return next()})}
+   const url=(st==="stored")?a.url:outer;
+   return muGrab(url,TO,signal,st==="stored"?a:a).then(function(g){
+    if(g.ok)return take(g.blob,st==="stored"?"直链":"官方外链");
+    lastWhy=g.why;
+    return g.net?muNetProbe(url):null}).then(next)};
   next()})}
-/* 批量下载（带进度、可随时停止） */
+/* 批量下载：4 路并发 + 单首超时 + 可随时停止 + 撞不动就立刻停并说明原因 */
 function muLocalSaveMany(ids,title){
- ids=(ids||[]).filter(Boolean);const total=ids.length;if(!total)return toast("没有需要下载的歌曲");
+ ids=(ids||[]).filter(Boolean);
+ const total=ids.length;
+ if(!total)return toast("没有需要下载的歌曲");
  const sh=openSheet('<div class="mtitle">'+(title||"下载到本机")+'<button class="ibtn" data-r="x">'+ico("close")+'</button></div><div id="dlbody"></div>',true);
- let cancel=false,ok=0,fail=0,bytes=0,i=0,lastWhy="";
- sh.onclick=function(e){if(e.target.closest("[data-r]")||e.target.closest("[data-dlstop]")){cancel=true;save("audios");closeModal()}};
- const paint=function(txt){const b=document.getElementById("dlbody");if(!b)return;
-  b.innerHTML='<div class="muprog" style="margin:10px 0 8px"><span class="mufill" style="width:'+Math.max(2,Math.round(i/total*100))+'%"></span></div>'+
-   '<div class="muted" style="line-height:1.75">'+txt+"</div>"+
-   '<div class="btnrow" style="margin-top:2px"><button class="btn sm" data-dlstop="1">'+(i>=total?"完成":"停止")+"</button></div>"};
- const step=function(){
-  if(cancel)return;
-  if(i>=total){save("audios");
-   paint("完成：成功 "+ok+" 首"+(fail?("，失败 "+fail+" 首"+(lastWhy?"（"+esc(lastWhy)+"）":"")):"")+"<br>本机已存 "+fmtBytes(bytes)+"；这些歌之后不联网、歌单转私密也照样能听。");
+ const CONC=Math.min(4,total);
+ let cancel=false,done=0,ok=0,fail=0,bytes=0,lastWhy="",t0=Date.now(),cursor=0,consec=0,diag="",aborted=false;
+ const ctl=(typeof AbortController!=="undefined")?new AbortController():null;
+ const stopFn=function(){cancel=true;if(ctl){try{ctl.abort()}catch(e){}}save("audios")};
+ sh.onclick=function(e){if(e.target.closest("[data-r]")||e.target.closest("[data-dlstop]")){stopFn();closeModal()}};
+ const shell=function(txt){
+  const el=Math.max(0.6,(Date.now()-t0)/1000),rate=bytes/el;
+  const eta=(done>0&&done<total)?((el/done)*(total-done)):0;
+  return '<div class="muprog" style="margin:10px 0 8px"><span class="mufill" style="width:'+Math.max(2,Math.round(done/total*100))+'%"></span></div>'+
+   '<div class="muted" style="line-height:1.8">'+txt+
+   (ok||done?("<br>成功 "+ok+" · 失败 "+fail+(bytes?(" · 已存 "+fmtBytes(bytes)+(rate>1024?("（"+fmtBytes(rate)+"/秒）"):"")):"")):"")+
+   (eta&&!cancel?("<br>按当前速度大概还要 "+muEtaLeft(eta)):"")+(fail?("<br>最近一次失败："+esc(lastWhy)):"")+"</div>"+
+   '<div class="btnrow" style="margin-top:2px"><button class="btn sm" data-dlstop="1">'+(done>=total||aborted?"完成":"停止")+"</button></div>"};
+ const paint=function(txt){const b=document.getElementById("dlbody");if(!b)return;b.innerHTML=shell(txt||("正在保存到本机 "+done+"/"+total+" …"))};
+ const paintDiag=function(){const b=document.getElementById("dlbody");if(!b)return;
+  b.innerHTML='<div class="muted" style="line-height:1.85">'+
+   "已经停下来了：连着试了 "+fail+" 首都没成功，剩下 "+Math.max(0,total-done)+" 首没有再白试。<br>"+
+   "<br><b>原因</b>："+esc(lastWhy||"下载失败")+
+   (muNetTxt()?("<br>"+muNetTxt()):"")+
+   (diag?("<br>接口状态："+esc(diag)):"")+
+   "<br><br><b>可以怎么办</b><br>"+
+   "① 明天再试（公共解析接口一般是每天限量，用完要等第二天）；<br>"+
+   "② 换自己的接口：音乐设置 → 下载音源，填地址后点「测试」，通了再下载；<br>"+
+   "③ 先在线听 —— 播放不受影响，只有「下载到本机」需要解析接口。"+
+   '</div><div class="btnrow" style="margin-top:2px"><button class="btn sm" data-dlstop="1">完成</button></div>'};
+ const one=function(){
+  if(cancel||cursor>=total)return Promise.resolve();
+  const id=ids[cursor++];
+  const wait=muCoolUntil-Date.now();
+  const start=function(){
+   if(cancel)return Promise.resolve();
+   if(signalAborted())return Promise.resolve();
+   return muLocalSave(id,ctl?ctl.signal:null,30000).then(function(r){
+    if(r.ok){ok++;bytes+=r.bytes||0;consec=0}
+    else{fail++;consec++;if(r.why&&!cancel)lastWhy=r.why}
+    done++;
+    if(ok%5===0)save("audios");
+    if(done%2===0||done>=total)paint();
+    if(!r.ok&&ok===0&&consec>=3){cancel=true;aborted=true;if(ctl){try{ctl.abort()}catch(e){}}save("audios");diag="解析接口："+(muNextRes()||"暂无冷却记录");paintDiag();return}
+    return one()})};
+  if(wait>0)return new Promise(function(res){setTimeout(function(){res(start())},Math.min(wait,4000))});
+  return start()};
+ const signalAborted=function(){return !!(ctl&&ctl.signal&&ctl.signal.aborted)};
+ paint("准备下载 "+total+" 首…（同时下 "+CONC+" 首，可随时点「停止」）");
+ save("audios");
+ Promise.all(Array.from({length:CONC},one)).then(function(){
+  save("audios");
+  if(aborted)return;
+  if(cancel)paint("已停止：成功 "+ok+" 首，失败 "+fail+" 首<br>已经下好的都留在本机了，下次点下载会自动跳过。");
+  else paint("完成：成功 "+ok+" 首"+(fail?("，失败 "+fail+" 首"):"")+"<br>本机已存 "+fmtBytes(bytes)+"；这些歌之后不联网、歌单转私密也照样能听。")});
+}
+/* 解析接口测试：拿你自己库里的第一首歌试，看接口到底能不给能用 */
+function muTestOne(r){
+ const sid=((S.audios.find(function(a){return a.nid}))||{}).nid||"347230";
+ const url=r.tpl+sid;
+ return new Promise(function(res){
+  const ctl=(typeof AbortController!=="undefined")?new AbortController():null;
+  const timer=setTimeout(function(){if(ctl){try{ctl.abort()}catch(e){}}},12000);
+  fetch(url,{mode:"cors",credentials:"omit",signal:ctl?ctl.signal:undefined}).then(function(x){
+   const ct=String(x.headers.get("content-type")||"").toLowerCase();
+   if(ct.indexOf("audio")>=0||ct.indexOf("octet")>=0||ct.indexOf("mpeg")>=0){clearTimeout(timer);return res("可用（直接返回音频流）")}
+   return x.text().then(function(t){
+    clearTimeout(timer);
+    if(!x.ok)return res("不可用（HTTP "+x.status+"）");
+    const rr=muResWhy(t);
+    if(rr)return res("不可用（"+rr.why+"）");
+    const u=muUrlIn(t);
+    if(u)return res("可用（返回地址："+u.slice(0,42)+"…）");
+    return res("不懂返回了什么内容")})}).catch(function(e){
+   clearTimeout(timer);
+   res((e&&e.name==="AbortError")?"超时（12 秒）":"连不上（网络或跨域被拦）")})})}
+function muResTestSheet(showCustom){
+ const list=muResolverList();
+ openSheet('<div class="mtitle">解析接口测试<button class="ibtn" data-r="x">'+ico("close")+'</button></div><div class="muted" style="line-height:1.8">正在测试 '+list.length+' 个接口…</div>',true);
+ const rows=[];
+ const step=function(i){
+  if(i>=list.length){
+   openSheet('<div class="mtitle">解析接口测试<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
+    '<div class="muted" style="line-height:1.85">'+rows.join("<br>")+'<br><br>只要有一个「可用」，就可以直接下载到本机；全都不可用时先在线听，或明天再试。</div>',true);
    return}
-  muLocalSave(ids[i]).then(function(r){
-   if(r.ok){ok++;bytes+=r.bytes||0}else{fail++;lastWhy=r.why||""}
-   i++;paint("正在保存到本机 "+i+"/"+total+" …<br>成功 "+ok+" · 失败 "+fail);
-   setTimeout(step,50)})};
- paint("准备下载 "+total+" 首…");setTimeout(step,80)}
+  muTestOne(list[i]).then(function(s){rows.push(esc(list[i].name)+"："+esc(s));step(i+1)})};
+ step(0)}
 function muName(a){return a?String(a.name||"未命名").replace(/\.[^.]+$/,""):""}
 function muFmt(s){s=Math.max(0,Math.floor(s||0));return pad(Math.floor(s/60))+":"+pad(s%60)}
 function muCur(){const st=muState();return S.audios.find(function(a){return a.id===st.cur})||null}
@@ -1952,7 +2171,7 @@ ACT["mu-playall"]=()=>{const l=muRows();if(!l.length)return toast("这里还没�
 ACT["mu-shuffle"]=()=>{const l=muRows();if(!l.length)return toast("这里还没有歌曲");
  const st=muState();st.mode="shuffle";save("misc");muPlay(l[Math.floor(Math.random()*l.length)].id)};
 ACT["mu-menu"]=()=>{const sh=openSheet('<div class="mtitle">更多<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
- '<div class="mmgrid">'+[["import","up","导入音乐"],["link","link","添加链接"],["lnew","plus","新建歌单"],["set","tune","音乐设置"],["data","grid","数据管理"]].map(function(x){return '<button data-mx="'+x[0]+'"><span class="mi">'+ico(x[1])+'</span><span>'+x[2]+"</span></button>"}).join("")+"</div>",true);
+ '<div class="mmgrid mmgrid-keep">'+[["import","up","导入音乐"],["link","link","添加链接"],["lnew","plus","新建歌单"],["set","tune","音乐设置"],["data","grid","数据管理"]].map(function(x){return '<button data-mx="'+x[0]+'"><span class="mi">'+ico(x[1])+'</span><span>'+x[2]+"</span></button>"}).join("")+"</div>",true);
  sh.onclick=function(e){const b=e.target.closest("[data-mx]");
   if(b){const k=b.dataset.mx;closeModal();
    if(k==="import"){ACT["mu-import"]();return}
@@ -2393,15 +2612,25 @@ ACT["mu-set"]=()=>{const c=muCfg();
    setRowStep("TA 收藏歌曲概率","mu.fav","%",0,100,5)+
 '<div class="mhint">按概率约你一起听 / 预订下一首 / 歌末切歌·随机·换模式 / 播放中暂停再继续 / 收藏你正在听的歌；全设 0 = TA 完全不主动。</div>'+
   "</div>"+
-  '<div class="msetbtns"><button class="btn" data-mu2="dlall">把网易云歌曲下载到本机</button><button class="btn" data-mu2="diag">诊断邀请</button><button class="btn" data-mu2="cache">清理本机音频文件</button><button class="btn" data-mu2="close">关闭</button></div>',true);
+     '<div class="sect" style="margin:10px 2px">下载音源（下载到本机用）</div>'+
+   '<div class="muted" style="padding:0 2px 6px;line-height:1.6">网易云的音频直链不能跨域，所以「下载到本机」要靠解析接口。公共接口经常限流；有自己的接口就填在下面，留空就用默认的三个。</div>'+
+   '<div class="row" style="align-items:center"><span class="lab" style="flex:0 0 auto">接口地址</span><input id="mures_inp" class="letitle" style="flex:1 1 auto;min-width:0;font-size:12px" placeholder="https://.../meting/?type=url&amp;id=" value="'+esc(muResolverCustom())+'"></div>'+
+   '<div class="btnrow" style="margin-top:6px"><button class="btn sm" data-mu3="ressave" style="flex:1">保存</button><button class="btn sm" data-mu3="restest" style="flex:1">测试接口</button><button class="btn sm" data-mu3="resclear" style="flex:none">默认</button></div>'+
+'<div class="msetbtns"><button class="btn" data-mu2="dlall">把网易云歌曲下载到本机</button><button class="btn" data-mu2="diag">诊断邀请</button><button class="btn" data-mu2="cache">清理本机音频文件</button><button class="btn" data-mu2="close">关闭</button></div>',true);
  sh.onchange=function(e){const el=e.target.closest("[data-mucb]");if(!el)return;c[el.dataset.mucb]=!!el.checked;save("settings");try{muFloatSync()}catch(x){}};
  sh.onclick=function(e){const b=e.target.closest("[data-mu2]");
+ const b3=e.target.closest("[data-mu3]");
+  if(b3){const k3=b3.dataset.mu3;
+   if(k3==="ressave"){const v=String((document.getElementById("mures_inp")||{}).value||"").trim();muCfg().resolver=v;save("settings");muResFail={};muNetVerdict=null;toast(v?"已保存，下次下载就用它":"已改回默认接口");return}
+   if(k3==="resclear"){muCfg().resolver="";save("settings");muResFail={};muNetVerdict=null;const el=document.getElementById("mures_inp");if(el)el.value="";toast("已改回默认接口");return}
+   if(k3==="restest"){muResTestSheet();return}
+   return}
   if(b){const k=b.dataset.mu2;
    if(k==="close"){closeModal();return}
    if(k==="dlall"){const ids=S.audios.filter(function(a){return !a.blob&&(a.nid||a.url)}).map(function(a){return a.id});
     if(!ids.length)return toast("没有需要下载的歌曲");
-    const need=ids.length;closeModal();
-    confirmDlg("把 "+need+" 首下载到本机？之后不联网、歌单转私密也能听（会占用本机空间，视歌曲数量可能几百 MB）","开始下载",true).then(function(yes){
+        const need=ids.length;closeModal();
+    confirmDlg("把 "+need+" 首下载到本机？会同时下 4 首（比一首一首快很多），单首 30 秒没下完会自动换下一个音源，中途可随时点「停止」。按每首约 3~5 MB 估算，大约占本机 "+(need*4)+" MB。","开始下载",true).then(function(yes){
      if(yes)muLocalSaveMany(ids,"下载到本机")});return}
    if(k==="cache"){confirmDlg("清理本机音频文件？本地导入的歌会被删除；网易云歌曲只删缓存、之后改回联网播放","清理",true).then(function(ok){if(!ok)return;
     S.audios.forEach(function(a){if(a.blob&&a.url){delete a.blob;delete a._u;delete a.dlAt;delete a.dlBytes}else if(a.blob){a.__drop=1}});
@@ -3119,7 +3348,7 @@ function mallCfg(){S.misc.mall=S.misc.mall||{};const m=S.misc.mall;
  if(!Array.isArray(m.cartTa))m.cartTa=[];
  return m}
 function mallMoney(v){const n=+v||0;return String(Math.round(n*100)/100)}
-function mallGoods(){const m=mallCfg();const def=MALL_DEF.map(function(g,i){return {id:"d"+i,emoji:g[0],name:g[1],price:g[2],cat:g[3],wish:g[4],def:true}});
+function mallGoods(){const m=mallCfg();const def=MALL_DEF.map(function(g,i){return {id:"d"+i,emoji:g[0],name:g[1],price:g[2],cat:g[3],wish:g[4],def:true}}).filter(function(g){return (m.hideDef||[]).indexOf(g.id)<0});
  return def.map(function(g){return Object.assign({},g,{img:mallImgs()[g.id]||""})}).concat(m.goods.map(function(g){return {id:g.id,emoji:g.emoji||"🎁",img:mallImgs()[g.id]||g.img||"",name:g.name,price:+g.price||0,cat:g.cat||"礼物",wish:g.wish||"",custom:true}}))}
 function mallFind(id){return mallGoods().find(function(g){return g.id===id})}
 function mallWished(id){return mallCfg().wish.indexOf(id)>=0}
@@ -3245,9 +3474,7 @@ function mallDataHtml(){const m=mallCfg();let bytes=0;try{bytes=new Blob([JSON.s
  return '<div class="sect">商城 · 数据管理</div><div class="card">'+
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>商城 · 数据管理</b></span><span class="val" data-act="mall-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+m.goods.length+" 件自定商品 · "+fmtBytes(bytes)+"</div>"+
-  '<div class="btnrow"><button class="btn sm" data-act="mall-export">导出商品</button><button class="btn sm" data-act="mall-import">导入商品</button><button class="btn sm" data-act="mall-clearbox">清空购买记录</button></div>'+
-  '<div class="btnrow" style="margin-top:8px"><button class="btn sm danger" data-act="mall-cleargoods" style="width:100%">删除全部自定义商品</button></div>'+
- "</div>"}
+  '<div class="mgrid2" style="margin-top:2px"><button class="btn sm" data-act="mall-export">导出商品</button><button class="btn sm" data-act="mall-import">导入商品</button><button class="btn sm" data-act="mall-clearbox">清空购买记录</button><button class="btn sm danger" data-act="mall-cleargoods">删除全部商品</button></div>'+ "</div>"}
 function mallCardHtml(g){const m=mallCfg();
  const bought=(m.box||[]).some(function(b){return b.gid===g.id&&b.dir==="in"});
  const price=(+g.price>0)?("¥"+mallMoney(g.price)):"心意";
@@ -3264,10 +3491,18 @@ function mallDetailSheet(g){
   '<div class="mcat">'+esc(g.cat||"礼物")+'</div>'+
   '<div class="mprice">'+((+g.price>0)?("¥"+mallMoney(g.price)):"心意礼物")+"</div>"+
   (g.wish?'<div class="mnote">'+esc(g.wish)+"</div>":"")+"</div>"+
-  '<div class="btnrow" style="margin-top:10px"><button class="btn" data-md="cart" style="flex:1">加入购物车</button><button class="btn pri" data-md="gift" style="flex:1">送给 TA</button></div>'+
-  '<div class="btnrow" style="margin-top:8px"><button class="btn" data-md="img" style="flex:1">换一张商品图片</button>'+(g.img?'<button class="btn" data-md="imgclr" style="flex:none">恢复默认</button>':"")+"</div>",true);
+'<div class="mgrid2" style="margin-top:10px">'+
+   '<button class="btn" data-md="cart">加入购物车</button>'+
+   '<button class="btn pri" data-md="gift">送给 TA</button>'+
+   '<button class="btn" data-md="img">换一张商品图片</button>'+
+   (g.img?'<button class="btn" data-md="imgclr">恢复默认图片</button>':'')+
+   '<button class="btn danger'+(g.img?' wide':'')+'" data-md="delitem">删除这件商品</button>'+
+  '</div>',true);
  sh.onclick=function(e){const b=e.target.closest("[data-md]");
   if(b){const act=b.dataset.md;
+   if(act==="delitem"){closeModal();confirmDlg("删除商品「"+esc(g.name||"")+"」？删除后无法恢复，已购买的记录也会一起清掉。","删除",true).then(function(yes){if(!yes)return;
+    const m=mallCfg();m.hideDef=(m.hideDef||[]);if(g.def&&m.hideDef.indexOf(g.id)<0)m.hideDef.push(g.id);m.goods=(m.goods||[]).filter(function(x){return x.id!==g.id});m.box=(m.box||[]).filter(function(b){return b.gid!==g.id});save("misc");
+    if(typeof cartSync==="function")try{cartSync()}catch(e){};if(cur==="mall")render();toast("已删除「"+(g.name||"该商品")+"」")});return}
    if(act==="img"){pickFile("image/*",false,function(fs){if(!fs||!fs[0])return;readAsDataURL(fs[0]).then(function(u){return compressImage(u,560,.82)}).then(function(u){mallSetImg(g.id,u);closeModal();if(cur==="mall")render();toast("已更换商品图片")}).catch(function(){toast("图片读取失败")})});return}
    if(act==="imgclr"){mallSetImg(g.id,"");closeModal();if(cur==="mall")render();toast("已恢复默认图片");return}
    closeModal();
@@ -3789,7 +4024,23 @@ async function aiListModels(cfg){if(!cfg||!cfg.baseUrl)throw new Error("请先�
  if(!ids.length)throw new Error("接口未返回模型列表");return ids}
 /* ---- 世界书 ---- */
 function wbChar(){return S.settings.taName||"TA"}
-function wbList(){S.worldbook=S.worldbook||{};const k=wbChar();const o=S.worldbook[k]=S.worldbook[k]||{};["bg","person","relation"].forEach(c=>o[c]=o[c]||[]);return o}
+/* 世界书统一存成扁平结构（bg / person / relation 三个分类）。
+   旧版本是按「角色名」分层存的（S.worldbook[角色名].bg…）：一旦改名或换角色，
+   之前导入的条目就被"藏在别的名字下"，看起来就是刷新后消失。这里做一次性迁移，把
+   旧结构里的条目合并到顶层，之后所有读写都只认这一份，和角色名无关。 */
+function wbFlatten(){const w=S.worldbook;
+ if(!w||typeof w!=="object"||Array.isArray(w)){S.worldbook={bg:[],person:[],relation:[]};return S.worldbook}
+ if(Array.isArray(w.bg)||Array.isArray(w.person)||Array.isArray(w.relation))return w;
+ const out={bg:[],person:[],relation:[]};let moved=0;
+ Object.keys(w).forEach(function(k){const o=w[k];if(!o||typeof o!=="object"||Array.isArray(o))return;
+  ["bg","person","relation"].forEach(function(c){if(Array.isArray(o[c])&&o[c].length){out[c]=out[c].concat(o[c]);moved+=o[c].length}})});
+ S.worldbook=out;
+ if(moved)try{wbSave()}catch(e){}
+ return out}
+function wbList(){const o=wbFlatten();["bg","person","relation"].forEach(function(c){if(!Array.isArray(o[c]))o[c]=[]});return o}
+/* 世界书的改动立刻落盘（不走 250ms 防抖，刷新再快也不会丢） */
+function wbSave(){try{save("worldbook")}catch(e){}
+ try{saveFlush()}catch(e){}}
 const WB_CATS=[["bg","背景设定"],["person","人物设定"],["relation","关系网"]];
 function wbActiveText(){const o=wbList();const out=[];WB_CATS.forEach(c=>{const items=o[c[0]].filter(e=>e.on!==false&&String(e.content||"").trim());if(items.length)out.push("【"+c[1]+"】\n"+items.map(e=>(e.title?("# "+e.title+"\n"):"")+e.content).join("\n"))});return out.join("\n\n")}
 function buildAISystemPrompt(tab){const ar=S.settings.aiReply,s=S.settings;const parts=[];
@@ -3871,7 +4122,7 @@ PAGES.setaimodels={html(){S.aiModels=S.aiModels||[];
   '<div class="row sliderrow"><span class="lab">模型</span><input id="amm" value="'+esc(d.model||"")+'" placeholder="gpt-4o-mini"></div>'+
   '<div class="row sliderrow"><span class="lab">接口地址</span><input id="amb" value="'+esc(d.baseUrl||"")+'" placeholder="https://…"></div>'+
   '<div class="row sliderrow"><span class="lab">API Key（仅保存在本设备）</span><div class="ctl"><input id="amk" type="password" value="'+esc(d.apiKey||"")+'" placeholder="'+(d.apiKey?"":"粘贴 API Key")+'" autocomplete="off" spellcheck="false" autocapitalize="off"><button class="eyebtn" data-act="pw-eye" data-for="amk" title="显示 / 隐藏">'+ico("eye")+'</button></div></div>'+
-  '<div class="btnrow" style="margin-top:10px"><button class="btn" data-act="ai-model-models">获取模型列表</button><button class="btn" data-act="ai-model-test">测试连接</button><button class="btn pri" style="margin-left:auto" data-act="ai-model-save">保存配置</button></div>'+
+  '<div class="btnrow3" style="margin-top:10px"><button class="btn" data-act="ai-model-models">获取模型列表</button><button class="btn" data-act="ai-model-test">测试连接</button><button class="btn pri" data-act="ai-model-save">保存配置</button></div>'+
  "</div>"+
  '<div class="muted" style="padding:8px 2px">测试连接 / 获取模型列表会直接请求上面的接口地址；密钥仅保存在本机。</div>';
 },init(){}};
@@ -3933,12 +4184,12 @@ function wbSheet(entry){
   closeModal();if(b.dataset.r!=="ok")return;if(!t&&!c.trim())return toast("请输入内容");
   if(isNew)wbList()[S.misc.wbCat||"bg"].push({id:uid(),title:t,content:c,on:true});
   else{entry.title=t;entry.content=c}
-  save("worldbook");render();toast(isNew?"已新增条目":"已保存")};
+  wbSave();render();toast(isNew?"已新增条目":"已保存")};
 }
 ACT["wb-add"]=()=>wbSheet(null);
 ACT["wb-edit"]=el=>{const f=wbFind(el.dataset.id);if(f)wbSheet(f.e)};
-ACT["wb-del"]=el=>{const f=wbFind(el.dataset.id);if(!f)return;f.o[f.c]=f.o[f.c].filter(x=>x.id!==el.dataset.id);save("worldbook");render()};
-ACT["wb-toggle"]=el=>{const f=wbFind(el.dataset.id);if(!f)return;f.e.on=!!el.checked;save("worldbook");toast(f.e.on?"已启用":"已停用")};
+ACT["wb-del"]=el=>{const f=wbFind(el.dataset.id);if(!f)return;f.o[f.c]=f.o[f.c].filter(x=>x.id!==el.dataset.id);wbSave();render()};
+ACT["wb-toggle"]=el=>{const f=wbFind(el.dataset.id);if(!f)return;f.e.on=!!el.checked;wbSave();toast(f.e.on?"已启用":"已停用")};
 /* 从文件导入世界书：txt / md / docx 等，按空行拆分为多条，落入当前分类 */
 ACT["wb-import"]=()=>pickFile(".txt,.md,.markdown,.doc,.docx,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",false,async fs=>{
  const f=fs&&fs[0];if(!f)return;const name=f.name||"";
@@ -3951,7 +4202,7 @@ ACT["wb-import"]=()=>pickFile(".txt,.md,.markdown,.doc,.docx,text/plain,applicat
  const entries=wbSplitText(text,name);
  const cat=S.misc.wbCat||"bg";const o=wbList();
  entries.forEach(en=>o[cat].push({id:uid(),title:en.title,content:en.content,on:true}));
- save("worldbook");render();
+ wbSave();render();
  toast("已从文件导入 "+entries.length+" 条到「"+((WB_CATS.find(c=>c[0]===cat)||["",""])[1])+"」")});
 function wbSplitText(text,fname){
  const blocks=String(text).split(/\n[ \t]*\n+/).map(s=>s.trim()).filter(Boolean);
@@ -4021,7 +4272,7 @@ PAGES.setaivoice={html(){const v=S.settings.voice;const lib=S.voiceLib||[];S.voi
   '<div class="row sliderrow"><span class="lab">Group ID（可选）</span><input id="vgroup" value="'+esc(v.groupId||"")+'"></div>'+
   '<div class="row sliderrow"><span class="lab">接口地址</span><input id="vbase" value="'+esc(v.baseUrl||"")+'" placeholder="https://api.minimax.chat/v1"></div>'+
   '<div class="row sliderrow"><span class="lab">API Key（仅保存在本设备）</span><div class="ctl"><input id="vkey" type="password" value="'+esc(v.apiKey||"")+'" placeholder="'+(v.apiKey?"":"粘贴 API Key")+'" autocomplete="off" spellcheck="false" autocapitalize="off"><button class="eyebtn" data-act="pw-eye" data-for="vkey" title="显示 / 隐藏">'+ico("eye")+'</button></div></div>'+
-  '<div class="btnrow" style="margin-top:10px"><button class="btn" data-act="voice-conn-test">测试连接</button><button class="btn" data-act="voice-test">试听当前配置</button><button class="btn pri" style="margin-left:auto" data-act="voice-cfg-save">保存配置</button></div>'+
+  '<div class="btnrow3" style="margin-top:10px"><button class="btn" data-act="voice-conn-test">测试连接</button><button class="btn" data-act="voice-test">试听当前配置</button><button class="btn pri" data-act="voice-cfg-save">保存配置</button></div>'+
  "</div>"+
  '<div class="muted" style="padding:8px 2px">试听与聊天里的语音都仅在本机即时播放，不会写入字卡库。</div>';
 },init(){}};
