@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v34";
+const APP_BUILD="v41";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -328,6 +328,15 @@ const PAGES={};const ACT={};
 let _lastPage=null;
 /* 记录本页上一次的滚动位置：重绘后用于恢复，避免“清除/切换”后跳回顶部 */
 let _lastScrollY=0;
+/* 横向滚动的「分组 / 分类」按钮行（.chiprow）：重绘后保持原来的滚动位置，不再自动跳回开头。
+   另外点某个分组时，会把选中的那个按钮滚到中间，保证一眼看得见。 */
+let _hScrollMem={};
+function rememberHScroll(){_hScrollMem={};
+ try{const l=document.querySelectorAll("#app .chiprow");for(let i=0;i<l.length;i++){if(l[i].scrollLeft>0)_hScrollMem[i]=l[i].scrollLeft}}catch(e){}}
+function restoreHScroll(){try{const l=document.querySelectorAll("#app .chiprow");for(let i=0;i<l.length;i++){const v=_hScrollMem[i];if(v&&Math.abs(l[i].scrollLeft-v)>1)l[i].scrollLeft=v}}catch(e){}}
+/* 鐐规寜鐬棿璁颁笅椤甸潰婊氬姩浣嶇疆锛氭寜閽鑱氱劍鏃舵祻瑙堝櫒浼氭妸椤甸潰婊氬洖椤堕儴锛堣繖灏辨槸"鐐归潬鍚庣殑鍒嗙粍浼氳烦鍥炲紑澶?鐨勫厓鍑讹級锛?   閲嶇粯鏃剁敤杩欎唤蹇収鎶婁綅缃繕鍘熷洖鍘汇€?*/
+let _ptrY=0,_ptrT=0;
+document.addEventListener("pointerdown",function(e){try{const app=document.getElementById("app");if(!app)return;if(e.target&&e.target.closest&&e.target.closest("#app")){_ptrY=app.scrollTop;_ptrT=Date.now()}}catch(err){}},true);function centerChip(sel){try{const b=document.querySelector(sel);if(!b)return;const row=b.closest(".chiprow")||b.parentElement;if(!row)return;const rr=row.getBoundingClientRect(),cr=b.getBoundingClientRect();let d=0;if(cr.left<rr.left)d=cr.left-rr.left-8;else if(cr.right>rr.right)d=cr.right-rr.right+8;if(!d)return;const max=Math.max(0,row.scrollWidth-row.clientWidth);row.scrollLeft=Math.max(0,Math.min(row.scrollLeft+d,max))}catch(e){}}
 function render(){
  const p=PAGES[cur];if(!p)return;
  const app=$("#app");if(!app)return;
@@ -337,11 +346,13 @@ function render(){
  if(!app._scrollBound){app._scrollBound=true;app.addEventListener("scroll",()=>{_lastScrollY=app.scrollTop},{passive:true})}
  const same=(_lastPage===cur);
  /* 优先使用实时滚动位置；若为 0 且是同一页，则回退到上次记录值（防止移动端瞬时读 0） */
- let y=app.scrollTop;if(same&&y===0&&_lastScrollY>0)y=_lastScrollY;
+ let y=app.scrollTop;
+ if(y===0){const _fresh=(Date.now()-_ptrT)<900;if(_fresh&&_ptrY>0)y=_ptrY;else if(same&&_lastScrollY>0)y=_lastScrollY;}
  _lastPage=cur;
  /* 重绘前主动让出焦点：移动端移除“当前聚焦元素”会把滚动位置重置到顶部 */
  const ae=document.activeElement;
  if(ae&&ae!==document.body&&app.contains(ae)&&(ae.tagName==="BUTTON"||ae.hasAttribute("data-act"))){try{ae.blur()}catch(e){}}
+ if(same)rememberHScroll();
  app.innerHTML=p.html(curParam);app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
  if(p.init)p.init(curParam);
  applyTyping();
@@ -352,9 +363,9 @@ function render(){
  const maxY=()=>Math.max(0,app.scrollHeight-app.clientHeight);
  /* 同步恢复 + 下一帧再恢复：若内容变短导致原位置超界，则停在当前可滚动最大值（不跳顶） */
  const restore=()=>{const t=Math.min(target,maxY());if(Math.abs(app.scrollTop-t)>1){try{app.scrollTop=t}catch(e){}}};
- app.scrollTop=Math.min(target,maxY());
+ app.scrollTop=Math.min(target,maxY());if(same)restoreHScroll();
  requestAnimationFrame(restore);
- setTimeout(restore,0);
+ setTimeout(restore,0);setTimeout(function(){if(same)restoreHScroll()},0);
  _lastScrollY=same?target:0;
  try{refreshCallVisuals()}catch(e){}
  try{syncAvSheet()}catch(e){}
@@ -2890,7 +2901,7 @@ function periodDataHtml(){const n=S.periods.length;let bytes=0;try{bytes=new Blo
  return '<div class="sect">经期 · 数据管理</div><div class="card">'+
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>经期 · 数据管理</b></span><span class="val" data-act="period-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+n+" 次记录 · "+fmtBytes(bytes)+"</div>"+
-  '<div class="btnrow"><button class="btn sm" data-act="period-export">导出数据</button><button class="btn sm" data-act="period-import">导入数据</button></div><div class="btnrow full" style="margin-top:8px"><button class="btn sm danger" data-act="period-clearall" style="width:100%">清空数据</button></div>'+
+  '<div class="btnrow even3"><button class="btn sm" data-act="period-export">导出数据</button><button class="btn sm" data-act="period-import">导入数据</button><button class="btn sm danger" data-act="period-clearall">清空数据</button></div>'+
  "</div>"}
 function pcMon(){if(typeof S.misc.pcMon!=="string"||S.misc.pcMon.length!==7)S.misc.pcMon=pcDay().slice(0,7);return S.misc.pcMon}
 function pcYmd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
@@ -2972,13 +2983,14 @@ function periodSetSheetHtml(){const p=periodSet(),c=pcCfg();
  "</div>"+
  '<div class="btnrow" style="margin-top:10px"><button class="btn" data-act="period-caregodo" style="flex:1">立即关心一次</button></div>'+
  periodDataHtml()}
-ACT["period-set"]=()=>{const sh=openSheet('<div class="mtitle">经期设置<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+periodSetSheetHtml(),true);
- sh.onchange=function(e){const el=e.target.closest("[data-pcr]");if(!el)return;const c=pcCfg();c[el.dataset.pcr]=!!el.checked;save("misc");toast("已保存")};
- sh.onclick=function(e){
-  if(e.target.closest("[data-r]")){closeModal();return}
-  const b=e.target.closest("[data-pcp]");        /* 提醒概率步进器：±5%，范围 0~100 */
-  if(b){const c=pcCfg();c.prob=Math.max(0,Math.min(100,Math.round((+c.prob||0)+(+b.dataset.pcp)*5)));save("misc");
-   const n=sh.querySelector("[data-pcpnum]");if(n)n.value=c.prob;toast("提醒概率 "+c.prob+"%");return}}};
+/* 经期设置：改成整页（和聊天设置一样的形态，不再是弹窗卡片） */
+PAGES.periodset={html(){return phead("经期设置")+'<div id="psbody">'+periodSetSheetHtml()+"</div>"},
+ init(){const w=document.getElementById("psbody");if(!w)return;
+  w.onchange=function(e){const el=e.target.closest("[data-pcr]");if(!el)return;const c=pcCfg();c[el.dataset.pcr]=!!el.checked;save("misc");toast("已保存")};
+  w.onclick=function(e){const b=e.target.closest("[data-pcp]");if(!b)return;const c=pcCfg();
+   c.prob=Math.max(0,Math.min(100,Math.round((+c.prob||0)+(+b.dataset.pcp)*5)));save("misc");
+   const n=w.querySelector("[data-pcpnum]");if(n)n.value=c.prob;toast("提醒概率 "+c.prob+"%")}}};
+ACT["period-set"]=()=>go("periodset");
 function renderPeriod(){if(cur==="period")render()}
 function periodPredict(){try{const i=periodInfo(),p=periodSet(),out=[];if(!i||!i.last)return out;const base=i.next||(pcMid(i.last.start)+i.cl*864e5);for(let k=0;k<12;k++){const s=base+k*i.cl*864e5;for(let d=0;d<p.dur;d++)out.push(s+d*864e5)}return out}catch(e){return []}}
 function periodCareCheck(force){try{const c=pcCfg();if(!c.en&&!force)return;
@@ -3198,7 +3210,7 @@ function memoDataHtml(){const l=memos();let bytes=0;try{bytes=new Blob([JSON.str
  return '<div class="sect">备忘录 · 数据管理</div><div class="card">'+
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>备忘录 · 数据管理</b></span><span class="val" data-act="memo-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+l.length+" 项 · "+fmtBytes(bytes)+"</div>"+
-  '<div class="btnrow"><button class="btn sm" data-act="memo-export">导出数据</button><button class="btn sm" data-act="memo-import">导入数据</button></div><div class="btnrow full" style="margin-top:8px"><button class="btn sm danger" data-act="memo-clearall" style="width:100%">清空数据</button></div></div>'}
+  '<div class="btnrow even3"><button class="btn sm" data-act="memo-export">导出数据</button><button class="btn sm" data-act="memo-import">导入数据</button><button class="btn sm danger" data-act="memo-clearall">清空数据</button></div></div>'}
 PAGES.memo={html(){const list=memos(),un=list.filter(m=>!m.done),c=memoCfg(),nr=S.misc.memoNewRemind,rows=memoSorted();
  return phead("备忘录",'<button class="ibtn" data-act="memo-set" title="设置">'+ico("dotsLine")+'</button>')+
  '<div class="card">'+
@@ -3250,14 +3262,16 @@ function memoSetHtml(){const c=memoCfg();
   '<div class="row"><span class="lab">提醒概率 <span class="sub">%</span></span><span class="stepper"><button class="stbtn" data-mprob="-1">−</button><input class="stepnum" data-mprobnum value="'+c.prob+'" readonly><button class="stbtn" data-mprob="1">＋</button></span></div>'+
   '<div class="muted" style="padding:4px 0 10px">提醒概率 0% = 从不提醒，100% = 每次都提醒。</div>'+
  "</div>"+memoDataHtml()}
-ACT["memo-set"]=()=>{const sh=openSheet('<div class="mtitle">备忘录设置<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+memoSetHtml(),true);
- sh.onchange=function(e){const el=e.target.closest("[data-mset]");if(!el)return;
-  if(el.dataset.mset==="send"){if(!!el.checked!==!!memoSendOn())ACT["memo-send"]()}
-  else if(!!el.checked!==!!memoCfg().en)ACT["memo-remind"]()};
- sh.onclick=function(e){const b=e.target.closest("[data-mprob]");
-  if(b){const c=memoCfg();c.prob=Math.max(0,Math.min(100,Math.round((+c.prob||0)+(+b.dataset.mprob))));save("misc");
-   const el2=sh.querySelector("[data-mprobnum]");if(el2)el2.value=c.prob;return}
-  if(e.target.closest("[data-r]"))closeModal()}};
+/* 备忘录设置：改成整页 */
+PAGES.memoset={html(){return phead("备忘录设置")+'<div id="msbody">'+memoSetHtml()+"</div>"},
+ init(){const w=document.getElementById("msbody");if(!w)return;
+  w.onchange=function(e){const el=e.target.closest("[data-mset]");if(!el)return;
+   if(el.dataset.mset==="send"){if(!!el.checked!==!!memoSendOn())ACT["memo-send"]()}
+   else if(!!el.checked!==!!memoCfg().en)ACT["memo-remind"]()};
+  w.onclick=function(e){const b=e.target.closest("[data-mprob]");if(!b)return;const c=memoCfg();
+   c.prob=Math.max(0,Math.min(100,Math.round((+c.prob||0)+(+b.dataset.mprob))));save("misc");
+   const n=w.querySelector("[data-mprobnum]");if(n)n.value=c.prob}}};
+ACT["memo-set"]=()=>go("memoset");
 ACT["memo-export"]=()=>{try{download("星笺备忘录_"+dayKey(Date.now())+".json",JSON.stringify({app:"xingjian",ver:1,data:{memos:memos()}}));toast("已导出")}catch(e){toast("导出失败")}};
 ACT["memo-import"]=()=>pickFile("application/json,.json",false,fs=>{readAsText(fs[0]).then(t=>{
  let o=null;try{o=JSON.parse(t)}catch(e){}
@@ -3529,9 +3543,12 @@ function mallSetSheetHtml(){const s=S.settings.reply.mall=Object.assign({giftInO
   '<div class="muted" style="padding:6px 0 10px">这几项决定 '+esc(nm)+' 往购物车、商品收藏里放东西时的用途倾向（按比例随机）；全设 0 则默认「给自己买」。</div>'+
  "</div>"+
  mallDataHtml()}
-ACT["mall-set"]=()=>{const sh=openSheet('<div class="mtitle">商城设置<button class="ibtn" data-r="x">'+ico("close")+"</button></div>"+mallSetSheetHtml(),true);
- sh.onchange=function(e){const el=e.target.closest("[data-mall]");if(!el)return;const s=S.settings.reply.mall;s[el.dataset.mall]=!!el.checked;save("settings")};
- sh.onclick=function(e){if(e.target.closest("[data-r]"))closeModal()}};
+/* 商城设置：改成整页 */
+PAGES.mallset={html(){return phead("商城设置")+'<div id="mlbody">'+mallSetSheetHtml()+"</div>"},
+ init(){const w=document.getElementById("mlbody");if(!w)return;
+  w.onchange=function(e){const el=e.target.closest("[data-mall]");if(!el)return;
+   const s=S.settings.reply.mall=S.settings.reply.mall||{};s[el.dataset.mall]=!!el.checked;save("settings")}}};
+ACT["mall-set"]=()=>go("mallset");
 ACT["mall-cat"]=el=>{const n0=document.getElementById("app");const y=n0?n0.scrollTop:0;
  S.misc.mallCat=el.dataset.v||"";save("misc");render();
  const n=document.getElementById("app");if(n){try{n.scrollTop=Math.min(y,Math.max(0,n.scrollHeight-n.clientHeight))}catch(e){}}};
@@ -5501,7 +5518,8 @@ ACT["period-del"]=el=>{S.periods=S.periods.filter(p=>p.id!==el.dataset.id);save(
 /* ---- 收藏 / 备忘录 ---- */
 /* ---- library actions ---- */
 ACT["lib-open"]=el=>go("libcat",el.dataset.cat);
-ACT["lib-gf"]=el=>{S.misc.gf[el.dataset.cat]=el.dataset.g;save("misc");render()};
+ACT["lib-gf"]=el=>{const cat=el.dataset.cat,grp=el.dataset.g||"";S.misc.gf[cat]=grp;save("misc");render();
+ try{const sel='#app .chiprow .chip.on[data-cat="'+cat+'"][data-g="'+grp+'"]';centerChip(sel);setTimeout(function(){centerChip(sel)},0)}catch(e){}};
 ACT["lib-add"]=()=>{const cat=curParam;go("libedit",{cat,id:"new"})};
 ACT["lib-edit"]=el=>{const cat=curParam;const c=S.cards.find(x=>x.id===el.dataset.id);if(!c)return;
  if(c.type!=="text"){go("libedit",{cat,id:c.id});return}
