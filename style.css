@@ -1501,3 +1501,8 @@ html body #app .msg .ava,html body #app .msg .ava img{
 .msgs .moremsg{display:block;width:100%;margin:6px 0 2px;padding:9px 8px;border:none;background:transparent;
  color:var(--muted);font-size:12.5px;text-align:center;border-radius:10px}
 .msgs .moremsg:active{background:color-mix(in srgb,var(--primary) 20%,transparent)}
+/* 信件列表标题：不管有没有「已回信」小标，都保持横排；太长就省略号，绝不竖着断字 */
+.mletter .mltop{min-width:0}
+.mletter .mltop>b{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mletter .mlpill{flex:none;white-space:nowrap}
+.mletter .mltime{flex:none;white-space:nowrap;margin-left:auto}

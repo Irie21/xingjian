@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v46";
+const APP_BUILD="v48";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -198,7 +198,22 @@ const ico=n=>ICONS[n]||ICONS.chat;
 let DB=null;
 function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open("xingjian",1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("kv"))r.result.createObjectStore("kv")};r.onsuccess=()=>{DB=r.result;res()};r.onerror=()=>rej(r.error)})}
 const kvGet=k=>new Promise(res=>{const t=DB.transaction("kv").objectStore("kv").get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>res(undefined)});
-const kvSet=(k,v)=>new Promise(res=>{const t=DB.transaction("kv","readwrite").objectStore("kv").put(v,k);t.onsuccess=()=>res()});
+/* 写库失败（多半是手机存储空间不足 / 被系统清理）不再悄悄丢掉数据：提示一次，方便定位 */
+let _kvFailShown=false;
+function kvFail(k,err){try{
+ const s=String((err&&(err.name||"")+" "+(err.message||""))||"");
+ const quota=/quota|exceed|空间/i.test(s);
+ if(!_kvFailShown){_kvFailShown=true;
+  toast(quota?("手机存储空间不足，「"+k+"」没有存下去（清理一些本机音频 / 图片再试）"):("保存失败："+(err&&err.message||err)))}
+ try{console.warn("kvSet failed",k,err)}catch(e){}
+}catch(e){}}
+const kvSet=(k,v)=>new Promise(res=>{
+ try{
+  const t=DB.transaction("kv","readwrite").objectStore("kv").put(v,k);
+  t.onsuccess=()=>res(true);
+  t.onerror=()=>{kvFail(k,t.error);res(false)};
+  t.onabort=()=>{kvFail(k,t.error);res(false)};
+ }catch(e){kvFail(k,e);res(false)}});
 const kvDel=k=>new Promise(res=>{const t=DB.transaction("kv","readwrite").objectStore("kv").delete(k);t.onsuccess=()=>res()});
 const kvClear=()=>new Promise(res=>{const t=DB.transaction("kv","readwrite").objectStore("kv").clear();t.onsuccess=()=>res()});
 const kvKeys=()=>new Promise(res=>{const t=DB.transaction("kv").objectStore("kv").getAllKeys();t.onsuccess=()=>res(t.result||[])});
@@ -4294,7 +4309,7 @@ async function minimaxTTS(text,opts){const v=S.settings.voice;if(!v.apiKey)throw
   return await _r.blob()}
  const voice=voiceFor(text);if(!voice||!voice.voiceId)throw new Error("请先添加并绑定音色");
  let base=(v.baseUrl||"https://api.minimax.chat/v1").replace(/\/+$/,"");if(!/\/v\d+$/.test(base))base+="/v1";
- const useGroup=opts&&opts.noGroup?false:!!v.groupId;const qs=useGroup?("?GroupId="+encodeURIComponent(v.groupId)):"";
+ const useGroup=false;const qs=useGroup?("?GroupId="+encodeURIComponent(v.groupId)):"";
  const body={model:v.model||"speech-01-turbo",text:String(text||""),stream:false,voice_setting:{voice_id:voice.voiceId,speed:+(v.rate||1),vol:1,pitch:0},audio_setting:{sample_rate:32000,bitrate:128000,format:"mp3"}};
  let res;try{res=await fetch(base+"/t2a_v2"+qs,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+v.apiKey},body:JSON.stringify(body)})}catch(e){throw new Error("语音请求失败，请检查网络与接口地址")}
  const raw=await res.text();const data=safeJson(raw);const br=data&&data.base_resp;
@@ -4492,14 +4507,13 @@ PAGES.setaivoice={html(){const v=S.settings.voice;const lib=S.voiceLib||[];S.voi
   '<div class="row sliderrow"><span class="lab">配置名称</span><input id="vname" value="'+esc(v.name||"")+'" placeholder="例如：新语音配置"></div>'+
   '<div class="row sliderrow"><span class="lab">模型</span><input id="vmodel" value="'+esc(v.model||"")+'" placeholder="speech-2.8-hd"></div>'+
   '<div class="row sliderrow"><span class="lab">音色 ID</span><input id="vvoice" value="'+esc(v.voiceId||"")+'" placeholder="如 clone_voice_xxx / female-shaonv（留空用默认音色）"></div>'+
-  '<div class="row sliderrow"><span class="lab">Group ID（可选）</span><input id="vgroup" value="'+esc(v.groupId||"")+'"></div>'+
   '<div class="row sliderrow"><span class="lab">接口地址</span><input id="vbase" value="'+esc(v.baseUrl||"")+'" placeholder="https://api.minimax.chat/v1"></div>'+
   '<div class="row sliderrow"><span class="lab">API Key（仅保存在本设备）</span><div class="ctl"><input id="vkey" type="password" value="'+esc(v.apiKey||"")+'" placeholder="'+(v.apiKey?"":"粘贴 API Key")+'" autocomplete="off" spellcheck="false" autocapitalize="off"><button class="eyebtn" data-act="pw-eye" data-for="vkey" title="显示 / 隐藏">'+ico("eye")+'</button></div></div>'+
   '<div class="btnrow3" style="margin-top:10px"><button class="btn" data-act="voice-conn-test">测试连接</button><button class="btn" data-act="voice-test">试听当前配置</button><button class="btn pri" data-act="voice-cfg-save">保存配置</button></div>'+
  "</div>"+
  '<div class="muted" style="padding:8px 2px">试听与聊天里的语音都仅在本机即时播放，不会写入字卡库。</div>';
 },init(){}};
-function voiceFormCfg(){return {provider:(($("#vprov")||{}).value)||"minimax",name:(($("#vname")||{}).value||"").trim()||"新语音配置",model:(($("#vmodel")||{}).value||"").trim(),voiceId:(($("#vvoice")||{}).value||"").trim(),groupId:(($("#vgroup")||{}).value||"").trim(),baseUrl:(($("#vbase")||{}).value||"").trim(),apiKey:(($("#vkey")||{}).value||"").trim()}}
+function voiceFormCfg(){return {provider:(($("#vprov")||{}).value)||"minimax",name:(($("#vname")||{}).value||"").trim()||"新语音配置",model:(($("#vmodel")||{}).value||"").trim(),voiceId:(($("#vvoice")||{}).value||"").trim(),groupId:"",baseUrl:(($("#vbase")||{}).value||"").trim(),apiKey:(($("#vkey")||{}).value||"").trim()}}
 ACT["voice-cfg-provider"]=el=>{const pr=voicePreset(el.value);if(($("#vbase")||{}).value!==undefined)$("#vbase").value=pr[2];if(($("#vmodel")||{}).value!==undefined)$("#vmodel").value=pr[3];const n=$("#vname");if(n&&!n.value)n.value=pr[1];toast("已套用「"+pr[1]+"」预设")};
 ACT["voice-cfg-new"]=()=>{S.misc.voiceNew=true;S.voiceCfgCurrent="";["name","model","voiceId","groupId","baseUrl","apiKey"].forEach(k=>S.settings.voice[k]="");save("settings");save("misc");render();toast("已新建空白配置，填写后点「保存配置」")};
 ACT["voice-cfg-switch"]=el=>{if(!el.value)return;const c=(S.voiceCfgs||[]).find(x=>x.id===el.value);if(!c)return;S.voiceCfgCurrent=c.id;S.misc.voiceNew=false;["name","model","voiceId","groupId","baseUrl","apiKey"].forEach(k=>S.settings.voice[k]=c[k]||"");if(c.provider)S.settings.voice.provider=c.provider;save("settings");save("misc");render()};
@@ -6050,6 +6064,7 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
   PAT_CATS.forEach(c=>{const seeds=SEED[c]||[];cardsOf(c).forEach(x=>{if(x.type==="text"&&!x.mine&&!x.group&&!x.preset&&seeds.indexOf(x.content)>=0){x.preset=true;need=true}})});
   if(need){save("cards");save("misc")}}catch(e){}
  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+ try{if(S.settings.voice&&S.settings.voice.groupId){S.settings.voice.groupId="";save("settings")}}catch(e){}
  for(const k in FLOWER_MASKS){try{document.documentElement.style.setProperty("--flower-"+k,'url("'+FLOWER_MASKS[k]+'")')}catch(e){}}
   applyTheme();applyChatUI();applyFont();applySystem();renderTabbar();render();initCallMiniDrag();initKeyboardAdapt();
 /* 后置加载音乐库：大库也不会卡住启动；顺手把老数据里塞在数组里的音频搬到单独记录 */
@@ -6082,14 +6097,39 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
  try{callIncomingLoop()}catch(e){}
  $("#splash").addEventListener("click",()=>{ac();$("#splash").classList.add("hide");setTimeout(()=>$("#splash").style.display="none",700)});}
 /* PWA：注册 Service Worker（Chrome / Edge 安装到手机桌面需要它）*/
+/* 姣忔鍚姩涓诲姩鏌ヤ竴娆℃柊鐗堟湰锛堟祻瑙堝櫒榛樿鏈€澶?24 灏忔椂鎵嶆煡涓€娆★紝瀹规槗涓€鐩村崱鍦ㄦ棫鐗堟湰锛夛紱
+   新版本接管后提示「重新打开一次即可生效」。 */
+/* 每次启动主动查一次新版本：浏览器默认最多 24 小时才查一次，容易一直卡在旧版本；
+   新版本接管后提示「重新打开一次即可生效」。 */
+if("serviceWorker" in navigator){
+ var _swReady=false;
+ try{navigator.serviceWorker.addEventListener("controllerchange",function(){
+  if(_swReady)return;_swReady=true;try{toast("已更新到新版本，重新打开一次星笺即可生效")}catch(e){}})}catch(e){}
+ window.addEventListener("load",function(){try{
+  if(navigator.serviceWorker.getRegistration)navigator.serviceWorker.getRegistration().then(function(r){if(r&&r.update)r.update().catch(function(){})}).catch(function(){});
+ }catch(e){}});
+}
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 /* 启动页兜底：万一设备很慢 / 数据很大导致启动拖很久，最多 8 秒也把启动页收掉，保证「点一下就能进」，不会出现点了没反应。 */
+/* 启动页兜底：设备慢 / 数据大最多 4 秒也把启动页收掉；如果界面还是空的，
+   给一个能点的「重新加载」，绝不出现"点了没反应"。 */
 (function(){var s=document.getElementById("splash");if(!s)return;
  var done=function(){if(s.dataset.gone)return;s.dataset.gone="1";
   try{ac()}catch(e){}
-  s.classList.add("hide");setTimeout(function(){try{s.style.display="none"}catch(e){}},700)};
+  s.classList.add("hide");setTimeout(function(){try{s.style.display="none"}catch(e){}},700);
+  setTimeout(function(){try{
+   var app=document.getElementById("app");
+   if(app&&!app.childElementCount){
+    app.innerHTML='<div class="card" style="margin-top:36px"><b>启动没有完成</b>'+
+     '<div class="muted" style="padding:6px 0 10px;line-height:1.7">常见原因：手机存储空间不足、或浏览器里还是旧缓存。'+
+     '先点下面重新加载；如果还是这样，就在浏览器里重新打开一次这个网址，然后再回桌面打开。</div>'+
+     '<div class="btnrow"><button class="btn pri" data-act="hard-reload" style="flex:1">重新加载</button></div></div>';
+   }}catch(e){}},1600);
+ };
  s.addEventListener("click",done,true);
- setTimeout(done,8000)})();boot();
+ setTimeout(done,4000)})();
+ACT["hard-reload"]=()=>{try{location.reload()}catch(e){}};
+boot();
 /* 页面（很可能是被系统回收后重新载入的）起来后，把离开前的通话形态 / 小窗位置 / 滚动位置再兜一次：
    重开页面时通话是异步恢复的，uiStateRestore 会自己重试直到通话回来为止 */
 setTimeout(function(){try{uiStateRestore()}catch(e){}},2900);

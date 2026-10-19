@@ -4,7 +4,7 @@
         页面导航 → 网络优先（离线回退缓存）；
         其它资源 → 缓存优先 + 后台静默更新（下次打开就是新版）。
           */
-const CACHE = 'xingjian-v46';
+const CACHE = 'xingjian-v48';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
