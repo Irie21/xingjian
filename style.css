@@ -1,5 +1,5 @@
 
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent !important}
 html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;background-color:var(--bg)}
 /* 主题渐变只放在 html 上（壁纸层下方），壁纸层本身绝不再叠加任何滤镜/遮罩 */
 html{background-image:var(--bg-grad,none);background-size:cover;background-position:center;background-repeat:no-repeat}
@@ -1199,13 +1199,16 @@ html[data-idle="1"] .msgpop{transition:none !important}
 /* ---------- 撤回「就地还原」的切换动画（轻、快、不卡）---------- */
 .bub.swapin{animation:swapIn .24s cubic-bezier(.2,.8,.3,1)}
 @keyframes swapIn{from{opacity:.35;transform:translateY(3px) scale(.985)}to{opacity:1;transform:none}}
-/* ---------- A. 全局点击反馈改为「主题色淡色提示」（像选中胶囊那种淡紫），不再缩放变暗 ---------- */
+/* ---------- A. 全局按下反馈：只做轻微缩放，绝不再刷任何底色 / 不变暗。
+   原因：安卓上 :active 会卡住不释放，之前那种「主题色 42% 半透明底」会残留成一块灰色阴影，
+   而且颜色跟着 --primary 走（所以一换主题就又冒出来）。这里明确写成 transparent，
+   即使 :active 卡住也看不见任何色块。 */
 .btn:active,.chip:active,.ibtn:active,.libtile:active,.app:active,.listitem:active,
 .row:active,.actionrow:active,.mletter:active,.post .acts span:active,#tabbar button:active,[data-act]:active:not(.bub):not(.bub *){
- background-color:rgba(172,142,206,.34) !important;
- background-color:color-mix(in srgb,var(--primary) 42%,transparent) !important;
- transform:none !important;opacity:1 !important;
- transition:background-color .08s ease !important}
+ background-color:transparent !important;background-image:none !important;
+ box-shadow:none !important;outline:none !important;
+ transform:scale(.985) !important;opacity:1 !important;
+ transition:transform .08s ease !important}
 
 /* ---------- B. 音乐悬浮小窗：卡片大小固定（歌词长短不再改变尺寸）---------- */
 .mufloat.open{width:min(336px,calc(100vw - 24px));min-width:0;max-width:none}
@@ -1405,8 +1408,8 @@ html[data-glass="1"] .card.foldcard{background:var(--card);background-image:none
 .row:has(.stepper):active{background-color:transparent !important;transition:none !important}
 .row:has(.stepper) .stepnum:active{background-color:transparent !important}
 .row:has(.stepper) .stbtn:active{
- background-color:color-mix(in srgb,var(--primary) 42%,transparent) !important;
- transform:none !important;opacity:1 !important;transition:background-color .08s ease !important}
+ background-color:transparent !important;
+ transform:scale(.94) !important;opacity:1 !important;transition:transform .08s ease !important}
 
 /* ③ 行内右侧控件永远贴右：即使被文字挤到下一行，也不会跑到左边 */
 .row>.sw,.row>.stepper,.row>.val,.row>.btn,.row>.ibtn,
@@ -1521,3 +1524,16 @@ html body #app .msg .ava,html body #app .msg .ava img{
 /* 键盘弹起 / 上传完文件后，弹层不再被顶到屏幕外：改成「顶部对齐 + 限高 + 内部滚动」 */
 html.kb-open #modal{align-items:flex-start !important;justify-content:flex-start !important;padding-top:calc(8px + env(safe-area-inset-top)) !important;padding-bottom:calc(8px + var(--kb,0px)) !important;overflow:auto !important}
 html.kb-open #modal .sheet{margin-top:0 !important;margin-bottom:8px !important;max-height:calc(100dvh - var(--kb,0px) - 26px) !important;overflow-y:auto !important}
+
+/* ⑤ 设置页 / 各列表页：点击与长按都不再出现灰色阴影、系统长按菜单或文字选中块。
+   覆盖「列表项 / 按钮 / 卡片行 / 头像行 / 字卡格子」等所有可点区域。 */
+button,.btn,.chip,.ibtn,.row,.actionrow,.listitem,.libtile,.sgrid .sup,
+.hgrid .app,.val,.lab,.storrow,.storrow2,.stitle,.mletter,.mucard,.listitem .main,
+.mgrid button,.mgrid2>.btn,.chiprow,.sect,.tabs,.tabs button,.seg,.seg button,
+.sw,.sw *,.cell,.cellck,.foldrow,.moremsg,.del,.playbtn,.stepnum,.stbtn{
+ -webkit-user-select:none !important;user-select:none !important;
+ -webkit-touch-callout:none !important;-webkit-user-drag:none !important;
+ -webkit-tap-highlight-color:transparent !important}
+/* 输入框 / 文本域 / 聊天正文照旧可以选中、可以复制 */
+input,textarea,select,[contenteditable],.msgs .bub,.msgs .bub *,.msgs .txt,.vcopy{
+ -webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}
