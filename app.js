@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v54";
+const APP_BUILD="v57";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -400,7 +400,7 @@ function render(){
  rememberHScroll(_lastPageKey||_key);
  app.innerHTML=p.html(curParam);
  try{if(cur!=="chat")chatShowLimit=CHAT_STEP}catch(e){}
- try{mediaOnPage()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
+ try{mediaOnPage()}catch(e){}try{bindLibMoreScroll()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
  if(p.init)p.init(curParam);
  applyTyping();
  app.querySelectorAll("button").forEach(b=>{if(!b.getAttribute("type"))b.setAttribute("type","button")});
@@ -600,32 +600,39 @@ function msgInputAttrs(el){
  }catch(e){}}
 /* 全站输入框在页面就绪后立刻加固一次（之后新增的输入框由 MutationObserver / focusin 兜底） */
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){try{initAutofillHardening()}catch(e){}});
-else try{initAutofillHardening()}catch(e){}function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,kbOpen=false;
- /* 键盘高度 = 键盘关闭时记下的视口高度 − 当前 visualViewport 高度
-    ⚠️ 不能用 innerHeight−vv.height：安卓 Chrome 键盘弹出时 innerHeight 会一起变小，那样会算成 0（消息就不上移）*/
+else try{initAutofillHardening()}catch(e){}
+/* 让聊天列表贴到最新消息：键盘动画期间容器高度会变好几次，所以立刻滚一次 + 随后再补几次 */
+function chatBottomSoon(){const put=()=>{try{if(cur!=="chat")return;const sc=document.getElementById("chatscroll");if(sc)sc.scrollTop=sc.scrollHeight}catch(e){}};
+ put();[60,140,260,420,650,900].forEach(function(ms){setTimeout(put,ms)})}
+function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,baseInner=0,kbOpen=false;
+ /* 键盘高度 = 键盘收起时记下的视口高度 − 当前 visualViewport 高度。
+    ⚠️ 本应用 viewport 里声明了 interactive-widget=resizes-content：安卓 Chrome 键盘弹出时
+    「布局视口」也会一起变矮（innerHeight 变小），此时 --kb 必须保持 0，否则底栏会被抬高两次
+    （输入框飘太高、消息区被压扁）。只有「仅 visualViewport 变矮」的情况才需要 --kb（iOS）。 */
  const apply=()=>{
   raf=0;
   const h=vv.height||0;
-  if(!kbOpen)baseH=Math.max(window.innerHeight||0,h,1);
-  const kb=Math.max(0,Math.round(baseH-h));
-  kbOpen=kb>120;
+  if(!kbOpen){baseH=Math.max(window.innerHeight||0,h,1);baseInner=window.innerHeight||0}
+  const gapVisual=Math.max(0,Math.round(baseH-h));
+  const layoutShrank=(baseInner-(window.innerHeight||0))>60;
+  const kb=(!layoutShrank&&gapVisual>120)?gapVisual:0;
+  kbOpen=layoutShrank||gapVisual>120;
   const st=document.documentElement.style;
-  if(kbOpen){st.setProperty("--kb",kb+"px");document.documentElement.classList.add("kb-open")}
-  else{st.setProperty("--kb","0px");document.documentElement.classList.remove("kb-open")}
+  st.setProperty("--kb",kb+"px");
+  if(kbOpen)document.documentElement.classList.add("kb-open");
+  else document.documentElement.classList.remove("kb-open");
  };
- const toBottom=()=>{if(suppressChatBottom)return;const sc=document.getElementById("chatscroll");if(sc)sc.scrollTop=sc.scrollHeight};
  const on=()=>{if(raf)return;raf=requestAnimationFrame(()=>{
   const wasOpen=kbOpen;apply();
   if(cur==="chat"){
-   if(kbOpen){toBottom();setTimeout(toBottom,80);setTimeout(toBottom,320)}
-   else if(wasOpen)setTimeout(toBottom,80)
-  }})};
+   if(kbOpen)chatBottomSoon();
+   else if(wasOpen)setTimeout(function(){try{const sc=document.getElementById("chatscroll");if(sc)sc.scrollTop=sc.scrollHeight}catch(e){}},80)}})}
  vv.addEventListener("resize",on);vv.addEventListener("scroll",on);
  window.addEventListener("orientationchange",()=>{kbOpen=false;on()});
  document.addEventListener("focusin",e=>{const t=e.target;if(!t)return;
   if(t.tagName!=="INPUT"&&t.tagName!=="TEXTAREA")return;
   msgInputAttrs(t);
-  if(cur==="chat"){toBottom();setTimeout(toBottom,120);setTimeout(toBottom,360)}});
+  if(cur==="chat")chatBottomSoon()});
  apply()}
 /* ================= assets / icons ================= */
 const APPS=[["fav","收藏"],["memo","备忘录"],["trace","寻踪"],["divine","占卜"],["chat","聊天"],["moments","朋友圈"],["mail","信箱"],["music","音乐"],["period","月经"],["mall","商城"]];
@@ -821,7 +828,7 @@ function taHeartPick(mg){
 function pushChat(m){m.id=m.id||uid();m.ts=m.ts||Date.now();if(!m.timestamp)m.timestamp=m.ts;
  if(m.from==="ta"&&m.type==="text"&&!m.mood&&!m.nopick){try{const mo=taMoodPick();if(mo&&mo.c)m.mood=mo.c;const h=taHeartPick(mo&&mo.g?mo.g:"");if(h)m.mood2=h}catch(e){}}
  if(m.from==="me")lastMeMsgId=m.id;S.chats.push(m);try{mediaShelveMsg(m)}catch(e){};save("chats");try{pkPickup(m)}catch(e){};if(cur==="chat")renderMsgs("bottom");return m}
-function sendChat(){const inp=$("#cin");const t=inp.value.trim();if(!t)return;inp.value="";const m={from:"me",type:"text",text:t};if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}pushChat(m);playBlock("me");taRespond(t)}
+function sendChat(){const inp=$("#cin");const t=inp.value.trim();if(!t)return;inp.value="";const m={from:"me",type:"text",text:t};if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}pushChat(m);playBlock("me");taRespond(t);try{chatBottomSoon()}catch(e){}}
 function pickMany(a,n){const pool=[...a],out=[];while(out.length<n&&pool.length)out.push(pool.splice(rnd(0,pool.length-1),1)[0]);return out}
 /* 拼字卡模式：按概率决定是否多张拼接；触发时条数在「最少 ~ 最多」之间随机；概率为 0 则只发单张 */
 function taTextContent(nC){const s=S.settings.reply.chat;const pool=cardTexts("主字卡").concat(cardTexts(PICKUP_CAT));const fb=["在呢","想你啦","抱抱","今天过得怎么样？"];
@@ -1287,7 +1294,7 @@ function initCallMiniDrag(){const m=$("#callMini");if(!m||m.dataset.dragInit)ret
   const ny=Math.max(4,Math.min(oy+dy,window.innerHeight-r.height-4));
   m.style.left=nx+"px";m.style.top=ny+"px";
  });
- const end=()=>{drag=false};
+ const end=()=>{drag=false;if(miniTapGuard)setTimeout(function(){miniTapGuard=false},350)};
  m.addEventListener("pointerup",end);m.addEventListener("pointercancel",end);
  /* 拖完浏览器会补一个 click：只把它吃掉（否则会误触发"点小窗回全屏"），
     · miniDragged 必须保留 —— 它代表"用户自己摆过位置"，
@@ -2586,7 +2593,7 @@ let muFloatMini=false,muFloatClosed=false;
 /* ---- 悬浮小球 ⇄ 悬浮小窗（可拖拽任意位置 · 位置记忆 · 自定义小球背景） ---- */
 function muFloatPos(){const m=S.misc;m.muFloat=(m.muFloat&&typeof m.muFloat==="object")?m.muFloat:{};
  const f=m.muFloat;if(typeof f.x!=="number")f.x=-1;if(typeof f.y!=="number")f.y=-1;if(typeof f.open!=="boolean")f.open=false;return f}
-let muFloatDown=false,muFloatMoved=false;
+let muFloatDown=false,muFloatMoved=false,muFloatTapAt=0;
 function muFloatHide(){const el=document.getElementById("muFloat");if(el)el.remove()}
 function muLrcLines(a){const t=muAudio?muAudio.currentTime||0:0;
  if(!a||!a.lrc)return{cur:"",next:""};
@@ -2638,8 +2645,13 @@ function muFloatSync(){try{const st=muState();
    if(!muFloatDown)return;muFloatDown=false;
    if(muFloatMoved){save("misc");return}
    f.x=el._ox;f.y=el._oy;
-   f.open=!f.open;save("misc");muFloatSync()});
-  el.addEventListener("pointercancel",function(){muFloatDown=false;muFloatMoved=false});
+   muFloatTapAt=Date.now();f.open=!f.open;save("misc");muFloatSync()});
+   el.addEventListener("click",function(e){
+    if(e.target.closest&&e.target.closest("[data-mf3]"))return;
+    if(muFloatMoved){muFloatMoved=false;return}
+    if(Date.now()-(muFloatTapAt||0)<600)return;   /* 指针流程已经处理过这次点击了，别重复开关 */
+    const f3=muFloatPos();f3.open=!f3.open;save("misc");muFloatSync()});
+   el.addEventListener("pointercancel",function(){muFloatDown=false;muFloatMoved=false});
   document.addEventListener("pointerdown",function(e){const f2=muFloatPos();if(!f2.open)return;
    if(e.target.closest&&e.target.closest("#muFloat"))return;
    f2.open=false;save("misc");muFloatSync()},true)}
@@ -3982,7 +3994,7 @@ function mediaFromCardInto(card,obj,field,cb){
  else if(cur==="moments")feedLoadMedia();
 }catch(e){}}
 function libLoadMedia(cat){try{
- const items=(typeof cardsOf==="function"?cardsOf(cat):[]).filter(function(c){return c&&c.media&&!mediaUrlOf(c,"data")});
+ const items=(typeof cardsOf==="function"?cardsOf(cat):[]).filter(function(c){return c&&c.media&&!mediaUrlOf(c,"data")}).slice(0,libShowLimit);
  if(!items.length)return;
  let i=0,painted=0;
  const step=function(){
@@ -4118,14 +4130,31 @@ function libGridHtml(cat,items,multi,sel){
 
    '<button type="button" class="del" data-act="lib-del" data-id="'+c.id+'" title="删除">'+ico("close")+"</button></div>"}).join("")+"</div>"):'<div class="empty">'+(((S.misc.q||{})[cat])?"没有匹配的内容":"这个分类还没有内容")+"</div>"}
 function libListHtml(cat){const q=(S.misc.q||{})[cat]||"";const gf=(S.misc.gf||{})[cat]||"";const multi=(S.misc.multi||{})[cat];const sel=(S.misc.sel||{})[cat]||[];
- let items=cardsOf(cat).filter(c=>(gf===""||c.group===gf)&&(!q||(c.type==="text"?c.content.includes(q):(c.name||"").includes(q))));
- if(CATTYPE(cat)==="img")return libGridHtml(cat,items,multi,sel);
- return items.length?items.map(c=>'<div class="listitem'+(isBlocked(c)?" blocked":"")+'">'+(multi?'<input type="checkbox" class="ck" data-act="lib-sel" data-id="'+c.id+'" '+(sel.includes(c.id)?"checked":"")+">":"")+
+ const items=cardsOf(cat).filter(c=>(gf===""||c.group===gf)&&(!q||(c.type==="text"?c.content.includes(q):(c.name||"").includes(q))));
+ /* 字卡一多，一次性畫几千条 DOM 就会「点进去要等一会」：只画前 LIB_STEP 条，往下滑自动续。 */
+ const key=cat+"|"+gf+"|"+q;
+ if(_libWinKey!==key){_libWinKey=key;libShowLimit=LIB_STEP}
+ const total=items.length;
+ const shown=(total>libShowLimit)?items.slice(0,libShowLimit):items;
+ const more=(total>libShowLimit)?'<div class="moremsg" data-act="lib-win">↓ 还有 '+(total-libShowLimit)+' 条 · 点这里继续</div>':"";
+ if(CATTYPE(cat)==="img")return libGridHtml(cat,shown,multi,sel)+more;
+ return (shown.length?shown.map(c=>'<div class="listitem'+(isBlocked(c)?" blocked":"")+'">'+(multi?'<input type="checkbox" class="ck" data-act="lib-sel" data-id="'+c.id+'" '+(sel.includes(c.id)?"checked":"")+">":"")+
  (c.type==="img"?'<img class="th" src="'+mediaUrl(c.data,"c"+c.id)+'">':c.type==="voice"?'<button class="playbtn" data-act="lib-play" data-id="'+c.id+'">'+ico("play")+"</button>":"")+
  '<div class="main" data-act="lib-edit" data-id="'+c.id+'"><div class="t1">'+(c.type==="text"?esc(c.content):c.type==="img"?"[图片]":"[语音] "+esc(c.name||""))+"</div></div>"+
- (multi?"":'<button class="ibtn" data-act="lib-block" data-id="'+c.id+'" title="屏蔽">'+ico("block")+'</button><button class="ibtn" data-act="lib-del" data-id="'+c.id+'">'+ico("trash")+"</button>")+"</div>").join(""):'<div class="empty">'+(q?"没有匹配的内容":"这个分类还没有内容")+'</div>'}
+ (multi?"":'<button class="ibtn" data-act="lib-block" data-id="'+c.id+'" title="屏蔽">'+ico("block")+'</button><button class="ibtn" data-act="lib-del" data-id="'+c.id+'">'+ico("trash")+"</button>")+"</div>").join(""):'<div class="empty">'+(q?"没有匹配的内容":"这个分类还没有内容")+'</div>')+more}
 function libRefresh(cat){const box=$("#liblist");if(box){box.innerHTML=libListHtml(cat);return}if(cur==="libcatmanage"||cur==="libmanage")render()}
 /* ================= LIBRARY · 分类管理（L2 下级独立页面）================= */
+/* 大列表分屏：先进页面只渲染 LIB_STEP 条（秒进），滑到底或点按钮再续下一批 */
+const LIB_STEP=80;let libShowLimit=LIB_STEP,_libWinKey=null;
+ACT["lib-win"]=()=>{libShowLimit+=LIB_STEP;if(cur==="pickup"){try{render()}catch(e){}}else{try{libRefresh(curParam)}catch(e){};try{libLoadMedia(curParam)}catch(e){}}};
+function bindLibMoreScroll(){try{const app=$("#app");if(!app||app.dataset.libBound)return;app.dataset.libBound="1";
+ app.addEventListener("scroll",function(){try{
+    if(cur!=="libcat"&&cur!=="pickup")return;
+    const box=$("#app");if(!box||!box.querySelector('[data-act="lib-win"]'))return;
+    if(app.scrollTop+app.clientHeight<app.scrollHeight-320)return;
+    libShowLimit+=LIB_STEP;
+    if(cur==="pickup"){render()}else{libRefresh(curParam);try{libLoadMedia(curParam)}catch(e){}}
+  libShowLimit+=LIB_STEP;libRefresh(curParam);try{libLoadMedia(curParam)}catch(e){}}catch(e){}},{passive:true})}catch(e){}}
 PAGES.libcatmanage={html(cat){
  const n=cardsOf(cat).length;const t=CATTYPE(cat)==="img"?"图片":CATTYPE(cat)==="voice"?"语音":"文本";
  return phead("管理 · "+cat)+
@@ -4171,6 +4200,10 @@ function pkStepRow(label){const p=pkState();const a='data-act="pkstep" data-step
  return '<div class="row"><span class="lab">'+(label||"触发概率")+' <span class="sub">%</span></span><span class="stepper"><button class="stbtn" '+a+' data-dir="down">−</button><input class="stepnum" type="number" data-pknum value="'+p.prob+'" min="0" max="100"><button class="stbtn" '+a+' data-dir="up">＋</button></span></div>'}
 PAGES.pickup={html(){
  const p=pkState();const items=p.items.slice().sort((a,b)=>(b.ts||0)-(a.ts||0));const tn=(S.settings&&S.settings.taName)||"TA";
+ /* 拾取条数多了也不一次性全画（和字卡池一样分屏）：先画前 LIB_STEP 条，往下滑自动续 */
+ _libWinKey="pickup";
+ const shown=(items.length>libShowLimit)?items.slice(0,libShowLimit):items;
+ const more=(items.length>libShowLimit)?'<div class="moremsg" data-act="lib-win">↓ 还有 '+(items.length-libShowLimit)+' 条 · 点这里继续</div>':"";
  const head=phead("TA的拾取",items.length?'<button class="ibtn" data-act="pickup-clear" title="清空拾取">'+ico("trash")+'</button>':"");
  const cfg='<div class="card pkmod">'+
   '<div class="row" style="border:none;padding-top:4px">'+
@@ -4181,8 +4214,8 @@ PAGES.pickup={html(){
  const stat='<div class="libstat"><span class="muted">共 '+items.length+' 条 · '+(p.on?"拾取中":"已停止")+'</span><span class="muted">触发 '+p.prob+'% · 卡池 '+cardsOf(PICKUP_CAT).length+' 条</span></div>';
  if(!items.length)return head+cfg+stat+'<div class="empty">还没有拾取内容<div class="muted" style="margin-top:8px;line-height:1.7">人物拾取内容后，会按人物显示在这里</div></div>';
  const order=[],map={};
- items.forEach(it=>{const k=it.name||tn;if(!map[k]){map[k]=[];order.push(k)}map[k].push(it)});
- return head+cfg+stat+order.map(name=>'<div class="sect">'+esc(name)+' · '+map[name].length+' 条</div><div class="card" style="padding:0 12px">'+map[name].map(pkItemHtml).join("")+'</div>').join("");
+ shown.forEach(it=>{const k=it.name||tn;if(!map[k]){map[k]=[];order.push(k)}map[k].push(it)});
+ return head+cfg+stat+order.map(name=>'<div class="sect">'+esc(name)+' · '+map[name].length+' 条</div><div class="card" style="padding:0 12px">'+map[name].map(pkItemHtml).join("")+'</div>').join("")+more;
 },
  init(){}};
 /* ================= SETTINGS L1 ================= */

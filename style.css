@@ -1511,3 +1511,9 @@ html body #app .msg .ava,html body #app .msg .ava img{
 .bub img[src=""]{min-width:72px;min-height:72px;background:var(--line);border-radius:10px;display:inline-block}
 .stkgrid img[src=""],.sgrid img[src=""]{background:var(--line)}
 .msglost{opacity:.75;font-size:12.5px}
+
+/* 悬浮小球 / 通话小窗：手机上长按里面的图片会触发「保存图片 / 拖拽图片」，把拖拽和点击都吃掉。
+   这里让内部图片不再拦截手势（按钮仍然可点），并禁止长按菜单与文本选择。 */
+.mufloat,.mufloat *,#callMini,#callMini *{-webkit-touch-callout:none;-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
+.mufloat img,.mufloat svg,#callMini img,#callMini svg{pointer-events:none}
+.mufloat button,.mufloat .mfbg,.mufloat .mfbgclr,.mufloat .muprog,#callMini button{pointer-events:auto}
