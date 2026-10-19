@@ -1506,3 +1506,8 @@ html body #app .msg .ava,html body #app .msg .ava img{
 .mletter .mltop>b{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mletter .mlpill{flex:none;white-space:nowrap}
 .mletter .mltime{flex:none;white-space:nowrap;margin-left:auto}
+
+/* 媒体还没从独立记录里读出来时的占位：不让图片塌成"空白气泡" */
+.bub img[src=""]{min-width:72px;min-height:72px;background:var(--line);border-radius:10px;display:inline-block}
+.stkgrid img[src=""],.sgrid img[src=""]{background:var(--line)}
+.msglost{opacity:.75;font-size:12.5px}
