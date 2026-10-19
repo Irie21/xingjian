@@ -1497,3 +1497,7 @@ html body #app .msg .ava,html body #app .msg .ava img{
 .mufloat .mfbgclr{background:rgba(255,255,255,.72);color:var(--danger,#e2483d);box-shadow:0 1px 3px rgba(0,0,0,.18)}
 .mufloat .mfbgclr svg{stroke:currentColor;stroke-width:2.6}
 .mufloat .mfbgclr:active{background:rgba(255,255,255,.92)}
+/* 聊天页「加载更早的消息」按钮 */
+.msgs .moremsg{display:block;width:100%;margin:6px 0 2px;padding:9px 8px;border:none;background:transparent;
+ color:var(--muted);font-size:12.5px;text-align:center;border-radius:10px}
+.msgs .moremsg:active{background:color-mix(in srgb,var(--primary) 20%,transparent)}

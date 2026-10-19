@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v44";
+const APP_BUILD="v46";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -334,7 +334,7 @@ let _hScrollMem={};
 function rememberHScroll(){_hScrollMem={};
  try{const l=document.querySelectorAll("#app .chiprow");for(let i=0;i<l.length;i++){if(l[i].scrollLeft>0)_hScrollMem[i]=l[i].scrollLeft}}catch(e){}}
 function restoreHScroll(){try{const l=document.querySelectorAll("#app .chiprow");for(let i=0;i<l.length;i++){const v=_hScrollMem[i];if(v&&Math.abs(l[i].scrollLeft-v)>1)l[i].scrollLeft=v}}catch(e){}}
-/* 鐐规寜鐬棿璁颁笅椤甸潰婊氬姩浣嶇疆锛氭寜閽鑱氱劍鏃舵祻瑙堝櫒浼氭妸椤甸潰婊氬洖椤堕儴锛堣繖灏辨槸"鐐归潬鍚庣殑鍒嗙粍浼氳烦鍥炲紑澶?鐨勫厓鍑讹級锛?   閲嶇粯鏃剁敤杩欎唤蹇収鎶婁綅缃繕鍘熷洖鍘汇€?*/
+/* 点按瞬间记下页面滚动位置：按钮被聚焦时，浏览器会把页面滚回顶部（这就是「点靠后的分组会跳回开头」的元凶），重绘时用这份快照把位置还原回去。 */
 let _ptrY=0,_ptrT=0;
 document.addEventListener("pointerdown",function(e){try{const app=document.getElementById("app");if(!app)return;if(e.target&&e.target.closest&&e.target.closest("#app")){_ptrY=app.scrollTop;_ptrT=Date.now()}}catch(err){}},true);function centerChip(sel){try{const b=document.querySelector(sel);if(!b)return;const row=b.closest(".chiprow")||b.parentElement;if(!row)return;const rr=row.getBoundingClientRect(),cr=b.getBoundingClientRect();let d=0;if(cr.left<rr.left)d=cr.left-rr.left-8;else if(cr.right>rr.right)d=cr.right-rr.right+8;if(!d)return;const max=Math.max(0,row.scrollWidth-row.clientWidth);row.scrollLeft=Math.max(0,Math.min(row.scrollLeft+d,max))}catch(e){}}
 function render(){
@@ -353,7 +353,9 @@ function render(){
  const ae=document.activeElement;
  if(ae&&ae!==document.body&&app.contains(ae)&&(ae.tagName==="BUTTON"||ae.hasAttribute("data-act"))){try{ae.blur()}catch(e){}}
  if(same)rememberHScroll();
- app.innerHTML=p.html(curParam);app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
+ app.innerHTML=p.html(curParam);
+ try{if(cur!=="chat")chatShowLimit=CHAT_STEP}catch(e){}
+ try{mediaOnPage()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
  if(p.init)p.init(curParam);
  applyTyping();
  app.querySelectorAll("button").forEach(b=>{if(!b.getAttribute("type"))b.setAttribute("type","button")});
@@ -544,7 +546,7 @@ function msgInputAttrs(el){
    el.setAttribute("enterkeyhint","send");
   }
  }catch(e){}}
-/* 鍏ㄧ珯杈撳叆妗嗗湪椤甸潰灏辩华鍚庣珛鍒诲姞鍥轰竴娆★紙涔嬪悗鏂板鐨勮緭鍏ユ鐢?MutationObserver / focusin 鍏滃簳锛?*/
+/* 全站输入框在页面就绪后立刻加固一次（之后新增的输入框由 MutationObserver / focusin 兜底） */
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){try{initAutofillHardening()}catch(e){}});
 else try{initAutofillHardening()}catch(e){}function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,kbOpen=false;
  /* 键盘高度 = 键盘关闭时记下的视口高度 − 当前 visualViewport 高度
@@ -652,7 +654,7 @@ PAGES.chat={html(){const s=S.settings;
   '<div id="abovebar"><div class="typing" id="typing">对方正在输入…</div><div id="quotebar"></div><div id="multibar"></div></div>'+
   '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button type="button" class="ibtn" data-act="chat-menu" title="功能">'+ico("moon")+'</button><button type="button" class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
   '<div id="chatpanel"></div><div id="msgmenu"></div>'},
- init(){renderMsgs("bottom");setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});renderTabbar()}};
+ init(){renderMsgs("bottom");bindChatMoreScroll();setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});renderTabbar()}};
 let curChatStatus="在线";
 function chatStatusText(){return curChatStatus||"在线"}
 function pickStatusCard(){const st=cardTexts("状态");curChatStatus=st.length?pick(st):"在线";return curChatStatus}
@@ -671,13 +673,28 @@ function typingActive(){return TYPING.on&&Date.now()<TYPING.due}
 function applyTyping(){const on=typingActive();const inChat=$("#typing");if(inChat)inChat.style.display=(on&&cur==="chat")?"block":"none";syncAboveBar()}
 function syncAboveBar(){const ab=$("#abovebar");if(!ab)return;const h=ab.offsetHeight;document.documentElement.style.setProperty("--above-h",(h>0?(h+6):0)+"px")}
 setInterval(()=>{if(document.hidden)return;if(TYPING.on&&!typingActive()){TYPING.on=false;TYPING.due=0;applyTyping()}},4000);
+/* 聊天页一次只渲染最近 N 条；往上滚（或点顶部按钮）再加载更早的，几万条历史也不卡。
+   搜索跳转不受影响：jumpToMsg 会先把窗口撑到能包含目标消息。 */
+let chatShowLimit=140;
+const CHAT_STEP=140;
 function renderMsgs(mode){const box=$("#msgs");if(!box)return;
  const sc=$("#chatscroll");
  const near=!sc||mode==="bottom"||((sc.scrollHeight-sc.scrollTop-sc.clientHeight)<90);
  const t0=sc?sc.scrollTop:0,h0=sc?sc.scrollHeight:0;
- box.innerHTML=S.chats.map(msgBubble).join("")||'<div class="empty">还没有消息，说句话吧</div>';
+ if(!(chatShowLimit>0))chatShowLimit=CHAT_STEP;
+ const total=S.chats.length;
+ const start=Math.max(0,total-chatShowLimit);
+ const more=start>0?'<button type="button" class="moremsg" data-act="chat-more">↑ 加载更早的消息（还有 '+start+' 条）</button>':"";
+ box.innerHTML=more+(S.chats.slice(start).map(msgBubble).join("")||'<div class="empty">还没有消息，说句话吧</div>');
  if(sc)sc.scrollTop=near?sc.scrollHeight:Math.max(0,t0+(sc.scrollHeight-h0));
  if(txPopEl)placeTxPop()}
+ACT["chat-more"]=()=>{chatShowLimit+=CHAT_STEP;renderMsgs("keep")};
+/* 滚到聊天顶部附近就自动加载更早的消息 */
+function bindChatMoreScroll(){try{const sc=$("#chatscroll");if(!sc||sc.dataset.moreBound)return;sc.dataset.moreBound="1";
+ sc.addEventListener("scroll",function(){try{
+  if(sc.scrollTop>40)return;
+  if(chatShowLimit>=S.chats.length)return;
+  chatShowLimit+=CHAT_STEP;renderMsgs("keep")}catch(e){}},{passive:true})}catch(e){}}
 let lastMeMsgId=null;
 const MOOD_DATA={rg:[80,15,5],gs:[{g:"喜悦与正向",w:30,c:[["开心",0],["快乐",0],["愉悦",0],["高兴",0],["满足",0],["幸福",0],["安心",0],["放松",0],["轻松",0],["温暖",0],["舒心",0],["欣慰",0],["愉快",0],["期待",0],["兴奋",0],["惊喜",0],["雀跃",1],["满足感",0],["充实",0],["踏实",0],["安心感",0],["幸运",0],["庆幸",0],["感激",0],["感动",0],["欣喜",0],["释然",2]]},{g:"亲近与爱意",w:20,c:[["喜欢",0],["在意",0],["珍惜",0],["信任",0],["依赖",0],["亲近",0],["眷恋",1],["想念",0],["思念",0],["牵挂",0],["心软",0],["心疼",0],["怜惜",0],["宠溺",1],["偏爱",0],["包容",0],["纵容",1],["依恋",0],["舍不得",1],["想靠近",0],["想陪伴",0],["想照顾",0],["想保护",0],["想了解",0],["想回应",0]]},{g:"悲伤与低落",w:4,c:[["难过",0],["伤心",0],["失落",0],["遗憾",0],["孤单",0],["孤独",0],["寂寞",0],["委屈",0],["无奈",0],["疲惫",0],["疲倦",0],["低落",0],["沮丧",0],["失望",0],["心酸",0],["苦涩",0],["空虚",0],["迷茫",0],["迷失",0],["沉重",0],["压抑",1],["痛苦",0],["悲伤",0],["哀伤",0],["落寞",0]]},{g:"愤怒与不满",w:1,c:[["生气",0],["愤怒",0],["恼火",0],["烦躁",0],["不耐烦",0],["不满",0],["厌烦",0],["抗拒",0],["排斥",0],["恼怒",0],["气恼",0],["不甘",0],["嫉妒",0],["吃醋",0],["愤懑",1],["委屈",0],["赌气",1],["冷淡",0],["疏离",1]]},{g:"不安与恐惧",w:3,c:[["害怕",0],["恐惧",0],["担心",0],["忧虑",0],["焦虑",0],["紧张",0],["不安",0],["慌张",0],["慌乱",0],["害怕失去",0],["忐忑",1],["不知所措",0],["心慌",0],["压力",0],["担忧",0],["敏感",0]]},{g:"害羞与社交情绪",w:6,c:[["害羞",0],["不好意思",0],["脸红",0],["羞涩",0],["尴尬",0],["拘谨",0],["腼腆",0],["害臊",1],["紧张",0],["小心翼翼",0],["不自然",0],["犹豫",0],["迟疑",0],["想说又停下",0]]},{g:"思考与复杂情绪",w:10,c:[["疑惑",0],["困惑",0],["好奇",0],["惊讶",0],["意外",0],["震惊",0],["犹豫",0],["纠结",0],["矛盾",0],["迟疑",0],["怀疑",0],["不确定",0],["复杂",0],["说不清",0],["想不明白",2],["若有所思",1],["沉思",0],["认真",0],["专注",0]]},{g:"自我情绪",w:1,c:[["骄傲",0],["自豪",0],["自信",0],["满足",0],["羞愧",0],["自责",1],["后悔",0],["内疚",0],["不甘心",1],["委屈自己",2],["怀疑自己",0],["失落感",2],["无力",2],["疲惫感",2],["释怀",1],["接受",0],["放下",0]]},{g:"克制与隐藏",w:8,c:[["平静",0],["冷静",0],["克制",0],["忍耐",0],["沉默",0],["压下情绪",0],["隐藏情绪",0],["假装平静",2],["表面平静",0],["心里在意",0],["偷偷开心",1],["偷偷难过",1],["默默期待",1],["默默守护",1],["不愿表达",0],["不知道怎么说",2]]},{g:"中性与日常",w:15,c:[["普通",0],["平常",0],["淡然",0],["随意",0],["自然",0],["放空",0],["发呆",0],["安静",0],["专注",0],["认真",0],["观察",0],["等待",0],["好奇",0],["期待中",0],["没有特别情绪",0]]},{g:"特殊表达情绪",w:2,c:[["想被理解",0],["想被看见",0],["想确认",0],["想解释",0],["想安慰你",0],["想陪着你",0],["想靠近一点",0],["舍不得离开",2],["放心了",0],["安心下来",0],["松了一口气",2],["忍不住开心",1],["忍不住在意",1],["藏着心事",1],["有话想说",1],["不知道怎么表达",2]]}],hs:[{g:"陪伴与守护",c:[["陪伴",0],["陪着你",0],["我在这里",0],["安静陪你",0],["想和你一起",0],["不用一个人",0],["待在你身边",0],["不会离开",1],["想陪你走下去",2],["想和你待一会",1]]},{g:"分享与交流",c:[["分享",0],["想告诉你",0],["想和你聊聊",0],["想让你知道",0],["想听你的想法",0],["想看看你的反应",0],["想把这个分享给你",1],["想和你交换想法",1]]},{g:"关心与照顾",c:[["关心",0],["想照顾你",1],["希望你好好的",1],["记得休息",0],["不要太累",0],["想确认你没事",1],["希望你开心",0],["想让你轻松一点",0]]},{g:"思念与靠近",c:[["想念",1],["想到你",0],["想靠近一点",1],["想见你",1],["想和你在一起",1],["想听你说话",0],["想知道你在做什么",0],["舍不得离开",2]]},{g:"理解与回应",c:[["回应",0],["我听到了",0],["我明白",1],["我知道",0],["我记住了",1],["我理解",1],["收到你的话",0],["想回应你",1]]},{g:"鼓励与支持",c:[["支持",0],["相信你",1],["陪你努力",1],["为你加油",0],["认可你",0],["为你感到骄傲",2],["希望你坚持",0],["我支持你的选择",1]]},{g:"邀请与互动",c:[["邀请",0],["想和你一起",1],["想听你说",0],["想和你讨论",0],["等你加入",1],["想一起分享",0],["想和你做同一件事",1]]},{g:"记录与珍惜",c:[["记录",0],["想记住",0],["保存这一刻",0],["珍惜现在",0],["留下回忆",0],["这个瞬间很重要",1],["想收藏这份感觉",1]]},{g:"特殊表达",c:[["想被理解",0],["想被看见",0],["有话想说",0],["不知道怎么表达",0],["藏着一点心事",1],["想确认你的心意",1],["舍不得表达",1]]}],e2h:{"不安与恐惧":[["陪伴与守护",40],["关心与照顾",30],["理解与回应",20],["特殊表达",10]],"中性与日常":[["分享与交流",35],["陪伴与守护",25],["记录与珍惜",20],["邀请与互动",20]],"亲近与爱意":[["思念与靠近",35],["陪伴与守护",30],["记录与珍惜",15],["理解与回应",10],["特殊表达",10]],"克制与隐藏":[["特殊表达",35],["思念与靠近",30],["陪伴与守护",25],["理解与回应",10]],"喜悦与正向":[["分享与交流",35],["陪伴与守护",25],["邀请与互动",20],["记录与珍惜",15],["思念与靠近",5]],"害羞与社交情绪":[["思念与靠近",35],["理解与回应",30],["邀请与互动",20],["分享与交流",15]],"思考与复杂情绪":[["理解与回应",40],["记录与珍惜",25],["陪伴与守护",20],["特殊表达",15]],"悲伤与低落":[["陪伴与守护",40],["关心与照顾",30],["理解与回应",20],["特殊表达",10]],"愤怒与不满":[["陪伴与守护",30],["理解与回应",30],["关心与照顾",20],["特殊表达",20]],"特殊表达情绪":[["特殊表达",50],["理解与回应",30],["陪伴与守护",20]],"自我情绪":[["理解与回应",30],["记录与珍惜",30],["陪伴与守护",20],["特殊表达",20]]},gh:[["陪伴与守护",25],["分享与交流",20],["关心与照顾",15],["思念与靠近",12],["理解与回应",10],["鼓励与支持",8],["邀请与互动",5],["记录与珍惜",3],["特殊表达",2]]};
 const MOOD_STREAK={0:70,1:60,2:45,3:30,4:20};
@@ -751,7 +768,7 @@ function taHeartPick(mg){
  return String(card[0]||"")}
 function pushChat(m){m.id=m.id||uid();m.ts=m.ts||Date.now();if(!m.timestamp)m.timestamp=m.ts;
  if(m.from==="ta"&&m.type==="text"&&!m.mood&&!m.nopick){try{const mo=taMoodPick();if(mo&&mo.c)m.mood=mo.c;const h=taHeartPick(mo&&mo.g?mo.g:"");if(h)m.mood2=h}catch(e){}}
- if(m.from==="me")lastMeMsgId=m.id;S.chats.push(m);save("chats");try{pkPickup(m)}catch(e){};if(cur==="chat")renderMsgs("bottom");return m}
+ if(m.from==="me")lastMeMsgId=m.id;S.chats.push(m);try{mediaShelveMsg(m)}catch(e){};save("chats");try{pkPickup(m)}catch(e){};if(cur==="chat")renderMsgs("bottom");return m}
 function sendChat(){const inp=$("#cin");const t=inp.value.trim();if(!t)return;inp.value="";const m={from:"me",type:"text",text:t};if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}pushChat(m);playBlock("me");taRespond(t)}
 function pickMany(a,n){const pool=[...a],out=[];while(out.length<n&&pool.length)out.push(pool.splice(rnd(0,pool.length-1),1)[0]);return out}
 /* 拼字卡模式：按概率决定是否多张拼接；触发时条数在「最少 ~ 最多」之间随机；概率为 0 则只发单张 */
@@ -1456,10 +1473,10 @@ function renderMoments(){const box=$("#mbox");if(!box)return;
  if(!list.length){box.innerHTML='<div class="empty">'+(feedRange()==="week"?"本周还没有动态<br>点上面那条胶囊翻更早的月份":"这个月还没有动态")+"</div>";return}
  box.innerHTML=list.map(function(p){const mine=p.who==="me";
   const liked=(p.likesWho||[]).indexOf(me)>=0,taLiked=(p.likesWho||[]).indexOf(ta)>=0;
-  const cmts=(p.cmts||[]).map(function(c,i){return '<div class="fcmt"><b class="'+(c.who===ta?"ta":"")+'" data-act="feed-reply" data-id="'+p.id+'" data-i="'+i+'">'+esc(c.who)+"</b>"+(c.to?(" 回复 "+esc(c.to)):"")+"："+(c.img?'<img class="zoomable fcimg" data-act="img-view" src="'+c.img+'">':"")+esc(c.text||"")+(c.voiceData?'<button class="btn sm" data-act="play-voice" data-id="'+c.id+'" style="margin-left:4px">'+ico("play")+" 语音</button>":"")+"</div>"}).join("");
+  const cmts=(p.cmts||[]).map(function(c,i){return '<div class="fcmt"><b class="'+(c.who===ta?"ta":"")+'" data-act="feed-reply" data-id="'+p.id+'" data-i="'+i+'">'+esc(c.who)+"</b>"+(c.to?(" 回复 "+esc(c.to)):"")+"："+((c.img||c.imgMedia)?'<img class="zoomable fcimg" data-act="img-view" data-mid="'+c.id+'" src="'+mediaUrl(c.img,"mc"+c.id)+'">':"")+esc(c.text||"")+(c.voiceData?'<button class="btn sm" data-act="play-voice" data-id="'+c.id+'" style="margin-left:4px">'+ico("play")+" 语音</button>":"")+"</div>"}).join("");
   return '<div class="card post"><div class="who">'+avatarHtml({src:avatarSrc(mine?"me":"ta"),name:mine?me:ta,me:mine})+'<div><b>'+esc(mine?me:ta)+'</b><br><time>'+mailDate(p.ts)+'</time></div>'+
    '<button class="ibtn" data-act="moment-del" data-id="'+p.id+'" style="margin-left:auto">'+ico("trash")+"</button></div>"+
-   '<div class="txt">'+esc(p.content)+"</div>"+(p.imgs&&p.imgs.length?'<div class="pics">'+p.imgs.map(function(i){return '<img class="zoomable" data-act="img-view" src="'+i+'">'}).join("")+"</div>":"")+
+   '<div class="txt">'+esc(p.content)+"</div>"+(p.imgs&&p.imgs.length?'<div class="pics">'+p.imgs.map(function(i,ix){return '<img class="zoomable" data-act="img-view" data-mid="'+p.id+'" data-mi="'+ix+'" src="'+mediaUrl(i,"f"+p.id+ix)+'">'}).join("")+"</div>":"")+
    (p.voice?'<button class="btn sm" data-act="play-voice" data-id="'+p.id+'" style="margin-bottom:6px">'+ico("play")+" 语音</button>":"")+
    '<div class="acts"><span class="'+(liked?"on":"")+(taLiked?" taon":"")+'" data-act="moment-like" data-id="'+p.id+'">'+ico("heart")+" "+(p.likes||0)+'</span><span data-act="moment-cmt" data-id="'+p.id+'">'+ico("cmt")+" 评论</span>"+'<span class="'+(p.myFav?"on":"")+(p.taFav?" taon":"")+'" data-act="moment-fav" data-id="'+p.id+'">'+ico("fav")+" 收藏</span></div>"+
    ((p.likesWho&&p.likesWho.length)||cmts?'<div class="cmts">'+((p.likesWho&&p.likesWho.length)?'<div>♥ '+esc(p.likesWho.join("、"))+"</div>":"")+cmts+"</div>":"")+
@@ -1481,8 +1498,8 @@ function momentCompose(){openSheet('<div class="mtitle">发朋友圈<button clas
 function taMomentContent(){const r=S.settings.reply.moments;const pool=[...cardTexts("主字卡"),...cardTexts("情绪字卡"),...cardTexts("状态")];let parts=[];for(let i=0;i<Math.max(1,r.cards);i++)parts.push(pool.length?pick(pool):"今天也是平常的一天");let t=parts.join("。");if(chance(r.kaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.emoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}return t}
 function taReactTo(p){const r=S.settings.reply.moments;
  if(chance(r.likeProb))setTimeout(()=>{p.likes=(p.likes||0)+1;p.likesWho=p.likesWho||[];p.likesWho.push(S.settings.taName);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 赞了你的动态")},rnd(20,120)*1000);
- if(chance(r.cmtProb))setTimeout(()=>{let t=cardTexts("情绪字卡").length?pick(cardTexts("情绪字卡")):"真好";if(chance(r.cmtKaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.cmtEmoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}const cmt={id:uid(),who:S.settings.taName,text:t};if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length)cmt.img=pick(st).data}if(chance(r.cmtVoice)){const vc=cardsOf("语音字卡");if(vc.length)cmt.voiceData=pick(vc).data}p.cmts=p.cmts||[];p.cmts.push(cmt);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 评论了你的动态")},rnd(60,300)*1000)}
-function taMomentCheck(){const r=S.settings.reply.moments;const day=MEMO_TODAY();const fd=S.misc.feedDay||(S.misc.feedDay={d:day,n:0});if(fd.d!==day){fd.d=day;fd.n=0;save("misc")}if(Date.now()<(S.misc.feedCoolUntil||0))return;const last=S.misc.lastTaMoment||0;if((Date.now()-last)/3600000<r.intervalH)return;if(fd.n>=(r.dailyMax==null?5:r.dailyMax))return;if(!chance(r.activeProb))return;S.misc.lastTaMoment=Date.now();fd.n++;S.misc.feedCoolUntil=Date.now()+(r.cool==null?30:r.cool)*60000;save("misc");const p={id:uid(),who:"ta",content:taMomentContent(),imgs:[],ts:Date.now(),likes:0,likesWho:[],cmts:[]};if(chance(r.sticker)){const st=cardsOf("表情包");if(st.length)p.imgs=[pick(st).data]}if(chance(r.voice)){const vc=cardsOf("语音字卡");if(vc.length){p.voice=true;p.voiceData=pick(vc).data}}S.moments.push(p);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 发布了一条朋友圈动态")}
+ if(chance(r.cmtProb))setTimeout(()=>{let t=cardTexts("情绪字卡").length?pick(cardTexts("情绪字卡")):"真好";if(chance(r.cmtKaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.cmtEmoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}const cmt={id:uid(),who:S.settings.taName,text:t};if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length)mediaFromCardInto(pick(st),cmt,"img")}if(chance(r.cmtVoice)){const vc=cardsOf("语音字卡");if(vc.length)mediaFromCardInto(pick(vc),cmt,"voiceData")}p.cmts=p.cmts||[];p.cmts.push(cmt);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 评论了你的动态")},rnd(60,300)*1000)}
+function taMomentCheck(){const r=S.settings.reply.moments;const day=MEMO_TODAY();const fd=S.misc.feedDay||(S.misc.feedDay={d:day,n:0});if(fd.d!==day){fd.d=day;fd.n=0;save("misc")}if(Date.now()<(S.misc.feedCoolUntil||0))return;const last=S.misc.lastTaMoment||0;if((Date.now()-last)/3600000<r.intervalH)return;if(fd.n>=(r.dailyMax==null?5:r.dailyMax))return;if(!chance(r.activeProb))return;S.misc.lastTaMoment=Date.now();fd.n++;S.misc.feedCoolUntil=Date.now()+(r.cool==null?30:r.cool)*60000;save("misc");const p={id:uid(),who:"ta",content:taMomentContent(),imgs:[],ts:Date.now(),likes:0,likesWho:[],cmts:[]};if(chance(r.sticker)){const st=cardsOf("表情包");if(st.length){const c0=pick(st);p.imgs=[""];mediaFromCardInto(c0,p,"__imgTmp",function(){try{if(p.__imgTmp){p.imgs=[p.__imgTmp];delete p.__imgTmp}}catch(e){}})}}if(chance(r.voice)){const vc=cardsOf("语音字卡");if(vc.length){const v0=pick(vc);p.voice=true;mediaFromCardInto(v0,p,"voiceData",function(){try{if(!p.voiceData)p.voice=false}catch(e){}})}}S.moments.push(p);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 发布了一条朋友圈动态")}
 /* ================= CALENDAR ================= */
 PAGES.cal={html(){return phead("日历")+'<div class="card"><div class="calhead"><button class="ibtn" data-act="cal-prev">'+ico("back")+'</button><b id="caltitle"></b><button class="ibtn" data-act="cal-next">'+ico("back")+' </button></div><div class="calgrid" id="calgrid"></div></div><div id="calday"></div>'},
  init(){S.misc.calY=S.misc.calY||new Date().getFullYear();S.misc.calM=S.misc.calM==null?new Date().getMonth():S.misc.calM;renderCal()}};
@@ -1730,8 +1747,41 @@ function muState(){const m=S.misc;m.mu=(m.mu&&typeof m.mu==="object")?m.mu:{};
 function muLists(){muState();return S.misc.muLists}
 /* 音源优先级：本机已存的音频（blob）优先，其次才走网络地址 ——
    这样「下载到本机」之后就不再看网易云/外链的脸色了 */
+/* ★ 本机音频单独存：一首歌一条 IndexedDB 记录（xjAudio:<id>），不再塞进 audios 大数组里。
+   以前几百首音频全在 audios 这一条记录里：开机要把它整个搬进内存、每存一次也要重写整个数组，
+   手机上会长时间打不开、甚至被系统直接杀掉（就是"点了没反应"）。现在 audios 只存歌曲信息，
+   音频按需单独读，开机几乎是秒开。 */
+const MU_BLOB_PREFIX="xjAudio:";
+let muBlobCache={};
+function muBlobKey(id){return MU_BLOB_PREFIX+id}
+function muBlobPut(id,blob){return kvSet(muBlobKey(id),blob)}
+function muBlobGet(id){return kvGet(muBlobKey(id))}
+function muBlobDel(id){return kvDel(muBlobKey(id))}
+function muHasLocal(a){return !!(a&&(a.local||a.blob))}
+function muLocalUrl(a){const b=(a&&muBlobCache[a.id])||(a&&a.blob);if(!b)return "";
+ try{return a._u||(a._u=URL.createObjectURL(b))}catch(e){return ""}}
+/* 需要本机音频时按需读一次（读过的缓存在内存里，之后直接用 objectURL） */
+function muEnsureLocal(a){return new Promise(function(res){
+ if(!a)return res("");
+ if(muBlobCache[a.id]||a.blob)return res(muLocalUrl(a));
+ if(!a.local)return res("");
+ muBlobGet(a.id).then(function(b){if(b){muBlobCache[a.id]=b;return res(muLocalUrl(a))}
+  delete a.local;try{save("audios")}catch(e){};res("")}).catch(function(){res("")})})}
+/* 老数据整理：把还塞在数组里的音频搬到单独记录里（一首一首来，不卡界面） */
+function muBlobMigrate(){try{const list=(S.audios||[]).filter(function(a){return a.blob});
+ if(!list.length)return;
+ let i=0,fail=0;
+ toast("正在整理本机音乐（"+list.length+" 首），期间可以照常用…");
+ const step=function(){
+  if(i>=list.length){save("audios");toast("本机音乐整理完成");return}
+  const a=list[i++],b=a.blob;
+  const put=(b&&b.size)?muBlobPut(a.id,b):Promise.resolve();
+  put.then(function(){a.local=true;a.dlBytes=a.dlBytes||(b&&b.size)||0;a.dlAt=a.dlAt||Date.now();delete a.blob;delete a._u;save("audios")})
+     .catch(function(){fail++})
+     .then(function(){setTimeout(step,0)})};
+ setTimeout(step,1500)}catch(e){}}
 function muSrc(a){if(!a)return "";
- if(a.blob){try{return a._u||(a._u=URL.createObjectURL(a.blob))}catch(e){}}
+ const u=muLocalUrl(a);if(u)return u;
  return a.url||""}
 /* ---------- 把网络歌曲下载到本机（存进 IndexedDB，之后离线 / 歌单转私密都能听） ----------
    音源尝试顺序：网易云解析接口（nid）→ 曲库里存的地址 → 网易云官方外链。
@@ -1841,7 +1891,7 @@ function muLocalSave(id,signal,timeoutMs){
  return new Promise(function(res){
   const a=S.audios.find(function(x){return x.id===id});
   if(!a)return res({ok:false,why:"找不到这首歌"});
-  if(a.blob)return res({ok:true,why:"already",bytes:a.blob.size||0});
+  if(muHasLocal(a))return res({ok:true,why:"already",bytes:a.dlBytes||(a.blob&&a.blob.size)||0});
   const TO=timeoutMs||30000;
   const outer=a.nid?("https://music.163.com/song/media/outer/url?id="+a.nid+".mp3"):"";
   const steps=[];
@@ -1851,7 +1901,7 @@ function muLocalSave(id,signal,timeoutMs){
   if(a.url&&a.urlDead)steps.push("stored");
   if(!steps.length)return res({ok:false,why:"没有音源地址"});
   let i=0,resWhy="",lastWhy="下载失败";
-  const take=function(b,via){a.blob=b;a.dlAt=Date.now();a.dlBytes=b.size;delete a._u;res({ok:true,bytes:b.size,via:via})};
+  const take=function(b,via){a.local=true;a.dlAt=Date.now();a.dlBytes=b.size;muBlobCache[a.id]=b;delete a._u;try{muBlobPut(a.id,b)}catch(e){}res({ok:true,bytes:b.size,via:via})};
   const next=function(){
    if(signal&&signal.aborted)return res({ok:false,why:"已停止"});
    if(i>=steps.length)return res({ok:false,why:resWhy||lastWhy,net:!!muNetVerdict});
@@ -1975,6 +2025,7 @@ function muPlay(id,auto){const a=S.audios.find(function(x){return x.id===id});if
  muGen++;const gen=muGen;                             /* 新的播放代次：之前所有等待中的回调全部作废 */
  if(muAdvTimer){clearTimeout(muAdvTimer);muAdvTimer=null}
  const st=muState();st.cur=id;st.recent=[id].concat(st.recent.filter(function(x){return x!==id})).slice(0,60);save("misc");
+ muEnsureLocal(a).then(function(){if(gen!==muGen)return;
  const src=muSrc(a);if(!src)return toast("这首歌还没有音源");
  if(muAudio){try{muAudio.pause()}catch(e){}}
  muAudio=new Audio(src);muAudio._id=id;
@@ -1986,7 +2037,7 @@ function muPlay(id,auto){const a=S.audios.find(function(x){return x.id===id});if
  muAudio.playbackRate=muRate();muAudio.play().catch(function(){toast("播放失败，检查一下音源")});setTimeout(function(){muTaPauseCheck(a);muTaFavCheck(a)},400);
  try{muFetchLrc(a)}catch(e){}
  setTimeout(function(){if(gen===muGen&&muAudio&&muAudio._id===id&&muAudio.readyState<1&&!muAudio._rt){try{muFail(gen)}catch(e){}}},9000);
- muPaint();if(cur==="music"||cur==="muplayer")render();try{muFloatSync()}catch(e){}}
+ muPaint();if(cur==="music"||cur==="muplayer")render();try{muFloatSync()}catch(e){}});}
 function muDead(){if(!S.misc.muDead||typeof S.misc.muDead!=="object")S.misc.muDead={};return S.misc.muDead}
 function muDeadCount(){try{return S.audios.filter(function(a){return muDead()[a.id]}).length}catch(e){return 0}}
 function muFail(gen){if(gen!==undefined&&gen!==muGen)return;      /* 上一代遗留的回调，直接作废 */
@@ -2088,7 +2139,7 @@ function muSongsHtml(){const st=muState();const rows=muRows();
  if(!rows.length)return '<div class="card"><div class="empty" style="padding:26px 0">'+(st.tab==="fav"?"还没有收藏歌曲，播放时点 ❤ 收藏":(st.tab==="recent"?"还没有播放记录":"还没有音乐，点右上 ⋯ 里的「导入本地音乐」"))+"</div></div>";
  return '<div class="card mulist">'+rows.map(function(a){const on=st.cur===a.id;
   return '<div class="musong'+(on?" on":"")+'" data-act="mu-play" data-id="'+a.id+'"><span class="mucov">'+muCover(a)+'</span>'+
-   '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.blob?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
+   '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(muHasLocal(a)?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
    '<span class="mudur">'+(on&&muAudio&&muAudio.duration?muFmt(muAudio.duration):"--:--")+'</span>'+
    '<button class="ibtn" data-act="mu-fav" data-id="'+a.id+'">'+ico("heart")+'</button>'+
    '<button class="ibtn" data-act="mu-more" data-id="'+a.id+'">'+ico("dots")+"</button></div>"}).join("")+"</div>"}
@@ -2097,7 +2148,7 @@ function muListsHtml(){const ls=muLists(),st=muState();
    return '<div class="musong'+(st.listId===l.id?" on":"")+'"><span class="mucov" data-act="mu-openlist" data-id="'+l.id+'">'+ico("music")+'</span><span class="mumid" data-act="mu-openlist" data-id="'+l.id+'"><b>'+esc(l.name)+'</b><span>'+n+' 首</span></span><button class="ibtn" data-act="mu-lren" data-id="'+l.id+'">'+ico("edit")+'</button><button class="ibtn" data-act="mu-ldel" data-id="'+l.id+'">'+ico("trash")+"</button></div>"}).join(""):'<div class="empty" style="padding:20px 0">还没有歌单</div>')+"</div>"+
   '<div class="btnrow" style="margin-top:10px"><button class="btn pri" style="width:100%" data-act="mu-lnew">＋ 新建歌单</button></div>'+
   (st.listId?'<div class="btnrow" style="margin-top:8px"><button class="btn" style="width:100%" data-act="mu-tab" data-v="songs">← 返回全部歌曲（当前：'+esc(muListName(st.listId))+"）</button></div>":"")}
-function muDataHtml(){let n=0;try{S.audios.forEach(function(a){if(a.blob)n+=(a.blob.size||0)})}catch(e){}
+function muDataHtml(){let n=0;try{S.audios.forEach(function(a){if(muHasLocal(a))n+=((a.dlBytes||(a.blob&&a.blob.size))||0)})}catch(e){}
  return '<div class="sect">音乐 · 数据管理</div><div class="card">'+
   '<div class="row" style="border:none;padding-bottom:0"><span class="lab"><b>音乐 · 数据管理</b></span><span class="val" data-act="mu-dataall" style="color:var(--muted)">全部功能 ›</span></div>'+
   '<div class="muted" style="padding:4px 0 12px">'+S.audios.length+" 首 · 本地缓存 "+fmtBytes(n)+"</div>"+
@@ -2168,7 +2219,7 @@ PAGES.music={html(){const st=muState();const tabs=[["songs","歌曲"],["lists","
    const h=document.querySelector(".muhero .mumid span");if(h)h.textContent="共 "+rows2.length+" 首 · "+muModeName()})}};
 function muSongRow(a){const st=muState(),on=st.cur===a.id;
  return '<div class="musong'+(on?" on":"")+'" data-act="mu-play" data-id="'+a.id+'"><span class="mucov">'+muCover(a)+'</span>'+
-  '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.blob?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
+  '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(muHasLocal(a)?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
   '<span class="mudur">'+(on&&muAudio&&muAudio.duration?muFmt(muAudio.duration):"--:--")+'</span>'+
   '<button class="ibtn" data-act="mu-fav" data-id="'+a.id+'">'+ico("heart")+'</button>'+
   '<button class="ibtn" data-act="mu-more" data-id="'+a.id+'">'+ico("dots")+"</button></div>"}
@@ -2214,7 +2265,7 @@ ACT["mu-favnow"]=()=>{const a=muCur();if(a)muFavToggle(a.id)};
 ACT["mu-back"]=()=>go("music");
 ACT["mu-import"]=()=>{const st0=muState(),where=muListName(st0.listId);
  pickFile("audio/*",true,function(fs){if(!fs||!fs.length)return;let n=0;
-  fs.forEach(function(f){S.audios.push({id:uid(),name:f.name,artist:"",listId:st0.listId||"",blob:f,at:Date.now()});n++});
+  fs.forEach(function(f){const _id=uid();S.audios.push({id:_id,name:f.name,artist:"",listId:st0.listId||"",local:true,dlBytes:f.size||0,at:Date.now()});muBlobCache[_id]=f;try{muBlobPut(_id,f)}catch(e){};n++});
   save("audios");render();toast("已导入 "+n+" 首到「"+where+"」")})};
 ACT["mu-link"]=()=>{const st0=muState();let tgt=st0.listId||"";
  const ls=muLists();
@@ -2380,14 +2431,14 @@ ACT["mu-openlist"]=el=>{muState().listId=el.dataset.id||"";muState().tab="songs"
 ACT["mu-more"]=el=>{const a=S.audios.find(function(x){return x.id===el.dataset.id});if(!a)return;
  const ls=muLists();
  const sh=openSheet('<div class="mtitle">歌曲操作<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
-   '<div class="mucard"><span class="mucov">'+muCover(a)+'</span><span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(a.blob?" · 本机":(a.url?" · 网络":" · 本地"))+(a.nid?" · 网易云":"")+(a.lrc?" · 有歌词":"")+'</span></span></div>'+
+   '<div class="mucard"><span class="mucov">'+muCover(a)+'</span><span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(muHasLocal(a)?" · 本机":(a.url?" · 网络":" · 本地"))+(a.nid?" · 网易云":"")+(a.lrc?" · 有歌词":"")+'</span></span></div>'+
   '<div class="mmgrid">'+
    '<button data-mm="next"><span class="mi">'+ico("skipnext")+'</span><span>下一首播放</span></button>'+
    '<button data-mm="queue"><span class="mi">'+ico("list")+'</span><span>加入播放队列</span></button>'+
    '<button data-mm="fav"><span class="mi">'+ico("heart")+'</span><span>'+(muFav(a.id)?"取消收藏":"收藏")+'</span></button>'+
    '<button data-mm="lrc"><span class="mi">'+ico("quote")+'</span><span>'+(a.lrc?"查看歌词":"歌词")+'</span></button>'+
    '<button data-mm="del" class="danger"><span class="mi">'+ico("trash")+'</span><span>删除这首歌</span></button>'+
-   (a.blob
+   (muHasLocal(a)
     ?'<button data-mm="dlrm"><span class="mi">'+ico("trash")+'</span><span>删除本机缓存</span></button>'
     :'<button data-mm="dl"><span class="mi">'+ico("down")+'</span><span>下载到本机</span></button>')+
   "</div>"+
@@ -2403,7 +2454,7 @@ ACT["mu-more"]=el=>{const a=S.audios.find(function(x){return x.id===el.dataset.i
    if(k==="out"){a.listId="";save("audios");closeModal();render();toast("已移出歌单");return}
    if(k==="lrc"){closeModal();ACT["mu-lrc"]({dataset:{id:a.id}});return}
    if(k==="dl"){closeModal();muLocalSaveMany([a.id],"下载到本机");return}
-   if(k==="dlrm"){delete a.blob;delete a._u;delete a.dlAt;delete a.dlBytes;save("audios");closeModal();render();toast("已删除本机缓存，之后走网络播放");return}
+   if(k==="dlrm"){muBlobDel(a.id);delete muBlobCache[a.id];delete a.local;delete a.blob;delete a._u;delete a.dlAt;delete a.dlBytes;save("audios");closeModal();render();toast("已删除本机缓存，之后走网络播放");return}
    if(k==="del"){closeModal();if(muAudio&&muAudio._id===a.id){try{muAudio.pause()}catch(er){}muAudio=null;muState().cur=""}
     S.audios=S.audios.filter(function(x){return x.id!==a.id});
     save("audios");save("misc");render();toast("已删除");return}
@@ -2640,13 +2691,13 @@ ACT["mu-set"]=()=>{const c=muCfg();
    return}
   if(b){const k=b.dataset.mu2;
    if(k==="close"){closeModal();return}
-   if(k==="dlall"){const ids=S.audios.filter(function(a){return !a.blob&&(a.nid||a.url)}).map(function(a){return a.id});
+   if(k==="dlall"){const ids=S.audios.filter(function(a){return !muHasLocal(a)&&(a.nid||a.url)}).map(function(a){return a.id});
     if(!ids.length)return toast("没有需要下载的歌曲");
         const need=ids.length;closeModal();
     confirmDlg("把 "+need+" 首下载到本机？会同时下 4 首（比一首一首快很多），单首 30 秒没下完会自动换下一个音源，中途可随时点「停止」。按每首约 3~5 MB 估算，大约占本机 "+(need*4)+" MB。","开始下载",true).then(function(yes){
      if(yes)muLocalSaveMany(ids,"下载到本机")});return}
    if(k==="cache"){confirmDlg("清理本机音频文件？本地导入的歌会被删除；网易云歌曲只删缓存、之后改回联网播放","清理",true).then(function(ok){if(!ok)return;
-    S.audios.forEach(function(a){if(a.blob&&a.url){delete a.blob;delete a._u;delete a.dlAt;delete a.dlBytes}else if(a.blob){a.__drop=1}});
+    S.audios.forEach(function(a){if(muHasLocal(a)&&a.url){muBlobDel(a.id);delete muBlobCache[a.id];delete a.local;delete a.blob;delete a._u;delete a.dlAt;delete a.dlBytes}else if(muHasLocal(a)){a.__drop=1}});
     S.audios=S.audios.filter(function(a){return !a.__drop});save("audios");render();toast("已清理本机音频文件")});return}
    if(k==="diag"){const cc=muCfg();toast("邀请 "+cc.invite+"% · 预订 "+cc.reserve+"% · 歌末 "+cc.next+"/"+cc.rand+"/"+cc.modeP+"% · 暂停 "+cc.pause+"% · 收藏 "+cc.fav+"%");return}}
   if(e.target.closest("[data-r]"))closeModal()}};
@@ -3737,13 +3788,166 @@ document.addEventListener("visibilitychange",()=>{
  else{try{offlineCheck()}catch(e){}}});
 window.addEventListener("pagehide",()=>{S.misc.lastSeen=Date.now();kvSet("misc",S.misc)});
 /* ================= media helpers ================= */
-function mediaUrl(data,key){if(typeof data==="string")return data;if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
+/* ★ 图片 / 语音也从大数组里拆出来单独存：一条媒体一条记录（xjMedia:<宿主>:<id>:<槽位>），
+   宿主对象只留 media / dataBytes 标记；需要显示或播放时按需读出来、放回原来的字段（老渲染代码不用改）。
+   这样即使攒了几千张表情包、几百条语音，开机也只是读一份"清单"。 */
+const MEDIA_PREFIX="xjMedia:";
+const MEDIA_MIN=4096;                 /* 小于 4KB 的小图（图标之类）不折腾，留在原地 */
+function mediaKey(owner,id,slot){return MEDIA_PREFIX+owner+":"+id+":"+(slot||"a")}
+function mediaPut(owner,id,slot,blob){return kvSet(mediaKey(owner,id,slot),blob)}
+function mediaGet(owner,id,slot){return kvGet(mediaKey(owner,id,slot))}
+function mediaDel(owner,id,slot){return kvDel(mediaKey(owner,id,slot))}
+function mediaHas(obj,field){return !!(obj&&(obj.media||obj[field]))}
+function mediaUrlOf(obj,field){const v=obj&&obj[field];
+ return (typeof v==="string"&&(v.indexOf("blob:")===0||v.indexOf("data:")===0))?v:""}
+function dataUrlToBlobSync(u){try{
+ const i=String(u).indexOf(",");if(i<0)return null;
+ const head=String(u).slice(0,i),body=String(u).slice(i+1);
+ const m=(head.match(/data:([^;]+)/)||[])[1]||"application/octet-stream";
+ if(head.indexOf("base64")<0)return new Blob([decodeURIComponent(body)],{type:m});
+ const bin=atob(body),n=bin.length,a=new Uint8Array(n);
+ for(let k=0;k<n;k++)a[k]=bin.charCodeAt(k);
+ return new Blob([a],{type:m})}catch(e){return null}}
+function mediaSaveOwner(owner){try{if(owner==="c")save("cards");else if(owner==="m")save("chats");else save("moments")}catch(e){}}
+/* 取出一条媒体并放回宿主对象的字段里（返回可直接用的 URL；读不到返回空串） */
+function mediaLoad(owner,id,slot,obj,field){return new Promise(function(res){
+ if(!obj)return res("");
+ const v=obj[field];
+ if(typeof v==="string"&&v)return res(v);
+ if(v&&typeof v==="object"&&typeof v.size==="number"){try{return res(URL.createObjectURL(v))}catch(e){}}
+ if(!obj.media)return res("");
+ mediaGet(owner,id,slot).then(function(b){
+  if(!b){delete obj.media;return res("")}
+  let u="";try{u=URL.createObjectURL(b)}catch(e){}
+  try{if(u)obj[field]=u}catch(e){}
+  res(u)}).catch(function(){res("")})})}
+/* 把还留在数组里的媒体搬进独立记录（分片，不卡界面） */
+function mFieldOf(f,item){return (typeof f==="function")?f(item):f}
+function mSlotOf(s,item){return (typeof s==="function")?s(item):s}
+function mediaShelve(owner,list,slotOf,fieldOf,onDone){try{
+ const need=(list||[]).filter(function(x){
+  if(!x||x.media)return false;
+  const v=x[mFieldOf(fieldOf,x)];
+  if(typeof v==="string")return v.indexOf("data:")===0&&v.length>=MEDIA_MIN;
+  return !!(v&&typeof v==="object"&&typeof v.size==="number"&&v.size>=MEDIA_MIN)});
+ if(!need.length)return;
+ let i=0;
+ const step=function(){
+  if(i>=need.length){if(onDone)onDone();return}
+  const x=need[i++],u=x[mFieldOf(fieldOf,x)];
+  const blob=(typeof u==="string")?dataUrlToBlobSync(u):u;
+  const put=(blob&&blob.size)?mediaPut(owner,x.id,mSlotOf(slotOf,x),blob):Promise.resolve();
+  Promise.resolve(put).then(function(){
+   try{x.dataBytes=(blob&&blob.size)||x.dataBytes||0;x.media=true;delete x[mFieldOf(fieldOf,x)];mediaSaveOwner(owner)}catch(e){}
+  }).catch(function(){}).then(function(){setTimeout(step,0)})};
+ setTimeout(step,0)}catch(e){}}
+/* 上次会话里留下的 objectURL 已经失效，开机清掉，让页面按需重新读 */
+function mediaResetUrls(){try{
+ const clr=function(list,field){(list||[]).forEach(function(x){if(!x)return;
+  if(x.media&&typeof x[field]==="string"&&x[field].indexOf("blob:")===0){try{delete x[field]}catch(e){}}})};
+ clr(S.cards,"data");clr(S.chats,"data");clr(S.moments,"voiceData");
+ (S.moments||[]).forEach(function(p){try{(p.imgs||[]).forEach(function(u,ix){
+  if(p.imgMedia&&p.imgMedia[ix]&&typeof u==="string"&&u.indexOf("blob:")===0)p.imgs[ix]=""})}catch(e){}});
+}catch(e){}}
+/* 开机后统一整理：老数据里塞在数组里的图片/语音搬进独立记录 */
+function mediaShelveAll(){try{
+ mediaResetUrls();
+ mediaShelve("c",S.cards,"d","data");
+ mediaShelve("m",S.chats,"d","data");
+ mediaShelve("f",S.moments,"v","voiceData");
+ let n=0;
+ (S.moments||[]).forEach(function(p){try{
+  if(!p.imgMedia)p.imgMedia={};
+  (p.imgs||[]).forEach(function(u,ix){
+   if(p.imgMedia[ix])return;
+   if(typeof u!=="string"||u.indexOf("data:")!==0||u.length<MEDIA_MIN)return;
+   const b=dataUrlToBlobSync(u);if(!b)return;
+   p.imgMedia[ix]=1;p.imgs[ix]="";n++;mediaPut("f",p.id,"i"+ix,b)});
+  (p.cmts||[]).forEach(function(c){try{
+   if(c&&!c.imgMedia&&typeof c.img==="string"&&c.img.indexOf("data:")===0&&c.img.length>=MEDIA_MIN){
+    const b0=dataUrlToBlobSync(c.img);if(b0){c.imgMedia=1;c.img="";n++;mediaPut("mc",c.id,"i",b0)}}
+   if(c&&!c.imgMedia&&c.img&&typeof c.img==="object"&&c.img.size>=MEDIA_MIN){c.imgMedia=1;mediaPut("mc",c.id,"i",c.img).catch(function(){});delete c.img}
+   if(!c||c.media)return;
+   const v=c.voiceData;if(!v)return;
+   const b=(typeof v==="string")?dataUrlToBlobSync(v):v;
+   if(!b||!b.size||b.size<MEDIA_MIN)return;
+   c.dataBytes=b.size;c.media=true;delete c.voiceData;n++;mediaPut("mc",c.id,"v",b)}catch(e){}});
+ }catch(e){}});
+ if(n)save("moments");
+ if(n)try{toast("已整理 "+n+" 张图片/语音，之后开机更快")}catch(e){}
+}catch(e){}}
+/* 打开某个页面时，按需把该页面要显示/播放的媒体读出来 */
+/* 从卡片取媒体塞进目标字段：拿到 Blob 或 dataURL 都行（开机整理会把它搬进独立记录） */
+function mediaFromCardInto(card,obj,field,cb){
+ try{
+  if(!card){if(cb)cb();return}
+  if(!card.media){try{if(card.data)obj[field]=card.data}catch(e){};if(cb)cb();return}
+  mediaGet("c",card.id,"d").then(function(b){
+   try{if(b&&b.size)obj[field]=b}catch(e){}
+   if(cb)cb()}).catch(function(){if(cb)cb()})}catch(e){if(cb)cb()}}function mediaOnPage(){try{
+ if(cur==="libcat")libLoadMedia(curParam);
+ else if(cur==="chat")chatLoadMedia();
+ else if(cur==="moments")feedLoadMedia();
+}catch(e){}}
+function libLoadMedia(cat){try{
+ const items=(typeof cardsOf==="function"?cardsOf(cat):[]).filter(function(c){return c&&c.media&&!mediaUrlOf(c,"data")});
+ if(!items.length)return;
+ let i=0,painted=0;
+ const step=function(){
+  if(i>=items.length){if(painted&&cur==="libcat")try{libRefresh(cat)}catch(e){};return}
+  const c=items[i++];
+  mediaLoad("c",c.id,"d",c,"data").then(function(){painted++;
+   if(i%4===0&&cur==="libcat")try{libRefresh(cat)}catch(e){}
+   setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
+ setTimeout(step,60)}catch(e){}}
+function chatLoadMedia(){try{
+ const start=Math.max(0,(S.chats||[]).length-chatShowLimit);
+ const items=(S.chats||[]).slice(start).filter(function(m){return m&&m.media&&!mediaUrlOf(m,"data")&&m.type==="img"});
+ if(!items.length)return;
+ let i=0;
+ const step=function(){
+  if(i>=items.length)return;
+  const m=items[i++];
+  mediaLoad("m",m.id,"d",m,"data").then(function(u){
+   if(u)try{const im=document.querySelector('.msg[data-id="'+m.id+'"] img');if(im)im.src=u}catch(e){}
+   setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
+ setTimeout(step,60)}catch(e){}}
+function feedLoadMedia(){try{
+ const list=(S.moments||[]).slice(-40),jobs=[];
+ (S.moments||[]).slice(-40).forEach(function(p){try{(p.cmts||[]).forEach(function(c){
+  if(c&&c.imgMedia&&!c.img)jobs.push([null,0,c]);})}catch(e){}});
+ list.forEach(function(p){if(!p||!p.imgMedia)return;
+  (p.imgs||[]).forEach(function(u,ix){if(p.imgMedia[ix]&&!u)jobs.push([p,ix])})});
+ if(!jobs.length)return;
+ let i=0;
+ const step=function(){
+  if(i>=jobs.length)return;
+  const pr=jobs[i++],p=pr[0],ix=pr[1],cc=pr[2];
+  if(cc){mediaGet("mc",cc.id,"i").then(function(b){if(!b)return;let u="";try{u=URL.createObjectURL(b)}catch(e){}
+   if(u){try{cc.img=u}catch(e){};try{const im=document.querySelector('[data-mid="'+cc.id+'"]');if(im)im.src=u}catch(e){}}}).catch(function(){}).then(function(){setTimeout(step,0)});return}
+  mediaGet("f",p.id,"i"+ix).then(function(b){if(!b)return;
+   let u="";try{u=URL.createObjectURL(b)}catch(e){}
+   if(u){try{p.imgs[ix]=u}catch(e){}
+    try{const im=document.querySelector('img[data-mid="'+p.id+'"][data-mi="'+ix+'"]');if(im)im.src=u}catch(e){}}}).catch(function(){}).then(function(){setTimeout(step,0)})};
+ setTimeout(step,60)}catch(e){}}
+/* 新发的消息里带图片/语音：立刻存成独立记录（内存里保留 objectURL，界面即时可见） */
+function mediaShelveMsg(m){try{
+ if(!m||!m.data||m.media)return;
+ const v=m.data;
+ if(typeof v==="string"&&v.indexOf("data:")!==0)return;
+ const blob=(typeof v==="string")?dataUrlToBlobSync(v):v;
+ if(!blob||!blob.size||blob.size<MEDIA_MIN)return;
+ m.dataBytes=blob.size;m.media=true;
+ const u=URL.createObjectURL(blob);
+ mediaPut("m",m.id,"d",blob).then(function(){try{m.data=u}catch(e){}}).catch(function(){})
+}catch(e){}}
+function mediaUrl(data,key){if(!data)return "";if(typeof data==="string")return data;if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
 function blobToDataUrl(b){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(b)})}
 function dataUrlToBlob(u){return fetch(u).then(r=>r.blob())}
 /* bubble with proactive tag image */
 function msgBubble(m){if(m.type==="sys")return '<div class="sysmsg">'+(m.nickKeep?esc(m.text):esc(nickFill(m.pat?m.pat:m.text)))+(m.img?'<img src="'+m.img+'" alt="">':"")+"</div>";
  const me=m.from==="me";const s=S.settings;const c=s.chat||{};let inner="";
- if(m.type==="img")inner='<img src="'+m.data+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">";
+ if(m.type==="img")inner='<img src="'+mediaUrl(m.data,"m"+m.id)+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">";
  else if(m.type==="voice")inner='<span class="voice" data-act="play-voice" data-id="'+m.id+'"><span class="vico">'+ico("voicewave")+"</span><span class=\"vdur\">"+(m.dur||2)+'″</span></span>'+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
   else if(m.type==="transfer"||m.type==="redpacket")inner=txBubbleHtml(m,me);
  else if(m.type==="ask")inner=askBubbleHtml(m)
@@ -3817,15 +4021,15 @@ PAGES.libcat={html(cat){S.misc.gf=S.misc.gf||{};S.misc.q=S.misc.q||{};const gf=S
 function libGridHtml(cat,items,multi,sel){
  return items.length?('<div class="stkgrid">'+items.map(function(c){
   const blk=isBlocked(c)?" blocked":"";
-  if(multi)return '<button type="button" class="cell'+blk+(sel.includes(c.id)?" on":"")+'" data-act="lib-seltile" data-id="'+c.id+'"><img src="'+c.data+'">'+(sel.includes(c.id)?'<span class="cellck">'+ico("check")+"</span>":"")+"</button>";
-  return '<div class="cell'+blk+'"><img src="'+c.data+'" data-act="lib-edit" data-id="'+c.id+'">'+
+  if(multi)return '<button type="button" class="cell'+blk+(sel.includes(c.id)?" on":"")+'" data-act="lib-seltile" data-id="'+c.id+'"><img src="'+mediaUrl(c.data,"c"+c.id)+'">'+(sel.includes(c.id)?'<span class="cellck">'+ico("check")+"</span>":"")+"</button>";
+  return '<div class="cell'+blk+'"><img src="'+mediaUrl(c.data,"c"+c.id)+'" data-act="lib-edit" data-id="'+c.id+'">'+
 
    '<button type="button" class="del" data-act="lib-del" data-id="'+c.id+'" title="删除">'+ico("close")+"</button></div>"}).join("")+"</div>"):'<div class="empty">'+(((S.misc.q||{})[cat])?"没有匹配的内容":"这个分类还没有内容")+"</div>"}
 function libListHtml(cat){const q=(S.misc.q||{})[cat]||"";const gf=(S.misc.gf||{})[cat]||"";const multi=(S.misc.multi||{})[cat];const sel=(S.misc.sel||{})[cat]||[];
  let items=cardsOf(cat).filter(c=>(gf===""||c.group===gf)&&(!q||(c.type==="text"?c.content.includes(q):(c.name||"").includes(q))));
  if(CATTYPE(cat)==="img")return libGridHtml(cat,items,multi,sel);
  return items.length?items.map(c=>'<div class="listitem'+(isBlocked(c)?" blocked":"")+'">'+(multi?'<input type="checkbox" class="ck" data-act="lib-sel" data-id="'+c.id+'" '+(sel.includes(c.id)?"checked":"")+">":"")+
- (c.type==="img"?'<img class="th" src="'+c.data+'">':c.type==="voice"?'<button class="playbtn" data-act="lib-play" data-id="'+c.id+'">'+ico("play")+"</button>":"")+
+ (c.type==="img"?'<img class="th" src="'+mediaUrl(c.data,"c"+c.id)+'">':c.type==="voice"?'<button class="playbtn" data-act="lib-play" data-id="'+c.id+'">'+ico("play")+"</button>":"")+
  '<div class="main" data-act="lib-edit" data-id="'+c.id+'"><div class="t1">'+(c.type==="text"?esc(c.content):c.type==="img"?"[图片]":"[语音] "+esc(c.name||""))+"</div></div>"+
  (multi?"":'<button class="ibtn" data-act="lib-block" data-id="'+c.id+'" title="屏蔽">'+ico("block")+'</button><button class="ibtn" data-act="lib-del" data-id="'+c.id+'">'+ico("trash")+"</button>")+"</div>").join(""):'<div class="empty">'+(q?"没有匹配的内容":"这个分类还没有内容")+'</div>'}
 function libRefresh(cat){const box=$("#liblist");if(box){box.innerHTML=libListHtml(cat);return}if(cur==="libcatmanage"||cur==="libmanage")render()}
@@ -4468,7 +4672,11 @@ function storageHtml(info){const {usage,quota,persisted}=info;
 async function prepExport(k){const v=S[k];
  if(k==="cards"){const out=[];for(const c of v){const c2={...c};if(c2.data instanceof Blob)c2.data=await blobToDataUrl(c2.data);out.push(c2)}return out}
  if(k==="chats"){const out=[];for(const m of v){const m2={...m};if(m2.data instanceof Blob)m2.data=await blobToDataUrl(m2.data);out.push(m2)}return out}
- if(k==="audios"){const out=[];for(const a of v){out.push({...a,blob:a.blob?await blobToDataUrl(a.blob):null})}return out}
+ if(k==="audios"){const out=[];let tot=0;for(const a of v)tot+=((a.dlBytes||(a.blob&&a.blob.size))||0);
+  for(const a of v){const b={...a};delete b._u;
+   if(tot<8*1024*1024&&(a.blob||a.local)&&((a.dlBytes||(a.blob&&a.blob.size))||0)>0){
+    const bl=a.blob||await muBlobGet(a.id);if(bl&&bl.size)b.blob=await blobToDataUrl(bl)}else{delete b.blob}
+   out.push(b)}return out}
  if(k==="moments"){const out=[];for(const p of v){const p2={...p};if(p2.voiceData instanceof Blob)p2.voiceData=await blobToDataUrl(p2.voiceData);if(Array.isArray(p2.cmts)){p2.cmts=[];for(const c of p.cmts){const c2={...c};if(c2.voiceData instanceof Blob)c2.voiceData=await blobToDataUrl(c2.voiceData);p2.cmts.push(c2)}}out.push(p2)}return out}
  return v}
 async function exportKeys(keys,name){const data={app:"xingjian",ver:1,data:{}};for(const k of keys)data.data[k]=await prepExport(k);download(name||("星笺数据_"+dayKey(Date.now())+".json"),JSON.stringify(data));toast("已导出")}
@@ -4558,6 +4766,8 @@ function chatSearchOpen(){
  setTimeout(function(){try{inp.focus()}catch(e){}},120);
 }
 function jumpToMsg(id){
+ const _idx=S.chats.findIndex(function(x){return x.id===id});
+ if(_idx>=0&&(S.chats.length-_idx)>chatShowLimit){chatShowLimit=Math.ceil((S.chats.length-_idx)/CHAT_STEP)*CHAT_STEP+CHAT_STEP;if(cur==="chat")renderMsgs("keep")}
  const jump=function(){
   const el=document.querySelector('.msg[data-id="'+id+'"]');
   if(!el)return toast("这条消息不在当前聊天里（可能已删除）");
@@ -4958,7 +5168,10 @@ function toggleChatPanel(mode){const p=$("#chatpanel");if(!p)return;
  if(mode==="menu"){p.classList.add("panelmenu");p.innerHTML='<div class="mgrid">'+CHAT_MENU.map(m=>'<button data-cm="'+m[0]+'"><span class="mi">'+ico(m[1])+'</span>'+(m[0]==="voice"?("语音输入"+(S.settings.chat.voice?"·开":"·关")):m[2])+'</button>').join("")+'</div>'}
  else{p.classList.remove("panelmenu");p.innerHTML=stickerPanelHtml()}
  p.style.display="block"}
-function sendStickerCard(id){const c=S.cards.find(x=>x.id===id);if(!c||!c.data)return;pushChat({from:"me",type:"img",data:c.data,stk:1});playBlock("me");
+function sendStickerCard(id){const c=S.cards.find(function(x){return x.id===id});if(!c||!mediaHas(c,"data"))return;
+ const m={id:uid(),from:"me",type:"img",data:"",stk:1,ts:Date.now()};m.timestamp=m.ts;
+ mediaFromCardInto(c,m,"data",function(){try{mediaShelveMsg(m)}catch(e){};try{S.chats.push(m)}catch(e){};save("chats");if(cur==="chat")renderMsgs("bottom")});
+ playBlock("me");
  if(!S.misc.stkRecent)S.misc.stkRecent=[];S.misc.stkRecent=[id].concat(S.misc.stkRecent.filter(x=>x!==id)).slice(0,24);save("misc");
  taRespond("");closeChatPanel()}
 /* ---- 消息操作菜单 ---- */
@@ -5126,7 +5339,7 @@ let avaTapT=null;
 ACT["ava-tap"]=()=>{};
 /* 双击头像 = 拍一拍（参考 mochi：双击 TA 头像拍 TA，双击自己的头像拍自己） */
 function patAva(who){const pool=patPool();const card=pool.length?pick(pool):"";sendPat(card,who==="me"?"self":"me")}
-/* 澶村儚涓嶅啀鏈夌偣鍑?/ 鍙屽嚮琛屼负锛堜互鍓嶅弻鍑绘槸銆屾媿涓€鎷嶃€嶏紝宸叉寜闇€姹傚幓鎺夛級 */
+/* 头像不再有点击 / 双击行为（以前双击是「拍一拍」，已按需求去掉） */
 /* ================= 拍一拍工具弹窗 =================
    一级分类（公用 / 特定人物 / 符号图标）× 二级分类（未分组 / 预设 / 我的新增 / 自定义分组）
    * 列表选取、内联编辑删除、底部「存入 / 发送」 */
@@ -5438,12 +5651,16 @@ function toggleVoicePlay(id,data){if(!data)return;
  voicePlayingId=id;updateVoiceIcons();
  voiceAudio.onended=()=>{voicePlayingId=null;voiceAudio=null;updateVoiceIcons()};
  try{voiceAudio.play().catch(()=>{voicePlayingId=null;voiceAudio=null;updateVoiceIcons()})}catch(e){voicePlayingId=null;voiceAudio=null;updateVoiceIcons()}}
-ACT["play-voice"]=el=>{const id=el.dataset.id;let data=null;
- const m=S.chats.find(x=>x.id===id);if(m)data=m.data;
- if(!data){const p=S.moments.find(x=>x.id===id);if(p)data=p.voiceData}
- if(!data){const c=S.cards.find(x=>x.id===id);if(c)data=c.data}
- if(!data){for(const p of S.moments){const c=(p.cmts||[]).find(x=>x.id===id);if(c&&c.voiceData){data=c.voiceData;break}}}
- if(!data)return;toggleVoicePlay(id,data)};
+ACT["play-voice"]=el=>{const id=el.dataset.id;
+ /* 濯掍綋鍙兘宸叉媶鎴愮嫭绔嬭褰曪細鍏堟寜闇€璇诲嚭鏉ュ啀鎾?*/
+ const _p=function(owner,obj,slot,field){if(!obj)return false;
+  if(mediaHas(obj,field)){mediaLoad(owner,obj.id||id,slot,obj,field).then(function(u){if(u)toggleVoicePlay(id,u)});return true}
+  return false};
+ if(_p("m",S.chats.find(function(x){return x.id===id}),"d","data"))return;
+ if(_p("f",S.moments.find(function(x){return x.id===id}),"v","voiceData"))return;
+ if(_p("c",S.cards.find(function(x){return x.id===id}),"d","data"))return;
+ for(const _p2 of S.moments){const _cm=(_p2.cmts||[]).find(function(x){return x.id===id});if(_p("mc",_cm,"v","voiceData"))return}
+};
 ACT["call-start"]=callStart;
 ACT["call-accept"]=answerCall;
 ACT["call-reject"]=rejectCall;
@@ -5468,7 +5685,7 @@ function momentComment(p){
 }
 function addMyComment(p,parts){p.cmts=p.cmts||[];p.cmts.push(Object.assign({id:uid(),who:S.settings.myName,text:""},parts));save("moments");renderMoments();taReplyToMyComment(p)}
 function taReplyToMyComment(p){const r=S.settings.reply.moments;if(!chance(70))return;setTimeout(()=>{const cmt={id:uid(),who:S.settings.taName,text:""};
- if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length)cmt.img=pick(st).data}
+ if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length)mediaFromCardInto(pick(st),cmt,"img")}
  if(!cmt.img){let t=cardTexts("情绪字卡").length?pick(cardTexts("情绪字卡")):"嗯嗯";if(chance(r.cmtKaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.cmtEmoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}cmt.text=t}
  p.cmts=p.cmts||[];p.cmts.push(cmt);save("moments");if(cur==="moments")renderMoments();notifyTA("回复了你的评论")},rnd(30,120)*1000)}
 ACT["cal-prev"]=()=>{S.misc.calM--;if(S.misc.calM<0){S.misc.calM=11;S.misc.calY--}renderCal()};
@@ -5784,7 +6001,8 @@ function stripLegacyAvatarSnapshots(){
  return n}
 async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))document.documentElement.classList.add("wxweb")}catch(e){}
  await idbOpen();
- for(const k of SAVEKEYS){const v=await kvGet(k);if(v!==undefined)S[k]=v}
+/* 音频库可能非常大（几百首本机音频）：先放行、让界面起来，再后台读进来（见下面 kvGet("audios")） */
+ for(const k of SAVEKEYS){if(k==="audios")continue;const v=await kvGet(k);if(v!==undefined)S[k]=v}
  const preSound=(S.settings&&S.settings.sound)||{};
  const preChat=(S.settings&&S.settings.reply&&S.settings.reply.chat)||{};
  S.settings=deepMerge(DEF_SETTINGS,S.settings||{});
@@ -5833,7 +6051,13 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
   if(need){save("cards");save("misc")}}catch(e){}
  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
  for(const k in FLOWER_MASKS){try{document.documentElement.style.setProperty("--flower-"+k,'url("'+FLOWER_MASKS[k]+'")')}catch(e){}}
- applyTheme();applyChatUI();applyFont();applySystem();renderTabbar();render();initCallMiniDrag();initKeyboardAdapt();
+  applyTheme();applyChatUI();applyFont();applySystem();renderTabbar();render();initCallMiniDrag();initKeyboardAdapt();
+/* 后置加载音乐库：大库也不会卡住启动；顺手把老数据里塞在数组里的音频搬到单独记录 */
+ try{setTimeout(function(){try{mediaShelveAll()}catch(e){}},2600)}catch(e){}
+ try{kvGet("audios").then(function(v){if(v!==undefined)S.audios=v||[];
+  try{muBlobMigrate()}catch(e){}
+  try{if(cur==="music"||cur==="muplayer")render()}catch(e){}
+  try{muPaint()}catch(e){};try{muFloatSync()}catch(e){}}).catch(function(){})}catch(e){}
  /* 老数据清理：已移除「优化电量消耗」模块，删掉遗留设置项（S 是 Proxy，需整体重建对象） */
  try{const sy=S.settings.system;if(sy&&("battery" in sy)){const c={};Object.keys(sy).forEach(function(k){if(k!=="battery")c[k]=sy[k]});S.settings.system=c;save("settings")}}catch(e){}
  offlineCheck();scheduleActive();
@@ -5859,7 +6083,13 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
  $("#splash").addEventListener("click",()=>{ac();$("#splash").classList.add("hide");setTimeout(()=>$("#splash").style.display="none",700)});}
 /* PWA：注册 Service Worker（Chrome / Edge 安装到手机桌面需要它）*/
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
-boot();
+/* 启动页兜底：万一设备很慢 / 数据很大导致启动拖很久，最多 8 秒也把启动页收掉，保证「点一下就能进」，不会出现点了没反应。 */
+(function(){var s=document.getElementById("splash");if(!s)return;
+ var done=function(){if(s.dataset.gone)return;s.dataset.gone="1";
+  try{ac()}catch(e){}
+  s.classList.add("hide");setTimeout(function(){try{s.style.display="none"}catch(e){}},700)};
+ s.addEventListener("click",done,true);
+ setTimeout(done,8000)})();boot();
 /* 页面（很可能是被系统回收后重新载入的）起来后，把离开前的通话形态 / 小窗位置 / 滚动位置再兜一次：
    重开页面时通话是异步恢复的，uiStateRestore 会自己重试直到通话回来为止 */
 setTimeout(function(){try{uiStateRestore()}catch(e){}},2900);
