@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v59";
+const APP_BUILD="v61";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -309,12 +309,14 @@ const pkCardId=id=>"pk_"+id;
 function pkSyncPool(){const p=pkState();S.cards=(S.cards||[]).filter(c=>c.cat!==PICKUP_CAT);
  if(p.on)p.items.forEach(it=>S.cards.push({id:pkCardId(it.id),cat:PICKUP_CAT,type:"text",content:it.text,group:"",pickup:true,pid:it.id}))}
 /* 由「对方（TA）」随机拾取：仅在开启时、按概率、且内容为新的文本时入库 */
-function pkPickup(m){if(!m||m.type!=="text"||m.nopick||m.from!=="ta")return;const p=pkState();if(!p.on||!chance(p.prob))return;
+/* 由「对方（TA）」随机拾取灵感：从**我发的**聊天消息里随机挑（TA 自己的消息不拾取），
+   仅在开启时、按概率、且内容和已有字卡不重复时入库，并同步进 TA 的字卡池「灵感拾取」分类。 */
+function pkPickup(m){if(!m||m.type!=="text"||m.nopick||m.from!=="me")return;const p=pkState();if(!p.on||!chance(p.prob))return;
  const raw=String(m.text||"").trim();if(!raw||raw.length>200)return;
  if(!/[\u4e00-\u9fa5A-Za-z0-9]/.test(raw))return;
  const known=[];S.cards.forEach(c=>{if(c.type==="text"&&c.cat!==PICKUP_CAT)known.push(c.content)});p.items.forEach(it=>known.push(it.text));
  if(known.indexOf(raw)>=0)return;
- const it={id:uid(),ts:Date.now(),from:"ta",text:raw,name:S.settings.taName};
+ const it={id:uid(),ts:Date.now(),from:"me",text:raw,name:(S.settings&&S.settings.myName)||"我"};
  p.items.push(it);
  S.cards.push({id:pkCardId(it.id),cat:PICKUP_CAT,type:"text",content:raw,group:"",pickup:true,pid:it.id});
  save("pickup");save("cards")}
@@ -4225,8 +4227,16 @@ PAGES.libgroups={html(cat){const groups=S.misc.groups[cat]||[];
  init(){}};
 /* ================= TA的拾取（拾取内容详情）================= */
 function pkItemHtml(it){const who=it.from==="me"?((S.settings&&S.settings.myName)||"我"):((S.settings&&S.settings.taName)||"TA");const on=pkState().on;
- return '<div class="row pkitem"><span class="lab"><span class="pktxt">'+esc(it.text)+'</span><br><span class="sub">'+esc(who)+' 拾取 · '+ago(it.ts)+(on?"":' · <span class="danger-t">未入库</span>')+'</span></span><button class="ibtn" data-act="pickup-del" data-id="'+it.id+'" title="删除">'+ico("trash")+'</button></div>'}
+  return '<div class="row pkitem"><span class="lab"><span class="pktxt">'+esc(it.text)+'</span><br><span class="sub">'+esc(who)+' 拾取 · '+ago(it.ts)+(on?"":' · <span class="danger-t">未入库</span>')+'</span></span><span class="btnrow"><button class="ibtn" data-act="pk-say" data-id="'+it.id+'" title="发到聊天">'+ico("send")+'</button><button class="ibtn" data-act="pk-voice" data-id="'+it.id+'" title="合成语音发送">'+ico("mic")+'</button><button class="ibtn" data-act="pickup-del" data-id="'+it.id+'" title="删除">'+ico("trash")+'</button></span></div>'}
 /* 触发概率：步进器（− 数值 +），写入 S.pickup.prob */
+/* 把某条拾取内容发到聊天：发文字，或用 MiniMax 合成语音再发（合成失败自动退回文字） */
+function pkFind(id){try{return pkState().items.find(function(x){return x.id===id})||null}catch(e){return null}}
+function pkSendText(id){const it=pkFind(id);if(!it)return;pushChat({from:"ta",type:"text",text:it.text});playBlock("ta");toast("已发送到聊天")}
+async function pkSendVoice(id){const it=pkFind(id);if(!it)return;const t=String(it.text||"").trim();if(!t)return;
+ try{toast("正在合成语音…");const blob=await minimaxTTS(t);pushChat({from:"ta",type:"voice",data:blob,dur:voiceDur(blob)});playBlock("ta")}
+ catch(e){pushChat({from:"ta",type:"text",text:t});playBlock("ta");toast("语音合成失败，已用文字发出")}}
+ACT["pk-say"]=el=>pkSendText(el.dataset.id);
+ACT["pk-voice"]=el=>pkSendVoice(el.dataset.id);
 function pkStepRow(label){const p=pkState();const a='data-act="pkstep" data-step="1" data-min="0" data-max="100"';
  return '<div class="row"><span class="lab">'+(label||"触发概率")+' <span class="sub">%</span></span><span class="stepper"><button class="stbtn" '+a+' data-dir="down">−</button><input class="stepnum" type="number" data-pknum value="'+p.prob+'" min="0" max="100"><button class="stbtn" '+a+' data-dir="up">＋</button></span></div>'}
 PAGES.pickup={html(){
@@ -4238,12 +4248,12 @@ PAGES.pickup={html(){
  const head=phead("TA的拾取",items.length?'<button class="ibtn" data-act="pickup-clear" title="清空拾取">'+ico("trash")+'</button>':"");
  const cfg='<div class="card pkmod">'+
   '<div class="row" style="border:none;padding-top:4px">'+
-   '<span class="lab"><b>灵感拾取</b> <span class="stpill'+(p.on?" on":"")+'">'+(p.on?"拾取中":"已关闭")+'</span><br><span class="sub">开启后，'+esc(tn)+'会从对话中随机拾取内容，归入 TA 的卡池；触发概率可在「回复 · 聊天回复」调整</span></span>'+
+      '<span class="lab"><b>灵感拾取</b> <span class="stpill'+(p.on?" on":"")+'">'+(p.on?"拾取中":"已关闭")+'</span><br><span class="sub">开启后，'+esc(tn)+'会从<b>你发的消息</b>里随机拾取（它自己的消息不拾取），归入 TA 的卡池；回复时它会像挑字卡一样随机用这些内容回你，也可以点每条右侧的按钮让它直接发文字或用 MiniMax 语音说出这条内容</span></span>'+
    '<label class="sw"><input type="checkbox" data-pk="on" '+(p.on?"checked":"")+'><i></i></label>'+
   '</div>'+
  '</div>';
  const stat='<div class="libstat"><span class="muted">共 '+items.length+' 条 · '+(p.on?"拾取中":"已停止")+'</span><span class="muted">触发 '+p.prob+'% · 卡池 '+cardsOf(PICKUP_CAT).length+' 条</span></div>';
- if(!items.length)return head+cfg+stat+'<div class="empty">还没有拾取内容<div class="muted" style="margin-top:8px;line-height:1.7">人物拾取内容后，会按人物显示在这里</div></div>';
+  if(!items.length)return head+cfg+stat+'<div class="empty">还没有拾取内容<div class="muted" style="margin-top:8px;line-height:1.7">开启后，TA 会从你发的消息里随机拾取，按来源显示在这里</div></div>';
  const order=[],map={};
  shown.forEach(it=>{const k=it.name||tn;if(!map[k]){map[k]=[];order.push(k)}map[k].push(it)});
  return head+cfg+stat+order.map(name=>'<div class="sect">'+esc(name)+' · '+map[name].length+' 条</div><div class="card" style="padding:0 12px">'+map[name].map(pkItemHtml).join("")+'</div>').join("")+more;
@@ -4467,7 +4477,7 @@ function voiceDur(blob){return Math.max(1,Math.round((blob&&blob.size||0)/16000)
 function storeVoiceCard(blob,name){const card={id:uid(),cat:"语音字卡",type:"voice",data:blob,name:name||("AI语音 "+new Date().toTimeString().slice(0,5)),dur:voiceDur(blob),group:""};S.cards.push(card);save("cards");return card}
 async function ttsSpeak(text){try{toast("正在生成语音…");const blob=await minimaxTTS(text);try{new Audio(URL.createObjectURL(blob)).play()}catch(e){}toast("已生成并播放")}catch(e){toast("语音生成失败："+(e&&e.message||e))}}
 async function ttsProactive(text){try{const blob=await minimaxTTS(text);pushChat({from:"ta",type:"voice",data:blob,dur:voiceDur(blob)});playBlock("ta")}catch(e){}}
-function tryProactiveVoice(){const v=S.settings.voice;if(!v.on||!v.proactive)return;const p=v.freq==="总是"?70:v.freq==="经常"?40:15;if(!chance(p))return;if(!v.apiKey||!(S.voiceLib||[]).length)return;const pool=cardTexts("主字卡");if(!pool.length)return;setTimeout(()=>ttsProactive(pick(pool)),rnd(1500,4500))}
+function tryProactiveVoice(){const v=S.settings.voice;if(!v.on||!v.proactive)return;const p=v.freq==="总是"?70:v.freq==="经常"?40:15;if(!chance(p))return;if(!v.apiKey||!(S.voiceLib||[]).length)return;const pool=cardTexts("主字卡").concat(cardTexts(PICKUP_CAT));if(!pool.length)return;setTimeout(()=>ttsProactive(pick(pool)),rnd(1500,4500))}
 /* ---- AI 设置入口 ---- */
 PAGES.setai={html(){
  return phead("AI")+
