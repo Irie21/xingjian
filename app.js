@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v48";
+const APP_BUILD="v50";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -197,7 +197,7 @@ const ico=n=>ICONS[n]||ICONS.chat;
 /* ================= IndexedDB ================= */
 let DB=null;
 function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open("xingjian",1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("kv"))r.result.createObjectStore("kv")};r.onsuccess=()=>{DB=r.result;res()};r.onerror=()=>rej(r.error)})}
-const kvGet=k=>new Promise(res=>{const t=DB.transaction("kv").objectStore("kv").get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>res(undefined)});
+const kvGet=k=>new Promise(res=>{try{const t=DB.transaction("kv").objectStore("kv").get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>res(KV_ERR);t.onabort=()=>res(KV_ERR)}catch(e){res(KV_ERR)}});
 /* 写库失败（多半是手机存储空间不足 / 被系统清理）不再悄悄丢掉数据：提示一次，方便定位 */
 let _kvFailShown=false;
 function kvFail(k,err){try{
@@ -260,7 +260,31 @@ function catIco(c){if(c==="颜文字")return '<span class="kmtx">(∩_∩)</span
 let S={settings:null,cards:[],chats:[],letters:[],moments:[],annivs:[],periods:[],audios:[],misc:{},assets:{},pickup:{on:false,prob:30,items:[]},aiModels:[],aiCurrent:"",aiLogs:[],worldbook:{},voiceLib:[],voiceCfgs:[],voiceCfgCurrent:"",divine:[]};
 const SAVEKEYS=["settings","cards","chats","letters","moments","annivs","periods","audios","misc","assets","pickup","aiModels","aiCurrent","aiLogs","worldbook","voiceLib","voiceCfgs","voiceCfgCurrent","divine"];
 let saveT={};
-function save(k){clearTimeout(saveT[k]);saveT[k]=setTimeout(()=>{saveT[k]=null;kvSet(k,S[k])},250)}
+let SNAP={};      /* 寮€鏈烘椂鍚勫垪琛ㄧ殑鍘熸牱蹇収锛氬啓涔嬪墠鐢ㄥ畠鍒ゆ柇"鏄笉鏄鍙樻垚绌虹殑" */
+/* ★ 数据安全：万一某个键「读」失败了（存储繁忙/被占用/出错），这时内存里是空的默认值，
+   如果再写回去就会把原本好好的聊天记录清空 —— 这正是"更新后丢聊天记录"的根因。
+   现在：读失败的键会记下来，本次会话不再写它；并且写之前如果发现某个列表要变成 0 条，
+   会先把原来的内容存一份 __bak 备份（设置 → 存储 可以恢复）。 */
+const KV_ERR={__kvErr:1};
+let kvBad={},_kvBadShown=false;
+function kvBadNote(k){
+ if(_kvBadShown)return;_kvBadShown=true;
+ try{toast("读取「"+k+"」失败，为避免覆盖已暂停保存；请把星笺完全关掉重开一次")}catch(e){}}
+function save(k){
+ if(kvBad[k]){kvBadNote(k);return}
+ clearTimeout(saveT[k]);
+ saveT[k]=setTimeout(function(){
+  saveT[k]=null;
+  try{
+   const snap=(typeof SNAP!=="undefined")?SNAP[k]:null;
+   const nw=S[k];
+   if(snap&&Array.isArray(snap)&&snap.length>=20&&Array.isArray(nw)&&nw.length===0){
+    try{kvSet(k+"__bak",snap)}catch(e){}
+    try{toast("「"+k+"」要变成空的了，已先备份一份（设置 → 存储 可恢复）")}catch(e){}
+   }
+  }catch(e){}
+  kvSet(k,S[k]);
+ },250)}
 /* 关闭/切到后台前，把所有还没落盘的改动立刻写入，避免"改完马上关页面"丢设置 */
 function saveFlush(){for(const k in saveT){if(saveT[k]){clearTimeout(saveT[k]);saveT[k]=null;try{kvSet(k,S[k])}catch(e){}}}}
 if(typeof window!=="undefined"){
@@ -4679,7 +4703,8 @@ function storageHtml(info){const {usage,quota,persisted}=info;
  let swState="浏览器标签页";
  try{if(navigator.serviceWorker&&navigator.serviceWorker.controller)swState="离线缓存已接管"}catch(e){}
  const build='<div class="storrow2"><span class="sname2">应用版本</span><span class="stpill">'+esc(APP_BUILD)+' · '+swState+'</span></div>'+
-  '<div class="muted" style="padding:0 0 2px">更新后若版本号没变，把星笺从最近任务里完全划掉再打开（必要时两次），离线缓存就会更新。</div>';
+   '<div class="muted" style="padding:0 0 2px;line-height:1.7">版本号没变说明还在用旧缓存。① 先在浏览器里打开一次这个网址，等界面完全出来（会让它后台换缓存）；② 还是没变就等一天再试；③ 想立刻更新：清掉该网站的「站点数据」（会清空应用数据，请先在「设置 → 存储 → 导出备份」里备份）。</div>'+
+   '<div class="row" style="border-top:1px solid var(--line)"><span class="lab">本地备份（自动）<br><span class="sub">列表要变空时，自动把原来的内容存一份；这里可以恢复回来</span></span><button class="btn sm" data-act="storage-restore">恢复备份</button></div>';
  return head+persist+build}
 
 /* ================= export / import ================= */
@@ -5946,6 +5971,25 @@ ACT["storage-cleargroup"]=el=>{const id=el.dataset.k;const g=STORE_APPS.find(x=>
   try{applyTheme();applyChatUI();applyFont();applySystem()}catch(e){}
   try{scheduleActive()}catch(e){}
   render();toast("已清除「"+g.label+"」")})};
+/* 浠庤嚜鍔ㄥ浠介噷鎭㈠锛堝垪琛ㄨ鍙樼┖鏃朵細鑷姩鐣欎竴浠?__bak锛?*/
+/* 从自动备份里恢复（列表要变空时会自动留一份 __bak） */
+ACT["storage-restore"]=async()=>{
+ let n=0;
+ for(const k of SAVEKEYS){
+  let bak=null;try{bak=await kvGet(k+"__bak")}catch(e){}
+  if(bak===undefined||bak===null||bak===KV_ERR)continue;
+  try{
+   const nowS=S[k];
+   const emptyNow=!nowS||(Array.isArray(nowS)&&nowS.length===0);
+   if(!emptyNow)continue;
+   S[k]=bak;n++;
+  }catch(e){}
+ }
+ if(!n){toast("没有可恢复的备份");return}
+ SAVEKEYS.forEach(function(k){try{save(k)}catch(e){}});
+ try{render()}catch(e){}
+ toast("已恢复 "+n+" 项备份");
+};
 ACT["storage-clear"]=()=>confirmDlg("重置全部数据？将清空 localStorage 与 IndexedDB 中的全部数据（聊天记录、字卡、设置、表情包等），不可恢复","重置",true).then(ok=>{if(!ok)return;try{localStorage.clear()}catch(e){}kvClear().then(()=>location.reload())});
 /* sound block events */
 document.addEventListener("change",e=>{const t=e.target;
@@ -6016,7 +6060,11 @@ function stripLegacyAvatarSnapshots(){
 async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))document.documentElement.classList.add("wxweb")}catch(e){}
  await idbOpen();
 /* 音频库可能非常大（几百首本机音频）：先放行、让界面起来，再后台读进来（见下面 kvGet("audios")） */
- for(const k of SAVEKEYS){if(k==="audios")continue;const v=await kvGet(k);if(v!==undefined)S[k]=v}
+ for(const k of SAVEKEYS){if(k==="audios")continue;
+  let v=await kvGet(k);
+  if(v===KV_ERR)v=await kvGet(k);                     /* 璇诲け璐ュ厛閲嶈瘯涓€娆?*/
+  if(v===KV_ERR){kvBad[k]=1;continue}                 /* 杩樻槸澶辫触锛氭湰娆′笉鍐欏洖杩欎釜閿紝閬垮厤鎶婂ソ鏁版嵁娓呯┖ */
+  if(v!==undefined){S[k]=v;try{if(Array.isArray(v))SNAP[k]=v}catch(e){}}}
  const preSound=(S.settings&&S.settings.sound)||{};
  const preChat=(S.settings&&S.settings.reply&&S.settings.reply.chat)||{};
  S.settings=deepMerge(DEF_SETTINGS,S.settings||{});
@@ -6069,7 +6117,7 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
   applyTheme();applyChatUI();applyFont();applySystem();renderTabbar();render();initCallMiniDrag();initKeyboardAdapt();
 /* 后置加载音乐库：大库也不会卡住启动；顺手把老数据里塞在数组里的音频搬到单独记录 */
  try{setTimeout(function(){try{mediaShelveAll()}catch(e){}},2600)}catch(e){}
- try{kvGet("audios").then(function(v){if(v!==undefined)S.audios=v||[];
+ try{kvGet("audios").then(function(v){if(v===KV_ERR){kvBad["audios"]=1;return}if(v!==undefined)S.audios=v||[];
   try{muBlobMigrate()}catch(e){}
   try{if(cur==="music"||cur==="muplayer")render()}catch(e){}
   try{muPaint()}catch(e){};try{muFloatSync()}catch(e){}}).catch(function(){})}catch(e){}
