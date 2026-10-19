@@ -1517,3 +1517,7 @@ html body #app .msg .ava,html body #app .msg .ava img{
 .mufloat,.mufloat *,#callMini,#callMini *{-webkit-touch-callout:none;-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
 .mufloat img,.mufloat svg,#callMini img,#callMini svg{pointer-events:none}
 .mufloat button,.mufloat .mfbg,.mufloat .mfbgclr,.mufloat .muprog,#callMini button{pointer-events:auto}
+
+/* 键盘弹起 / 上传完文件后，弹层不再被顶到屏幕外：改成「顶部对齐 + 限高 + 内部滚动」 */
+html.kb-open #modal{align-items:flex-start !important;justify-content:flex-start !important;padding-top:calc(8px + env(safe-area-inset-top)) !important;padding-bottom:calc(8px + var(--kb,0px)) !important;overflow:auto !important}
+html.kb-open #modal .sheet{margin-top:0 !important;margin-bottom:8px !important;max-height:calc(100dvh - var(--kb,0px) - 26px) !important;overflow-y:auto !important}

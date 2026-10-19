@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v57";
+const APP_BUILD="v58";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -530,8 +530,39 @@ function applyChatUI(){const c=S.settings.chat||{},st=document.documentElement.s
  /* 始终把用户样式放到 <head> 末尾，保证在与内置样式同优先级时后加载者生效 */
  document.head.appendChild(cs);
  const raw=sanitizeUserCss(c.bubbleCss||"");
- cs.textContent=raw?(/[{}]/.test(raw)?raw:(".bub{"+raw+"}")):""}
+ cs.textContent=raw?scopeBubbleCss(raw):""}
 /* 仅拦截危险内容，正常 CSS 一律放行（避免一刀切过滤导致样式失效） */
+/* 用户自定义的气泡样式只作用在聊天消息列表（#msgs）里，绝不再污染左下角功能菜单等其它地方。
+   处理规则：逐条给选择器加上 #msgs 前缀；@media 内部同样加；@keyframes/@font-face 原样保留；
+   html/body/:root 这类全局规则不动（自定义变量还能用）；只写声明时当作 .bub 的声明。 */
+function scopeBubbleCss(css){try{
+ let s=String(css||"").replace(/\r/g,"").replace(/\/\*[\s\S]*?\*\//g,"");
+ if(!s.trim())return "";
+ if(!/[{}]/.test(s))s=".bub{"+s+"}";
+ const SCOPE="#msgs";
+ const prefix=function(sel){const t=String(sel).trim();if(!t)return t;
+  if(/(^|[\s>+~,])(html|body|:root)\b/.test(t))return t;
+  if(t.indexOf(SCOPE)>=0)return t;
+  return SCOPE+" "+t};
+ const walk=function(text){
+  let out="",i=0;
+  while(i<text.length){
+   const open=text.indexOf("{",i);
+   if(open<0){out+=text.slice(i);break}
+   const prelude=text.slice(i,open);
+   let depth=1,j=open+1;
+   while(j<text.length&&depth>0){const ch=text[j];if(ch==="{")depth++;else if(ch==="}")depth--;j++}
+   const body=text.slice(open+1,j-1);
+   const head=prelude.trim();
+   if(head.charAt(0)==="@"){
+    if(/^@(media|supports|layer|container|scope)/i.test(head))out+=head+"{"+walk(body)+"}";
+    else out+=head+"{"+body+"}";
+   }else{
+    out+=head.split(",").map(prefix).join(",")+"{"+body+"}";
+   }
+   i=j}
+  return out};
+ return walk(s)}catch(e){return String(css||"")}}
 function sanitizeUserCss(css){let s=String(css||"");
  s=s.replace(/<\/?\s*style/gi,"");
  s=s.replace(/@import[^;{]*;?/gi,"");
@@ -3966,16 +3997,16 @@ function mediaShelveAll(){try{
    if(p.imgMedia[ix])return;
    if(typeof u!=="string"||u.indexOf("data:")!==0||u.length<MEDIA_MIN)return;
    const b=dataUrlToBlobSync(u);if(!b)return;
-   p.imgMedia[ix]=1;p.imgs[ix]="";n++;mediaPut("f",p.id,"i"+ix,b)});
+   n++;mediaPut("f",p.id,"i"+ix,b).then(function(){try{p.imgMedia[ix]=1;p.imgs[ix]=""}catch(e){}}).catch(function(){try{delete p.imgMedia[ix]}catch(e){}})});
   (p.cmts||[]).forEach(function(c){try{
    if(c&&!c.imgMedia&&typeof c.img==="string"&&c.img.indexOf("data:")===0&&c.img.length>=MEDIA_MIN){
-    const b0=dataUrlToBlobSync(c.img);if(b0){c.imgMedia=1;c.img="";n++;mediaPut("mc",c.id,"i",b0)}}
-   if(c&&!c.imgMedia&&c.img&&typeof c.img==="object"&&c.img.size>=MEDIA_MIN){c.imgMedia=1;mediaPut("mc",c.id,"i",c.img).catch(function(){});delete c.img}
+    const b0=dataUrlToBlobSync(c.img);if(b0){n++;mediaPut("mc",c.id,"i",b0).then(function(){try{c.imgMedia=1;c.img=""}catch(e){}}).catch(function(){try{delete c.imgMedia}catch(e){}})}}
+   if(c&&!c.imgMedia&&c.img&&typeof c.img==="object"&&c.img.size>=MEDIA_MIN){mediaPut("mc",c.id,"i",c.img).then(function(){try{c.imgMedia=1;delete c.img}catch(e){}}).catch(function(){})}
    if(!c||c.media)return;
    const v=c.voiceData;if(!v)return;
    const b=(typeof v==="string")?dataUrlToBlobSync(v):v;
    if(!b||!b.size||b.size<MEDIA_MIN)return;
-   c.dataBytes=b.size;c.media=true;delete c.voiceData;n++;mediaPut("mc",c.id,"v",b)}catch(e){}});
+   n++;mediaPut("mc",c.id,"v",b).then(function(){try{c.dataBytes=b.size;c.media=true;delete c.voiceData}catch(e){}}).catch(function(){})}catch(e){}});
  }catch(e){}});
  if(n)save("moments");
  if(n)try{toast("已整理 "+n+" 张图片/语音，之后开机更快")}catch(e){}
