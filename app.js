@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v63";
+const APP_BUILD="v65";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -4050,7 +4050,7 @@ function chatLoadMedia(){try{
   if(i>=items.length)return;
   const m=items[i++];
   mediaLoad("m",m.id,"d",m,"data").then(function(u){
-   if(u)try{const im=document.querySelector('.msg[data-id="'+m.id+'"] img');if(im)im.src=u}catch(e){}
+   try{const box=document.querySelector('.msg[data-id="'+m.id+'"] .bub');const im=box?box.querySelector(':scope > img'):null;if(im){if(u){im.src=u}else{im.remove();const sp=document.createElement("span");sp.className="muted msglost";sp.textContent="图片已丢失";box.appendChild(sp)}}}catch(e){}
    setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
  setTimeout(step,60)}catch(e){}}
 function feedLoadMedia(){try{
@@ -4078,9 +4078,9 @@ function mediaShelveMsg(m){try{
  if(typeof v==="string"&&v.indexOf("data:")!==0)return;
  const blob=(typeof v==="string")?dataUrlToBlobSync(v):v;
  if(!blob||!blob.size||blob.size<MEDIA_MIN)return;
- m.dataBytes=blob.size;m.media=true;
+ /* 写成功后才标记，失败则保持内嵌数据 */
  const u=URL.createObjectURL(blob);
- mediaPut("m",m.id,"d",blob).then(function(){try{m.data=u}catch(e){}}).catch(function(){})
+ mediaPut("m",m.id,"d",blob).then(function(){try{m.dataBytes=blob.size;m.media=true;m.data=u;save("chats")}catch(e){}}).catch(function(){try{delete m.media;delete m.dataBytes;m.data=(typeof v==="string")?v:u;save("chats")}catch(e){}})
 }catch(e){}}
 function mediaUrl(data,key){if(!data)return "";if(typeof data==="string")return data;if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
 function blobToDataUrl(b){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(b)})}
