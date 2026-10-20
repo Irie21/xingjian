@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v61";
+const APP_BUILD="v63";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -402,7 +402,7 @@ function render(){
  rememberHScroll(_lastPageKey||_key);
  app.innerHTML=p.html(curParam);
  try{if(cur!=="chat")chatShowLimit=CHAT_STEP}catch(e){}
- try{mediaOnPage()}catch(e){}try{bindLibMoreScroll()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
+ try{mediaOnPage()}catch(e){}try{bindLibMoreScroll()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{draftStrip()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
  if(p.init)p.init(curParam);
  applyTyping();
  app.querySelectorAll("button").forEach(b=>{if(!b.getAttribute("type"))b.setAttribute("type","button")});
@@ -861,7 +861,14 @@ function taHeartPick(mg){
 function pushChat(m){m.id=m.id||uid();m.ts=m.ts||Date.now();if(!m.timestamp)m.timestamp=m.ts;
  if(m.from==="ta"&&m.type==="text"&&!m.mood&&!m.nopick){try{const mo=taMoodPick();if(mo&&mo.c)m.mood=mo.c;const h=taHeartPick(mo&&mo.g?mo.g:"");if(h)m.mood2=h}catch(e){}}
  if(m.from==="me")lastMeMsgId=m.id;S.chats.push(m);try{mediaShelveMsg(m)}catch(e){};save("chats");try{pkPickup(m)}catch(e){};if(cur==="chat")renderMsgs("bottom");return m}
-function sendChat(){const inp=$("#cin");const t=inp.value.trim();if(!t)return;inp.value="";const m={from:"me",type:"text",text:t};if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}pushChat(m);playBlock("me");taRespond(t);try{chatBottomSoon()}catch(e){}}
+function sendChat(){const inp=$("#cin");const t=inp?String(inp.value||"").trim():"";
+ if(!t&&!draftMedia&&!quoteRef)return;
+ if(inp)inp.value="";
+ const dm=draftMedia;draftMedia=null;draftStrip();
+ const m={from:"me",type:"text",text:t||""};
+ if(dm){m.data=dm.data;if(dm.stk)m.stk=1}
+ if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}
+ pushChat(m);playBlock("me");taRespond(t||"");try{chatBottomSoon()}catch(e){}}
 function pickMany(a,n){const pool=[...a],out=[];while(out.length<n&&pool.length)out.push(pool.splice(rnd(0,pool.length-1),1)[0]);return out}
 /* 拼字卡模式：按概率决定是否多张拼接；触发时条数在「最少 ~ 最多」之间随机；概率为 0 则只发单张 */
 function taTextContent(nC){const s=S.settings.reply.chat;const pool=cardTexts("主字卡").concat(cardTexts(PICKUP_CAT));const fb=["在呢","想你啦","抱抱","今天过得怎么样？"];
@@ -919,13 +926,13 @@ function cardMediaUrl(card,cb){cardMediaInto(card,function(v){try{
  blobToDataUrl(v).then(function(u){cb(u||"")}).catch(function(){cb("")});
 }catch(e){cb("")}})}
 /* 把一张字卡作为消息发到聊天（表情包 → 图片消息；语音字卡 → 语音消息） */
-function pushCardMsg(from,card){try{
+function pushCardMsg(from,card,extra){try{
  if(!card)return null;
  cardMediaInto(card,function(v){try{
   const isV=(card.type==="voice")||CATTYPE(card.cat)==="voice";
   const m={id:uid(),from:from,type:isV?"voice":"img",ts:Date.now()};m.timestamp=m.ts;
   if(isV)m.dur=card.dur||2;else m.stk=1;
-  m.cid=card.id;
+  m.cid=card.id;if(extra)for(const k in extra)m[k]=extra[k];
   if(v)m.data=v;else m.lost=1;
   pushChat(m);
  }catch(e){}});
@@ -944,7 +951,9 @@ function loadCardImgsIn(root){try{
   mediaLoad("c",c.id,"d",c,"data").then(function(u){if(u){try{im.src=u}catch(e){}}setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
  setTimeout(step,0)}catch(e){}}
 function afterTaText(){const s=S.settings.reply.chat;
- if(chance(s.sticker)){const st=cardsOf("表情包");if(st.length)setTimeout(()=>{pushCardMsg("ta",pick(st));playBlock("ta")},rnd(800,2500))}
+  if(chance(s.sticker)){const st=cardsOf("表情包");if(st.length)setTimeout(()=>{
+   let q=null;try{for(let i=S.chats.length-1;i>=0&&i>S.chats.length-6;i--){const x=S.chats[i];if(x.from==="ta"&&x.quote){q={quote:x.quote,quoteId:x.quoteId};break}}}catch(e){}
+   pushCardMsg("ta",pick(st),q);playBlock("ta")},rnd(800,2500))}
  if(chance(s.voice)){const vc=cardsOf("语音字卡");if(vc.length)setTimeout(()=>{pushCardMsg("ta",pick(vc));playBlock("ta")},rnd(1000,3000))}
  if(chance(s.retract))setTimeout(()=>{const m=pushChat({from:"ta",type:"text",text:taTextContent(1),nopick:true});setTimeout(()=>{m.retracted=true;save("chats");if(cur==="chat")renderMsgs()},rnd(1200,2500))},rnd(500,1500));
  if(chance(s.pat))setTimeout(()=>taPat(),rnd(600,2000));
@@ -1400,7 +1409,7 @@ PAGES.letteredit={html(){const nm=esc(S.settings.taName||"TA");const rep=_le.mod
   "</div>"+
   '<div class="lesend"><button class="btn pri" style="width:100%" data-act="letter-send">'+ico("send")+" 封 · 寄出</button></div>"},
  init(){try{document.getElementById("app").classList.add("lebar")}catch(e){};lePaint()}};
-ACT["letter-emo"]=()=>{const cats=["表情包","颜文字","Emoji"];
+ACT["letter-emo"]=()=>{openStickerPicker(function(c){cardMediaUrl(c,function(u){if(!u)return;_le.sticker=u;try{lePaint()}catch(e){};toast("已添加表情")})});return;const cats=["表情包","颜文字","Emoji"];
  const sh=openSheet('<div class="mtitle">选个表情<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
   '<div class="chips">'+cats.map(function(c){return '<button class="chip" data-lec="'+c+'">'+c+"</button>"}).join("")+"</div>"+
   '<div class="stkgrid" id="legrid" style="margin-top:10px"><div class="muted" style="padding:18px;text-align:center;grid-column:1/-1">点击上方分组查看</div></div>',true);
@@ -1420,7 +1429,7 @@ ACT["letter-send"]=()=>{const t=(document.getElementById("lc2")||{}).value||"",t
    toast("已寄出回信");favTaCollectMail(l.title||"",t);scheduleLetterReply()}}
  else{S.letters.push({id:uid(),from:"me",to:"ta",title:String(ti).trim(),content:String(t).trim(),sticker:_le.sticker||"",ts:Date.now(),read:true});
   save("letters");toast("已寄出");scheduleLetterReply();favTaCollectMail(ti,t)}
- S.misc.letterTab=(_le.mode==="reply")?"in":"out";save("misc");_le={mode:"write",replyId:"",sticker:""};go("mail")};
+ S.misc.letterTab=(_le.mode==="reply")?"in":"out";save("misc");_le={mode:"write",replyId:"",sticker:""};back()};
 function letterSheet(id){const l=S.letters.find(function(x){return x.id===id});if(!l)return;l.read=true;save("letters");
  const mine=l.from==="me",nm=S.settings.taName||"TA";
  const card=function(who,ts,title,content,sticker){return '<div class="mlcard"><div class="mlch"><b>'+esc(who)+'</b><span class="mltime">'+mailDate(ts)+'</span></div>'+
@@ -1579,12 +1588,7 @@ function feedCmtBar(){let el=document.getElementById("fcbar");
  if(!show){if(el)el.remove();return}
  if(!el){el=document.createElement("div");el.id="fcbar";el.className="fcbar";document.body.appendChild(el);
   el.onclick=function(e){const b=e.target.closest("[data-fc]");if(!b)return;const k=b.dataset.fc;
-   if(k==="emo"){const st=cardsOf("表情包");if(!st.length)return toast("表情包字卡为空");
-    const sh=openSheet('<div class="mtitle">选个表情<button class="ibtn" data-r="x">'+ico("close")+'</button></div><div class="stkgrid">'+st.map(function(c){return '<button data-fk="'+c.id+'"><img data-cid="'+c.id+'" src="'+mediaUrl(c.data,"c"+c.id)+'"></button>'}).join("")+"</div>",true);
-    setTimeout(function(){try{loadCardImgsIn(sh)}catch(e){}},40);
-    sh.onclick=function(ev){const s2=ev.target.closest("[data-fk]");
-     if(s2){const c0=S.cards.find(function(x){return x.id===s2.dataset.fk});closeModal();if(c0)cardMediaUrl(c0,function(u){if(u)feedCmtAttach(u)});return}
-     if(ev.target.closest("[data-r]"))closeModal()};return}
+       if(k==="emo"){openStickerPicker(function(c){cardMediaUrl(c,function(u){if(u)feedCmtAttach(u)})});return}
    if(k==="img"){pickFile("image/*",false,function(fs){if(!fs||!fs[0])return;readAsDataURL(fs[0]).then(function(u){feedCmtAttach(u)})});return}
    if(k==="rm"){_fc.img="";feedCmtBar();return}
    if(k==="send"){const i=document.getElementById("fcin");const v=i?i.value:"";const im=_fc.img||"";if(i)i.value="";_fc.img="";feedCmtSend(v,im);return}
@@ -1623,7 +1627,7 @@ function momentCompose(){openSheet('<div class="mtitle">发朋友圈<button clas
  const paint=()=>{const el=sh.querySelector("#mpics");if(el)el.innerHTML=imgs.map(i=>'<img src="'+i+'">').join("")};
  sh.onclick=e=>{
   if(e.target.closest("[data-addimg]")){pickFile("image/*",true,fs=>{Promise.all(fs.map(readAsDataURL)).then(rs=>{imgs=imgs.concat(rs);paint()})});return}
-  if(e.target.closest("[data-addsticker]")){const box=sh.querySelector("#mstk");const st=cardsOf("表情包");box.innerHTML=st.length?st.map(c=>'<button data-stk="'+c.id+'"><img data-cid="'+c.id+'" src="'+mediaUrl(c.data,"c"+c.id)+'"></button>').join(""):'<div class="muted">表情包字卡为空</div>';box.style.display=(box.style.display==="none"||!box.style.display)?"grid":"none";try{loadCardImgsIn(box)}catch(e){};return}
+     if(e.target.closest("[data-addsticker]")){openStickerPicker(function(c){cardMediaUrl(c,function(u){if(u){imgs=imgs.concat([u]);paint();toast("已添加表情")}})});return}
   const sk=e.target.closest("[data-stk]");if(sk){const c0=S.cards.find(x=>x.id===sk.dataset.stk);if(c0)cardMediaUrl(c0,function(u){if(u){imgs=imgs.concat([u]);paint();toast("已添加表情")}});return}
   const b=e.target.closest("[data-r]");if(!b)return;const _c=($("#mc")||{value:""}).value;closeModal();if(b.dataset.r!=="ok")return;const c=(_c||"").trim();if(!c&&!imgs.length)return toast("说点什么吧");const p={id:uid(),who:"me",content:c,imgs,ts:Date.now(),likes:0,likesWho:[],cmts:[]};S.moments.push(p);save("moments");renderMoments();taReactTo(p);favTaCollectFeed(c,imgs)};
  }
@@ -4039,7 +4043,7 @@ function libLoadMedia(cat){try{
  setTimeout(step,60)}catch(e){}}
 function chatLoadMedia(){try{
  const start=Math.max(0,(S.chats||[]).length-chatShowLimit);
- const items=(S.chats||[]).slice(start).filter(function(m){return m&&m.media&&!mediaUrlOf(m,"data")&&m.type==="img"});
+  const items=(S.chats||[]).slice(start).filter(function(m){return m&&(m.type==="img"||m.data||m.media)&&!mediaUrlOf(m,"data")});
  if(!items.length)return;
  let i=0;
  const step=function(){
@@ -4084,13 +4088,13 @@ function dataUrlToBlob(u){return fetch(u).then(r=>r.blob())}
 /* bubble with proactive tag image */
 function msgBubble(m){if(m.type==="sys")return '<div class="sysmsg">'+(m.nickKeep?esc(m.text):esc(nickFill(m.pat?m.pat:m.text)))+(m.img?'<img src="'+m.img+'" alt="">':"")+"</div>";
  const me=m.from==="me";const s=S.settings;const c=s.chat||{};let inner="";
- if(m.type==="img")inner=(!m.data&&!m.media)?'<span class="muted msglost">图片已丢失</span>':'<img src="'+mediaUrl(m.data,"m"+m.id)+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">";
+  if(m.type==="img")inner=(!m.data&&!m.media)?'<span class="muted msglost">图片已丢失</span>':'<img src="'+mediaUrl(m.data,"m"+m.id)+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">"+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
  else if(m.type==="voice")inner=((!m.data&&!m.media)?'<span class="muted msglost">语音已丢失</span>':'<span class="voice" data-act="play-voice" data-id="'+m.id+'"><span class="vico">'+ico("voicewave")+"</span><span class=\"vdur\">"+(m.dur||2)+'″</span></span>')+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
   else if(m.type==="transfer"||m.type==="redpacket")inner=txBubbleHtml(m,me);
  else if(m.type==="ask")inner=askBubbleHtml(m)
 else if(m.type==="quizset")inner=quizSetBubbleHtml(m)
 else if(m.type==="quiz")inner=quizBubbleHtml(m);
- else inner=(m.tag?'<span class="msgtag">'+tagHtml(m.tag)+"</span>":"")+(m.quote?'<span class="q"'+(m.quoteId?' data-act="locate-quote" data-qid="'+m.quoteId+'"':"")+'>'+quoteHtml(m.quote,m.quoteId)+"</span>":"")+(m.tagImg?'<img src="'+m.tagImg+'" style="max-width:80px;margin-bottom:4px">':"")+esc(m.text);
+  else inner=(m.tag?'<span class="msgtag">'+tagHtml(m.tag)+"</span>":"")+(m.quote?'<span class="q"'+(m.quoteId?' data-act="locate-quote" data-qid="'+m.quoteId+'"':"")+'>'+quoteHtml(m.quote,m.quoteId)+"</span>":"")+(m.tagImg?'<img src="'+m.tagImg+'" style="max-width:80px;margin-bottom:4px">':"")+esc(m.text||"")+((m.data||m.media)?'<img class="bubimg'+(m.stk?" stk":"")+'" src="'+mediaUrl(m.data,"m"+m.id)+'">':"");
  /* 撤回：默认只显示提示文字；点一下 → 就地还原成原本那条消息，再点一下收回 */
  if(m.retracted){
   inner=m.showRet
@@ -5331,6 +5335,39 @@ function stickerGridHtml(k){
  const h='<div class="sgrid">'+(items.length?items.map(function(c){return '<button data-sticker="'+c.id+'"><img data-cid="'+c.id+'" src="'+mediaUrl(c.data,"c"+c.id)+'"></button>'}).join(""):'<div class="muted" style="grid-column:1/-1;padding:16px;text-align:center">'+(k==="__recent"?"还没有最近使用的表情包":"该分组暂无表情包")+"</div>")+(k===""?'<button class="sup" data-act="sticker-up" title="上传表情包">'+ico("plus")+"</button>":"")+"</div>";
 setTimeout(function(){try{loadCardImgsIn(document.getElementById("stkpane")||document)}catch(e){}},40);
 return h}
+/* ===== 发送时把「表情包 / 图片」附加到草稿：可以和文字、引用一起发出 ===== */
+let draftMedia=null;
+function draftHas(){try{const i=$("#cin");return !!(draftMedia||(i&&String(i.value||"").trim())||quoteRef)}catch(e){return !!draftMedia}}
+function draftStrip(){try{
+ let el=document.getElementById("draftstrip");
+ if(!draftMedia||cur!=="chat"){if(el)el.remove();return}
+ if(!el){el=document.createElement("div");el.id="draftstrip";el.className="draftstrip";document.body.appendChild(el)}
+ el.innerHTML='<img src="'+mediaUrl(draftMedia.data,"draft")+'" alt=""><span class="dslbl">'+(draftMedia.stk?"表情包":"图片")+'会和文字/引用一起发出</span><button class="dsx" type="button" data-act="draft-clear" title="移除">'+ico("close")+'</button>';
+}catch(e){}}
+ACT["draft-clear"]=()=>{draftMedia=null;draftStrip()};
+function attachMedia(u,stk){draftMedia={data:u,stk:!!stk};draftStrip();toast(stk?"已附加表情包：可继续输入（或直接发送）":"已附加图片：可继续输入（或直接发送）");try{const i=$("#cin");if(i)i.focus()}catch(e){}}
+function stkRecentTouch(id){try{if(!S.misc.stkRecent)S.misc.stkRecent=[];S.misc.stkRecent=[id].concat(S.misc.stkRecent.filter(function(x){return x!==id})).slice(0,24);save("misc")}catch(e){}}
+/* ===== 共用表情包选择器：和聊天左下角同一套卡池（最近使用 + 分组）===== */
+function stkPickBody(k){
+ const all=cardsOf("表情包");
+ const recent=[];(S.misc.stkRecent||[]).forEach(function(id){const c=all.find(function(x){return x.id===id});if(c&&recent.indexOf(c)<0)recent.push(c)});
+ const items=(k==="__recent")?recent:((k==="")?all:all.filter(function(c){return (c.group||"")===k}));
+ const chips='<div class="chiprow"><button class="chip'+(k==="__recent"?" on":"")+'" data-spk="__recent">最近使用</button><button class="chip'+(k===""?" on":"")+'" data-spk="">全部</button>'+
+  stkGroups().map(function(g){return '<button class="chip'+(k===g?" on":"")+'" data-spk="'+esc(g)+'">'+esc(g)+"</button>"}).join("")+"</div>";
+ const grid='<div class="stkgrid" style="margin-top:10px;max-height:42vh;overflow:auto">'+(items.length?items.map(function(c){
+  return '<button data-spki="'+c.id+'"><img data-cid="'+c.id+'" src="'+mediaUrl(c.data,"c"+c.id)+'"></button>'}).join(""):'<div class="muted" style="padding:18px;text-align:center;grid-column:1/-1">'+(k==="__recent"?"还没有最近使用的表情包":"该分组暂无表情包")+"</div>")+"</div>";
+ return chips+grid}
+function openStickerPicker(onPick){
+ let k="__recent";
+ const sh=openSheet('<div class="mtitle">选个表情包<button class="ibtn" data-r="x">'+ico("close")+'</button></div><div id="spkwrap">'+stkPickBody(k)+"</div>",true);
+ const paint=function(){const w=sh.querySelector("#spkwrap");if(w)w.innerHTML=stkPickBody(k);try{loadCardImgsIn(sh)}catch(e){}};
+ sh.onclick=function(e){
+  const ch=e.target.closest("[data-spk]");if(ch){k=ch.dataset.spk||"";paint();return}
+  const t=e.target.closest("[data-spki]");
+  if(t){const c=S.cards.find(function(x){return x.id===t.dataset.spki});if(!c)return;stkRecentTouch(c.id);closeModal();try{onPick(c)}catch(e){};return}
+  if(e.target.closest("[data-r]"))closeModal()};
+ setTimeout(function(){try{loadCardImgsIn(sh)}catch(e){}},40);
+}
 function stickerPanelHtml(){
  const all=cardsOf("表情包");
  if(!all.length){return '<div class="empty">表情包字卡为空<div class="btnrow" style="justify-content:center;margin-top:12px"><button class="btn sm" data-act="sticker-up">'+ico("up")+' 上传表情包</button><button class="btn sm" data-act="sticker-golib">去字卡库</button></div></div>'}
@@ -5347,11 +5384,13 @@ function toggleChatPanel(mode){const p=$("#chatpanel");if(!p)return;
  else{p.classList.remove("panelmenu");p.innerHTML=stickerPanelHtml()}
  p.style.display="block"}
 function sendStickerCard(id){const c=S.cards.find(function(x){return x.id===id});if(!c||!mediaHas(c,"data"))return;
+ stkRecentTouch(id);
+ /* 已经打了字 / 正在引用 → 附加到草稿，发送时一起发出；否则保持原来的"立刻单发" */
+ if(draftHas()){cardMediaUrl(c,function(u){if(u)attachMedia(u,true)});closeChatPanel();return}
  const m={id:uid(),from:"me",type:"img",data:"",stk:1,ts:Date.now()};m.timestamp=m.ts;
+ if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}
  mediaFromCardInto(c,m,"data",function(){try{mediaShelveMsg(m)}catch(e){};try{S.chats.push(m)}catch(e){};save("chats");if(cur==="chat")renderMsgs("bottom")});
- playBlock("me");
- if(!S.misc.stkRecent)S.misc.stkRecent=[];S.misc.stkRecent=[id].concat(S.misc.stkRecent.filter(x=>x!==id)).slice(0,24);save("misc");
- taRespond("");closeChatPanel()}
+ playBlock("me");taRespond("");closeChatPanel()}
 /* ---- 消息操作菜单 ---- */
 let msgTarget=null;
 function msgPlain(m){if(m.type==="img")return m.stk?"[表情包]":"[图片]";if(m.type==="voice")return "[语音]";if(m.type==="transfer"||m.type==="redpacket")return "[红包] "+txAmtTxt(m.amount);if(m.type==="ask")return "[帮我决定] "+(m.q||"");if(m.type==="quizset")return "[问卷] "+((m.items||[]).length+" 题");if(m.type==="quiz")return "[问卷] "+(m.question||"");if(m.type==="sys")return m.nickKeep?(m.text||""):nickFill(m.pat?m.pat:m.text);return m.text||""}
@@ -5482,7 +5521,7 @@ ACT["multi-cancel"]=()=>exitMulti();
 ACT["multi-del"]=()=>{if(!msgSel.size)return toast("未选择");S.chats=S.chats.filter(x=>!msgSel.has(x.id));save("chats");exitMulti();toast("已删除")};
 ACT["multi-fav"]=()=>{if(!msgSel.size)return toast("未选择");const sel=S.chats.filter(x=>msgSel.has(x.id));sel.forEach(m=>addFav(m));exitMulti();toast("已收藏 "+sel.length+" 条")};
 ACT["locate-quote"]=el=>locateQuote(el.dataset.qid);
-ACT["chat-img"]=()=>pickFile("image/*",false,fs=>readAsDataURL(fs[0]).then(u=>compressImage(u,1024,.82)).then(c=>{pushChat({from:"me",type:"img",data:c});playBlock("me");taRespond("")}));
+ACT["chat-img"]=()=>pickFile("image/*",false,fs=>readAsDataURL(fs[0]).then(u=>compressImage(u,1024,.82)).then(c=>{if(draftHas()){attachMedia(c,false);return}const m={from:"me",type:"img",data:c};if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}pushChat(m);playBlock("me");taRespond("")}));
 ACT["chat-kbd"]=()=>setVoiceMode(false);
 ACT["chat-set"]=()=>go("chatset");
 ACT["chat-rename"]=async()=>{const v=await promptDlg("对方昵称",S.settings.taName);if(v==null)return;

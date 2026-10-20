@@ -1537,3 +1537,11 @@ button,.btn,.chip,.ibtn,.row,.actionrow,.listitem,.libtile,.sgrid .sup,
 /* 输入框 / 文本域 / 聊天正文照旧可以选中、可以复制 */
 input,textarea,select,[contenteditable],.msgs .bub,.msgs .bub *,.msgs .txt,.vcopy{
  -webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}
+
+/* 鑽夌閲岄檮鍔犵殑琛ㄦ儏鍖?/ 鍥剧墖棰勮鏉★紙鍙戦€佹椂鍜屾枃瀛椼€佸紩鐢ㄤ竴璧峰彂鍑猴級 */
+.draftstrip{position:fixed;left:0;right:0;bottom:calc(var(--chatfoot,52px) + var(--kb,0px));margin:0 auto;max-width:560px;z-index:31;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card);border-top:1px solid var(--line)}
+.draftstrip img{width:38px;height:38px;object-fit:cover;border-radius:8px;background:var(--bg)}
+.draftstrip .dslbl{flex:1;font-size:12px;color:var(--muted)}
+.draftstrip .dsx{width:28px;height:28px;border:none;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center}
+/* 鏂囧瓧 + 鍥剧墖/琛ㄦ儏鍖?鍚屼竴鏉℃秷鎭?*/
+.bub .bubimg{display:block;max-width:min(60vw,240px);max-height:240px;border-radius:10px;margin-top:6px}
