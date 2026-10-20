@@ -1550,9 +1550,9 @@ input,textarea,select,[contenteditable],.msgs .bub,.msgs .bub *,.msgs .txt,.vcop
  padding:4px 8px !important;margin:0 0 6px !important;border-left:3px solid rgba(128,128,128,.45) !important;
  border-radius:0 8px 8px 0 !important;background:rgba(128,128,128,.10) !important;
  font-size:12px !important;line-height:1.4 !important;opacity:1 !important;color:inherit !important;white-space:normal !important}
-#msgs .msg .bub .q .qtx,#msgs .msg .bub .q .qtxt{display:-webkit-box !important;-webkit-line-clamp:2 !important;-webkit-box-orient:vertical !important;
- overflow:hidden !important;word-break:break-word !important;overflow-wrap:anywhere !important;max-height:2.8em !important;
- font-size:12px !important;line-height:1.4 !important;white-space:normal !important;text-align:left !important}
+#msgs .msg .bub .q .qtx,#msgs .msg .bub .q .qtxt{display:block !important;overflow:hidden !important;
+ text-overflow:ellipsis !important;white-space:nowrap !important;word-break:normal !important;
+ max-height:1.5em !important;font-size:12px !important;line-height:1.4 !important;text-align:left !important}
 #msgs .msg .bub .q .qimg{max-width:120px !important;max-height:84px !important;border-radius:6px !important;object-fit:cover !important}
 /* 输入框上方的「引用回复」条：单行省略，不撑高、不挤压输入区 */
 #quotebar .qtx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
