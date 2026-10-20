@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v67";
+const APP_BUILD="v68";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -3923,6 +3923,7 @@ function offlineCheck(force){
  if(cur==="chat")renderMsgs();
  msgPop("你离开的 "+mins+" 分钟里，TA 给你留了 "+n+" 条消息");
 }
+setTimeout(function(){try{mediaRepairFlags()}catch(e){}},3200);
 setInterval(()=>{if(!document.hidden){S.misc.lastSeen=Date.now();save("misc")}},60000);
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden){S.misc.lastSeen=Date.now();save("misc")}
@@ -3951,6 +3952,21 @@ function dataUrlToBlobSync(u){try{
  return new Blob([a],{type:m})}catch(e){return null}}
 function mediaSaveOwner(owner){try{if(owner==="c")save("cards");else if(owner==="m")save("chats");else save("moments")}catch(e){}}
 /* 取出一条媒体并放回宿主对象的字段里（返回可直接用的 URL；读不到返回空串） */
+/* 修复：个别消息的「已收纳」标记曾被误删（媒体记录其实还在）——按记录把标记/图片补回来。
+   这样即使上一版把标记删掉了，刷新后图片、语音也会自动重新出现。 */
+function mediaRepairFlags(){try{
+ const list=(S.chats||[]).filter(function(m,i,arr){return m&&!m.data&&!m.media&&(m.type==="img"||m.type==="voice"||i>=arr.length-800)});
+ if(!list.length)return;
+ let i=0,n=0;
+ const step=function(){
+  if(i>=list.length){
+   if(n){try{save("chats")}catch(e){};try{if(cur==="chat")renderMsgs("bottom")}catch(e){};try{toast("已恢复 "+n+" 条聊天图片/语音")}catch(e){}}
+   return}
+  const m=list[i++];
+  mediaGet("m",m.id,"d").then(function(b){
+   if(b){try{m.media=true;let u="";try{u=URL.createObjectURL(b)}catch(e){};if(u)m.data=u}catch(e){};n++}
+   setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
+ setTimeout(step,120)}catch(e){}}
 function mediaLoad(owner,id,slot,obj,field){return new Promise(function(res){
  if(!obj)return res("");
  const v=obj[field];
@@ -3958,7 +3974,7 @@ function mediaLoad(owner,id,slot,obj,field){return new Promise(function(res){
  if(v&&typeof v==="object"&&typeof v.size==="number"){try{return res(URL.createObjectURL(v))}catch(e){}}
  if(!obj.media)return res("");
  mediaGet(owner,id,slot).then(function(b){
-  if(!b){delete obj.media;return res("")}
+  if(b===KV_ERR)return res("");if(!b){delete obj.media;return res("")}
   let u="";try{u=URL.createObjectURL(b)}catch(e){}
   try{if(u)obj[field]=u}catch(e){}
   res(u)}).catch(function(){res("")})})}
