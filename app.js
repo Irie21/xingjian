@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v65";
+const APP_BUILD="v66";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -5432,7 +5432,7 @@ function quoteImgSrc(o,id){const c=o&&o.content;
  if(!id)return "";const m=(S.chats||[]).find(function(x){return x.id===id});
  return (m&&m.type==="img"&&m.data)?m.data:""}
 function quoteHtml(q,id){const o=quoteNorm(q,id);
- if(o.type==="text"){const t=String(o.content||"");return '<span class="qtx">'+esc(t.length>60?t.slice(0,60)+"…":t)+"</span>"}
+ if(o.type==="text"){const t=String(o.content||"");return '<span class="qtx">'+esc(t.length>10?t.slice(0,10)+"…":t)+"</span>"}
  const src=quoteImgSrc(o,id);
  return src?'<img class="qimg" src="'+src+'" alt="">':'<span class="qtx">［图片］</span>'}
 function renderQuoteBar(){const bar=$("#quotebar");if(!bar)return;
