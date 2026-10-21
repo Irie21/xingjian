@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v68";
+const APP_BUILD="v69";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -3148,7 +3148,7 @@ function periodHeroHtml(){const inf=periodInfo();
  if(inf){tags="<span>上次 "+esc(String(inf.last.start).slice(5,10))+"</span><span>下次 "+esc(pcDay(new Date(inf.next)).slice(5,10))+"</span><span>规律性 "+esc(inf.reg)+"</span>"}
  return '<div class="pchero '+cls+'"><div class="phe1">'+esc(t)+'</div><div class="phe2">'+esc(sub2)+'</div><div class="phbar"><span style="width:'+pct+'%"></span></div><div class="phtags">'+tags+"</div></div>"}
 PAGES.period={html(){const p=periodSet(),c=pcCfg();
- const row=(k,lb,unit)=>'<div class="row"><span class="lab">'+lb+'</span><input type="number" data-pset="'+k+'" value="'+p[k]+'" style="width:74px;flex:none"><span class="sub">'+(unit||"")+"</span></div>";
+ const row=(k,lb,unit)=>'<div class="row"><span class="lab">'+lb+'</span><input type="search" inputmode="numeric" data-pset="'+k+'" value="'+p[k]+'" style="width:74px;flex:none"><span class="sub">'+(unit||"")+"</span></div>";
  return phead("经期",'<button class="ibtn" data-act="period-set" title="设置">'+ico("dotsLine")+'</button>')+
  periodHeroHtml()+
  '<div class="card">'+
@@ -3162,9 +3162,9 @@ function periodSetSheetHtml(){const p=periodSet(),c=pcCfg();
  const adv=[3,1,0].map(function(d){return '<button class="chip'+(c.adv.indexOf(d)>=0?" on":"")+'" data-act="period-adv" data-v="'+d+'">'+(d===0?"当天":"前 "+d+" 天")+"</button>"}).join("");
  return '<div class="sect" style="margin:2px 2px 6px">周期参数</div>'+
   '<div class="card">'+
-  '<div class="row"><span class="lab">周期长度 <span class="sub">天</span></span><input type="number" data-pset="cycle" value="'+p.cycle+'" style="width:78px;flex:none"></div>'+
-  '<div class="row"><span class="lab">经期天数 <span class="sub">天</span></span><input type="number" data-pset="dur" value="'+p.dur+'" style="width:78px;flex:none"></div>'+
-  '<div class="row"><span class="lab">黄体期 <span class="sub">天（算排卵用）</span></span><input type="number" data-pset="luteal" value="'+p.luteal+'" style="width:78px;flex:none"></div>'+
+  '<div class="row"><span class="lab">周期长度 <span class="sub">天</span></span><input type="search" inputmode="numeric" data-pset="cycle" value="'+p.cycle+'" style="width:78px;flex:none"></div>'+
+  '<div class="row"><span class="lab">经期天数 <span class="sub">天</span></span><input type="search" inputmode="numeric" data-pset="dur" value="'+p.dur+'" style="width:78px;flex:none"></div>'+
+  '<div class="row"><span class="lab">黄体期 <span class="sub">天（算排卵用）</span></span><input type="search" inputmode="numeric" data-pset="luteal" value="'+p.luteal+'" style="width:78px;flex:none"></div>'+
   '<div class="muted" style="padding:4px 0 10px">记录 3 次后会按你最近几次的中位数自动校正周期长度。</div>'+
  "</div>"+
  '<div class="sect" style="margin:12px 2px 6px">提醒</div>'+
@@ -3187,6 +3187,22 @@ PAGES.periodset={html(){return phead("经期设置")+'<div id="psbody">'+periodS
 ACT["period-set"]=()=>go("periodset");
 function renderPeriod(){if(cur==="period")render()}
 function periodPredict(){try{const i=periodInfo(),p=periodSet(),out=[];if(!i||!i.last)return out;const base=i.next||(pcMid(i.last.start)+i.cl*864e5);for(let k=0;k<12;k++){const s=base+k*i.cl*864e5;for(let d=0;d<p.dur;d++)out.push(s+d*864e5)}return out}catch(e){return []}}
+/* 经期记录规范化：旧版按 UTC 存时间，早上 8 点前会被算成"昨天"，也容易重复点出多条。
+   统一改成本地日期（YYYY-MM-DD），并把同一天的重复记录合并为一条。 */
+function periodNormalize(){try{
+ if(!Array.isArray(S.periods))return;
+ let changed=false;
+ const dayOf=function(x){try{if(!x)return "";return pcDay(new Date(x))}catch(e){return String(x).slice(0,10)}};
+ S.periods.forEach(function(r){if(!r)return;
+  const s=dayOf(r.start);if(s&&String(r.start)!==s){r.start=s;changed=true}
+  if(r.end){const e=dayOf(r.end);if(e&&String(r.end)!==e){r.end=e;changed=true}}});
+ const seen={},out=[];
+ S.periods.forEach(function(r){if(!r||!r.start)return;
+  const k=String(r.start);
+  if(seen[k]!=null){const prev=out[seen[k]];if(prev){if(!prev.end&&r.end)prev.end=r.end;if(r.end&&prev.end&&String(r.end)>String(prev.end))prev.end=r.end}changed=true;return}
+  seen[k]=out.length;out.push(r)});
+ if(out.length!==S.periods.length){S.periods=out;changed=true}
+ if(changed)save("periods")}catch(e){}}
 function periodCareCheck(force){try{const c=pcCfg();if(!c.en&&!force)return;
  const h=new Date().getHours();if(h>=23||h<6)return;
  const info=periodInfo();if(!info)return;
@@ -3924,6 +3940,7 @@ function offlineCheck(force){
  msgPop("你离开的 "+mins+" 分钟里，TA 给你留了 "+n+" 条消息");
 }
 setTimeout(function(){try{mediaRepairFlags()}catch(e){}},3200);
+setTimeout(function(){try{periodNormalize()}catch(e){}},2600);
 setInterval(()=>{if(!document.hidden){S.misc.lastSeen=Date.now();save("misc")}},60000);
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden){S.misc.lastSeen=Date.now();save("misc")}
@@ -5965,8 +5982,17 @@ ACT["period-import"]=()=>pickFile("application/json,.json",false,fs=>{readAsText
 ACT["period-clearall"]=()=>{confirmDlg("清空全部经期数据？删除后无法恢复","清空",true).then(ok=>{if(!ok)return;S.periods=[];save("periods");render();toast("已清空经期数据")})};
 ACT["period-caregodo"]=()=>{periodCareCheck(true);toast("已触发一次关心（若有）")};ACT["period-adv"]=el=>{const c=pcCfg(),d=+el.dataset.v,i=c.adv.indexOf(d);if(i>=0){if(c.adv.length>1)c.adv.splice(i,1)}else c.adv.push(d);c.adv.sort(function(a,b){return b-a});save("misc");render()};
 ACT["period-caregodo2"]=()=>0;
-ACT["period-start"]=()=>{S.periods.push({id:uid(),start:new Date().toISOString(),end:null});save("periods");renderPeriod();try{periodCareCheck()}catch(e){}};
-ACT["period-end"]=()=>{const open=[...S.periods].filter(p=>!p.end).sort((a,b)=>new Date(b.start)-new Date(a.start))[0];if(!open)return toast("没有进行中的记录");open.end=new Date().toISOString();save("periods");renderPeriod()};
+ACT["period-start"]=()=>{try{periodNormalize()}catch(e){}
+ const today=pcDay(new Date());
+ const open=[...S.periods].filter(p=>p&&!p.end).sort((a,b)=>String(b.start).localeCompare(String(a.start)))[0];
+ if(open&&String(open.start)===today)return toast("今天已经记录过「开始」了");
+ if(open&&String(open.start)!==today)return toast("上一次还没结束（"+String(open.start).slice(5)+" 开始），先点「标记今天结束」");
+ if(S.periods.some(p=>p&&String(p.start)===today))return toast("今天已经在记录里了");
+ S.periods.push({id:uid(),start:today,end:null});save("periods");renderPeriod();try{periodCareCheck()}catch(e){}};
+ACT["period-end"]=()=>{try{periodNormalize()}catch(e){}
+ const open=[...S.periods].filter(p=>p&&!p.end).sort((a,b)=>String(b.start).localeCompare(String(a.start)))[0];
+ if(!open)return toast("没有进行中的记录");
+ open.end=pcDay(new Date());save("periods");renderPeriod();toast("已记录今天结束")};
 ACT["period-del"]=el=>{S.periods=S.periods.filter(p=>p.id!==el.dataset.id);save("periods");renderPeriod()};
 /* ---- 收藏 / 备忘录 ---- */
 /* ---- library actions ---- */
