@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v69";
+const APP_BUILD="v70";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -4011,7 +4011,7 @@ function mediaShelve(owner,list,slotOf,fieldOf,onDone){try{
   const x=need[i++],u=x[mFieldOf(fieldOf,x)];
   const blob=(typeof u==="string")?dataUrlToBlobSync(u):u;
   const put=(blob&&blob.size)?mediaPut(owner,x.id,mSlotOf(slotOf,x),blob):Promise.resolve();
-  Promise.resolve(put).then(function(){
+  Promise.resolve(put).then(function(ok){if(ok===false)return;
    try{x.dataBytes=(blob&&blob.size)||x.dataBytes||0;x.media=true;delete x[mFieldOf(fieldOf,x)];mediaSaveOwner(owner)}catch(e){}
   }).catch(function(){}).then(function(){setTimeout(step,0)})};
  setTimeout(step,0)}catch(e){}}
@@ -4036,16 +4036,16 @@ function mediaShelveAll(){try{
    if(p.imgMedia[ix])return;
    if(typeof u!=="string"||u.indexOf("data:")!==0||u.length<MEDIA_MIN)return;
    const b=dataUrlToBlobSync(u);if(!b)return;
-   n++;mediaPut("f",p.id,"i"+ix,b).then(function(){try{p.imgMedia[ix]=1;p.imgs[ix]=""}catch(e){}}).catch(function(){try{delete p.imgMedia[ix]}catch(e){}})});
+   n++;mediaPut("f",p.id,"i"+ix,b).then(function(ok){if(ok===false)return;try{p.imgMedia[ix]=1;p.imgs[ix]=""}catch(e){}}).catch(function(){try{delete p.imgMedia[ix]}catch(e){}})});
   (p.cmts||[]).forEach(function(c){try{
    if(c&&!c.imgMedia&&typeof c.img==="string"&&c.img.indexOf("data:")===0&&c.img.length>=MEDIA_MIN){
-    const b0=dataUrlToBlobSync(c.img);if(b0){n++;mediaPut("mc",c.id,"i",b0).then(function(){try{c.imgMedia=1;c.img=""}catch(e){}}).catch(function(){try{delete c.imgMedia}catch(e){}})}}
+    const b0=dataUrlToBlobSync(c.img);if(b0){n++;mediaPut("mc",c.id,"i",b0).then(function(ok){if(ok===false)return;try{c.imgMedia=1;c.img=""}catch(e){}}).catch(function(){try{delete c.imgMedia}catch(e){}})}}
    if(c&&!c.imgMedia&&c.img&&typeof c.img==="object"&&c.img.size>=MEDIA_MIN){mediaPut("mc",c.id,"i",c.img).then(function(){try{c.imgMedia=1;delete c.img}catch(e){}}).catch(function(){})}
    if(!c||c.media)return;
    const v=c.voiceData;if(!v)return;
    const b=(typeof v==="string")?dataUrlToBlobSync(v):v;
    if(!b||!b.size||b.size<MEDIA_MIN)return;
-   n++;mediaPut("mc",c.id,"v",b).then(function(){try{c.dataBytes=b.size;c.media=true;delete c.voiceData}catch(e){}}).catch(function(){})}catch(e){}});
+   n++;mediaPut("mc",c.id,"v",b).then(function(ok){if(ok===false)return;try{c.dataBytes=b.size;c.media=true;delete c.voiceData}catch(e){}}).catch(function(){})}catch(e){}});
  }catch(e){}});
  if(n)save("moments");
  if(n)try{toast("已整理 "+n+" 张图片/语音，之后开机更快")}catch(e){}
@@ -4113,7 +4113,7 @@ function mediaShelveMsg(m){try{
  if(!blob||!blob.size||blob.size<MEDIA_MIN)return;
  /* 写成功后才标记，失败则保持内嵌数据 */
  const u=URL.createObjectURL(blob);
- mediaPut("m",m.id,"d",blob).then(function(){try{m.dataBytes=blob.size;m.media=true;m.data=u;save("chats")}catch(e){}}).catch(function(){try{delete m.media;delete m.dataBytes;m.data=(typeof v==="string")?v:u;save("chats")}catch(e){}})
+ mediaPut("m",m.id,"d",blob).then(function(ok){if(ok===false)return;try{m.dataBytes=blob.size;m.media=true;m.data=u;save("chats")}catch(e){}}).catch(function(){try{delete m.media;delete m.dataBytes;m.data=(typeof v==="string")?v:u;save("chats")}catch(e){}})
 }catch(e){}}
 function mediaUrl(data,key){if(!data)return "";if(typeof data==="string")return data;if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
 function blobToDataUrl(b){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(b)})}
