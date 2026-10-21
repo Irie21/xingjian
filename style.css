@@ -1557,3 +1557,4 @@ input,textarea,select,[contenteditable],.msgs .bub,.msgs .bub *,.msgs .txt,.vcop
 /* 输入框上方的「引用回复」条：单行省略，不撑高、不挤压输入区 */
 #quotebar .qtx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
 #quotebar .qimg{width:26px;height:26px;border-radius:6px;object-fit:cover;flex:none}
+/* 占卜牌面图：小尺寸高清（260px），圆角、按 5:9 比例裁切 */.dcards .dcard2 .dcimg{width:100%;display:block;border-radius:7px;margin-bottom:5px;aspect-ratio:5/9;object-fit:cover;background:var(--line)}

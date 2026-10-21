@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v70";
+const APP_BUILD="v74";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1773,6 +1773,60 @@ const LENORMAND=`
 锚|Anchor|稳定·坚持·工作·停泊
 十字架|Cross|考验·宿命·重担·信仰
 `.trim().split("\n").map(l=>l.split("|"));
+/* ===== 占卜知识层：融合《78度的智慧》《塔罗牌阵大全》《雷诺曼卡占卜圣经》《The Essential Lenormand》等经典的方法 =====
+   雷诺曼：关键词 | 时间感 | 倾向（+ 有利 / - 需注意 / ± 中性）——按标准 36 张顺序 */
+const LEN_META=[
+ ["消息·速度·来客","很快（数日）","+"],["小幸运·机会","快（数天）","+"],["远行·距离","数周","+"],["家·安定·根基","长期","+"],
+ ["成长·健康","长期／数年","+"],["迷雾·不确定","不定","-"],["复杂·绕路","中期","-"],["结束·停顿","告一段落","-"],
+ ["礼物·美好","快","+"],["突然·切割","突然","-"],["冲突·重复","反复","-"],["交谈·消息","快","±"],
+ ["新开始·纯真","短期","+"],["谨慎·心机","中期","-"],["力量·资源","长期","±"],["希望·指引","夜间／中期","+"],
+ ["变化·搬迁","数周","+"],["忠诚·朋友","长期","+"],["界限·机构","长期","±"],["社交·公开","近期","+"],
+ ["阻碍·延迟","缓慢","-"],["选择·分岔","近期","±"],["损耗·焦虑","渐进","-"],["爱意·热情","近期","+"],
+ ["承诺·契约","长期","+"],["秘密·未知","中期","±"],["文书·消息","快","+"],["男性当事者","—","±"],
+ ["女性当事者","—","±"],["平静·成熟","长期","+"],["成功·活力","白天／夏","+"],["情绪·名声","夜晚／月","±"],
+ ["关键·确定","快","+"],["财源·流动","中期","+"],["稳定·工作","长期","+"],["考验·重担","长期","-"]
+];
+const TAROT_ELEM={权杖:"火 · 行动／热情",圣杯:"水 · 情感／关系",宝剑:"风 · 思维／冲突",星币:"土 · 现实／身体／金钱"};
+function tarotSuitOf(name){const s=String(name||"");for(const k in TAROT_ELEM){if(s.indexOf(k)===0)return k}return ""}
+function tarotNumOf(name){const s=String(name||"").replace(/^(权杖|圣杯|宝剑|星币)/,"");const m=s.match(/^([一二三四五六七八九十]|侍从|骑士|王后|国王)/);return m?m[1]:""}
+const NUM_MEANING={一:"种子／开端",二:"平衡／选择",三:"成长／合作",四:"稳定／结构",五:"变动／挑战",六:"和谐／给予",七:"评估／坚持",八:"力量／推进",九:"接近完成",十:"完成／转折",侍从:"学习／消息",骑士:"行动／追求",王后:"滋养／内在",国王:"掌控／外在"};
+const TAROT_METHOD="【韦特塔罗解读方法】\n· 大牌＝人生阶段与重要课题；小牌＝日常层面的具体经历。\n· 花色：权杖＝火（行动、热情）、圣杯＝水（情感、关系）、宝剑＝风（思维、冲突）、星币＝土（现实、身体、金钱）。\n· 数字：1 种子、2 平衡／选择、3 成长／合作、4 稳定／结构、5 变动／挑战、6 和谐／给予、7 评估／坚持、8 力量／推进、9 接近完成、10 完成／转折；侍从＝学习／消息、骑士＝行动／追求、王后＝滋养／内在、国王＝掌控／外在。\n· 逆位不等于坏：可能是能量受阻、内化、过度或不足，要按位置与周围牌判断。\n· 综合看：大牌比例、同花色／同数字的重复、元素是否平衡、牌与牌之间的呼应。";
+const LEN_METHOD="【雷诺曼解读方法】\n· 多张牌要「成对」读：左边是因／背景，右边是果／发展，相邻两张就是一句话。\n· 关注主题牌／指示牌（心＝感情、戒指＝承诺、锚＝工作稳定、鱼／熊＝金钱）。\n· 距离与方向：离得近＝影响强，远＝影响弱；朝向的牌表示走向。\n· 时间：看最后一张牌（骑士／三叶草＝很快；船／鹳鸟＝数周；树／锚／塔／十字架＝长期）。\n· 牌性：正面牌多＝顺利，负面牌多＝需要先处理阻力；不要只看单张。";
+function lenMetaOf(c){try{const i=LENORMAND.findIndex(function(x){return x[0]===c.name});return i>=0?LEN_META[i]:null}catch(e){return null}}
+function lenPairs(cards){const out=[];try{
+ for(let i=0;i<cards.length-1;i++){
+  const a=cards[i],b=cards[i+1];
+  const ax=String(a.up||"").split("·")[0],bx=String(b.up||"").split("·")[0];
+  const ma=lenMetaOf(a),mb=lenMetaOf(b);
+  let tone="";
+  if(ma&&mb){tone=(ma[2]==="+"&&mb[2]==="+")?"两张都顺，事情容易推进":((ma[2]==="-"&&mb[2]==="-")?"两张都带阻力，先处理卡点":"一顺一阻，结果取决于你怎么接")}
+  out.push("· "+a.name+"（"+ax+"）→ "+b.name+"（"+bx+"）："+ax+" 落在 "+bx+" 上"+(tone?"——"+tone:""));
+ }return out}catch(e){return out}}
+/* 塔罗关键词：小牌用「花色元素 · 数字含义」组合；大牌取牌意第一段（不依赖牌名匹配，稳） */
+/* 22 张大牌的手写关键词（按英文名匹配，避免中文牌名不一致导致漏配） */
+const MAJOR_KW=[
+ [/Fool/i,"新的开始·冒险·信任直觉"],[/Magician/i,"行动·资源·创造"],[/High Priestess/i,"直觉·静观·秘密"],
+ [/Empress/i,"丰盛·滋养·创造力"],[/Emperor/i,"秩序·掌控·边界"],[/Hierophant/i,"传统·学习·指引"],
+ [/Lovers?/i,"选择·结合·价值"],[/Chariot/i,"前进·意志·方向"],[/Strength/i,"温柔的力量·耐心·勇气"],
+ [/Hermit/i,"独处·内省·找答案"],[/Wheel/i,"转机·循环·时机"],[/Justice/i,"平衡·因果·决定"],
+ [/Hanged/i,"暂停·换角度·放下"],[/Death/i,"结束与转化·断舍离"],[/Temperance/i,"调和·耐心·中道"],
+ [/Devil/i,"执念·诱惑·束缚"],[/Tower/i,"突变·瓦解·真相"],[/Star/i,"希望·疗愈·指引"],
+ [/Moon/i,"潜意识·不安·想象"],[/Sun/i,"成功·清晰·活力"],[/Judg/i,"觉醒·召唤·回顾"],[/World/i,"完成·圆满·整合"]
+];
+function majorKwOf(c){try{const en=String((c&&c.en)||"");for(let i=0;i<MAJOR_KW.length;i++){if(MAJOR_KW[i][0].test(en))return MAJOR_KW[i][1]}return ""}catch(e){return ""}}
+function tarotKeyword(c){try{const mk=majorKwOf(c);if(mk)return mk;
+ const s=tarotSuitOf(c.name),n=tarotNumOf(c.name);
+ if(!s){const seg=String(c.up||"").split(/[·，,。；]/)[0];return seg||""}
+ return TAROT_ELEM[s].split(" · ")[0]+" · "+n+"（"+(NUM_MEANING[n]||"")+"）";
+}catch(e){return ""}}
+/* 雷诺曼的牌阵结构提示（5 张 / 9 宫格 / 12 宫位 / 7 张） */
+function lenStructure(cards){try{const n=(cards||[]).length;
+ if(n===36)return "大牌阵（Grand Tableau）：先找「你」的牌（男人／女人）和主题牌；看它四周与角落的牌、四角（骑士·房子·十字架·锚）＝整体框架；上排＝过去、中排＝现在、下排＝未来；离主题牌越近影响越强，越远越弱。";
+ if(n===5)return "5 张情境线：1＝背景／过去，2＝当下，3＝核心（最关键），4＝建议／你的态度，5＝走向／结果。";
+ if(n===9)return "9 宫格：中心牌是主题；上排＝过去、中排＝现在、下排＝未来；四角＝环境影响。先读中心，再读十字（上下左右）。";
+ if(n===12)return "12 宫位：按生命领域读（1 自我、2 金钱、3 沟通、4 家庭、5 恋爱、6 工作日常、7 关系、8 共享资源、9 远行／信念、10 事业、11 朋友、12 潜意识）。";
+ if(n===7)return "7 张：先看中心牌定主题，再按位置逐张读，最后看整体牌性与最后一张的时间感。";
+ return ""}catch(e){return ""}}
 const DECK_TAROT="tarot",DECK_LEN="lenormand";
 /* 常用牌阵：id | 名称 | 各位置含义（数量=抽牌张数） */
 const SPREADS=[
@@ -1786,6 +1840,12 @@ const SPREADS=[
  ["hex7","六芒星",["过去","现在","未来","对策","环境","他人","结果"]],
  ["celtic10","凯尔特十字",["现状","阻碍","潜意识","过去","建议","近期未来","你的态度","环境","希望或恐惧","结果"]],
  ["grid9","九宫格",["核心","影响","结果","过去","现在","未来","自我","环境","建议"]],
+["len5","雷诺曼五张",["背景","当下","核心","建议","走向"]],
+ ["house12","十二宫位",["自我","金钱","沟通","家庭","恋爱","工作日常","关系","共享资源","远行信念","事业","朋友","潜意识"]],
+ ["chakra7","脉轮七张",["海底轮·安全感","脐轮·情绪","太阳轮·意志","心轮·爱","喉轮·表达","眉心轮·洞察","顶轮·连结"]],
+ ["moon8","月相八张",["新月·起念","眉月·行动","上弦·决定","盈凸·调整","满月·显现","亏凸·感恩","下弦·放下","残月·休息"]],
+ ["rel7","关系七张",["你","对方","关系现状","阻碍","他的期待","你的期待","建议"]],
+["gt36","大牌阵·全铺",LENORMAND.map(function(x){return x[0]})],
 ];
 function divSpreadObj(id){return SPREADS.find(s=>s[0]===id)||SPREADS[1]}
 
@@ -1800,17 +1860,51 @@ function drawCards(use,spreadId){
  out.forEach((c,i)=>c.pos=pos[i]||"");
  return out}
 function buildDivinePrompt(q,cards,use){
- const list=cards.map(c=>((c.pos?c.pos+"：":"")+c.name+"（"+c.en+"）"+(c.rv?"【逆位】":"【正位】")+" — "+(c.rv?c.rev:c.up))).join("\n");
- return "【占卜问题】\n"+q+"\n\n【牌组】"+divineDeckName(use)+"\n【抽出的牌】\n"+list+
-  "\n\n请参考《塔罗葵花宝典》《你已经很塔罗了》《78度的智慧》《你可以在塔罗一点》《学会塔罗的16节课》《雷诺曼精度》等经典著作的解读思路，"+
-  "结合每张牌的牌意与所处位置，给出条理清晰、温暖而专业的解读：先逐张解牌，再综合结论，最后给一句可执行的建议。语言自然口语化。"}
+ const list=cards.map(function(c){
+  let extra="";
+  if(use===DECK_LEN){const m=lenMetaOf(c);if(m){const p = (m[2]==="+") ? "有利" : ((m[2]==="-") ? "需要注意" : "中性");extra="｜补充："+m[0]+"｜时间感："+m[1]+"｜倾向："+p}}
+  else{const s=tarotSuitOf(c.name),n=tarotNumOf(c.name);const bits=[];if(s)bits.push(TAROT_ELEM[s]);if(n&&NUM_MEANING[n])bits.push("数字"+n+"＝"+NUM_MEANING[n]);if(bits.length)extra="｜"+bits.join("｜")}
+  return (c.pos?c.pos+"：" :"")+c.name+"（"+c.en+"）"+(c.rv?"【逆位】":"【正位】")+" — "+(c.rv?c.rev:c.up)+extra}).join("\n");
+ const pairs=(use===DECK_LEN&&cards.length>1)?("\n\n【相邻成对】\n"+lenPairs(cards).join("\n")):"";
+ const method=(use===DECK_LEN)?LEN_METHOD:TAROT_METHOD;
+ return "【占卜问题】\n"+q+"\n\n【牌组】"+divineDeckName(use)+"\n【抽出的牌】\n"+list+pairs+"\n\n"+((use===DECK_LEN&&lenStructure(cards))?("【结构提示】"+lenStructure(cards)+"\n\n"):"")+method+
+  "\n\n请严格按上面的方法解读：先逐张说明这张牌在这个位置的意思，再做组合／结构分析"+(use===DECK_LEN?"（成对读、主题牌、时间）":"（大牌比例、花色数字重复、元素平衡、逆位性质）")+
+  "，然后给出综合结论，最后给一句可执行的建议。语言温暖、口语化，不要生硬罗列。";
+}
 function localDivineText(q,cards,use){
- const lines=cards.map((c,i)=>"· "+(c.pos?c.pos+"：" :"")+c.name+(c.rv?"（逆位）":"（正位）")+" — "+(c.rv?c.rev:c.up));
- return "【你问】"+q+"\n\n【抽到的"+divineDeckName(use)+"】\n"+lines.join("\n")+
-  "\n\n【解读】\n请先静心感受以上牌面：它们呈现的是当下的能量与趋势，而非不可更改的定局。留意反复出现的关键词，那往往正是你要面对的核心。\n\n【建议】顺着牌面提示的方向做一件小事，让局面开始流动。"}
+ const lines=cards.map(function(c){
+  let extra="";
+  if(use===DECK_LEN){const m=lenMetaOf(c);if(m)extra="（"+m[0].replace(/·/g,"，")+"；时间："+m[1]+"）"}
+  else{const s=tarotSuitOf(c.name),n=tarotNumOf(c.name);const bits=[];if(s)bits.push(TAROT_ELEM[s]);if(n&&NUM_MEANING[n])bits.push("数字"+n+"："+NUM_MEANING[n]);if(bits.length)extra="（"+bits.join("；")+"）"}
+  return "· "+(c.pos?c.pos+"：" :"")+c.name+(c.rv?"（逆位）":"（正位）")+" — "+(c.rv?c.rev:c.up)+extra});
+ let body="【你问】"+q+"\n\n【抽到的"+divineDeckName(use)+"】\n"+lines.join("\n");
+ if(use===DECK_LEN&&cards.length>1){const ps=lenPairs(cards);if(ps.length)body+="\n\n【成对解读】\n"+ps.join("\n")}
+ if(use===DECK_LEN){const st=lenStructure(cards);if(st)body+="\n\n【牌阵结构】"+st}
+ body+="\n\n【解读】";
+ if(use===DECK_LEN){
+  body+="雷诺曼要把牌当句子读：左边的牌是起因与背景，右边的牌是发展与结果。"+(cards.length>1?"上面每一对就是一句话，把它们连起来就是整件事的走向。":"单张牌给出的是这件事的核心性质。")+"留意重复出现的关键词，那往往正是你要面对的核心。";
+ }else{
+  body+="塔罗看的是能量分布：先看大牌（重要课题）与小牌（日常层面）的比例，再看同花色、同数字的重复与元素是否平衡（火＝行动、水＝情感、风＝思维、土＝现实）。逆位不是「坏牌」，多为受阻、内化或过度，要结合位置与相邻牌判断。";
+ }
+ body+="\n\n【建议】顺着牌面提示的方向，先做一件很小的、可执行的事，让局面开始流动。";
+ return body}
+/* 塔罗牌图片：assets/tarot/mNN.jpg（大牌 00-21）与 花色+点数（w/c/s/p + 01-10, j/n/q/k） */
+const MAJOR_ORDER=[/Fool/i,/Magician/i,/High Priestess/i,/Empress/i,/Emperor/i,/Hierophant/i,/Lovers?/i,/Chariot/i,/Strength/i,/Hermit/i,/Wheel/i,/Justice/i,/Hanged/i,/Death/i,/Temperance/i,/Devil/i,/Tower/i,/Star/i,/Moon/i,/Sun/i,/Judg/i,/World/i];
+function tarotImgOf(c){try{
+ const s=tarotSuitOf(c.name);
+ if(!s){const en=String((c&&c.en)||"");for(let i=0;i<MAJOR_ORDER.length;i++){if(MAJOR_ORDER[i].test(en))return "assets/tarot/m"+pad(i)+".jpg"}return ""}
+ const code={权杖:"w",圣杯:"c",宝剑:"s",星币:"p"}[s];if(!code)return "";
+ const n=tarotNumOf(c.name);
+ const rk={"一":"01","二":"02","三":"03","四":"04","五":"05","六":"06","七":"07","八":"08","九":"09","十":"10",侍从:"j",骑士:"n",王后:"q",国王:"k"}[n];
+ return rk?("assets/tarot/"+code+rk+".jpg"):"";
+}catch(e){return ""}}
 function divCardsHtml(cards){
  if(!cards||!cards.length)return "";
- return '<div class="dcards">'+cards.map(c=>'<div class="dcard2"><div class="dcpos">'+esc(c.pos||"")+'</div><div class="dcname">'+esc(c.name)+'</div><div class="dcen">'+esc(c.en||"")+'</div><div class="dckw">'+(c.rv?"逆位 · ":"")+esc(c.rv?c.rev:c.up)+"</div></div>").join("")+"</div>"}
+ return '<div class="dcards">'+cards.map(function(c){
+  let meta="";
+  if(c.rev===""){const m=lenMetaOf(c);if(m)meta=m[1]}
+  else{meta=tarotKeyword(c)}
+  const _im=tarotImgOf(c);return '<div class="dcard2">'+(_im?'<img class="dcimg" src="'+_im+'" loading="lazy" alt="" onerror="this.remove()">':"")+'<div class="dcpos">'+esc(c.pos||"")+'</div><div class="dcname">'+esc(c.name)+'</div><div class="dcen">'+esc(c.en||"")+(meta?" · "+esc(meta):"")+'</div><div class="dckw">'+(c.rv?"逆位 · ":"")+esc(c.rv?c.rev:c.up)+"</div></div>"}).join("")+"</div>"}
 function divViewEntry(){const list=S.divine||[];const id=S.misc.divView;return (id&&list.find(x=>x.id===id))||list[0]||null}
 function divRender(){const e=divViewEntry();if(!e)return '<div class="empty">还没有占卜记录，写下你的问题开始吧</div>';
  return '<div class="card"><div class="dvq">'+esc(e.q)+'</div>'+divCardsHtml(e.cards)+
