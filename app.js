@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v74";
+const APP_BUILD="v81";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1788,7 +1788,7 @@ const LEN_META=[
 ];
 const TAROT_ELEM={权杖:"火 · 行动／热情",圣杯:"水 · 情感／关系",宝剑:"风 · 思维／冲突",星币:"土 · 现实／身体／金钱"};
 function tarotSuitOf(name){const s=String(name||"");for(const k in TAROT_ELEM){if(s.indexOf(k)===0)return k}return ""}
-function tarotNumOf(name){const s=String(name||"").replace(/^(权杖|圣杯|宝剑|星币)/,"");const m=s.match(/^([一二三四五六七八九十]|侍从|骑士|王后|国王)/);return m?m[1]:""}
+function tarotNumOf(name){const s=String(name||"").replace(/^(权杖|圣杯|宝剑|星币)/,"");const m=s.match(/^([一二三四五六七八九十]|首牌|侍从|骑士|王后|国王)/);if(!m)return "";return m[1]==="首牌"?"一":m[1]}
 const NUM_MEANING={一:"种子／开端",二:"平衡／选择",三:"成长／合作",四:"稳定／结构",五:"变动／挑战",六:"和谐／给予",七:"评估／坚持",八:"力量／推进",九:"接近完成",十:"完成／转折",侍从:"学习／消息",骑士:"行动／追求",王后:"滋养／内在",国王:"掌控／外在"};
 const TAROT_METHOD="【韦特塔罗解读方法】\n· 大牌＝人生阶段与重要课题；小牌＝日常层面的具体经历。\n· 花色：权杖＝火（行动、热情）、圣杯＝水（情感、关系）、宝剑＝风（思维、冲突）、星币＝土（现实、身体、金钱）。\n· 数字：1 种子、2 平衡／选择、3 成长／合作、4 稳定／结构、5 变动／挑战、6 和谐／给予、7 评估／坚持、8 力量／推进、9 接近完成、10 完成／转折；侍从＝学习／消息、骑士＝行动／追求、王后＝滋养／内在、国王＝掌控／外在。\n· 逆位不等于坏：可能是能量受阻、内化、过度或不足，要按位置与周围牌判断。\n· 综合看：大牌比例、同花色／同数字的重复、元素是否平衡、牌与牌之间的呼应。";
 const LEN_METHOD="【雷诺曼解读方法】\n· 多张牌要「成对」读：左边是因／背景，右边是果／发展，相邻两张就是一句话。\n· 关注主题牌／指示牌（心＝感情、戒指＝承诺、锚＝工作稳定、鱼／熊＝金钱）。\n· 距离与方向：离得近＝影响强，远＝影响弱；朝向的牌表示走向。\n· 时间：看最后一张牌（骑士／三叶草＝很快；船／鹳鸟＝数周；树／锚／塔／十字架＝长期）。\n· 牌性：正面牌多＝顺利，负面牌多＝需要先处理阻力；不要只看单张。";
@@ -1886,10 +1886,16 @@ function localDivineText(q,cards,use){
  }else{
   body+="塔罗看的是能量分布：先看大牌（重要课题）与小牌（日常层面）的比例，再看同花色、同数字的重复与元素是否平衡（火＝行动、水＝情感、风＝思维、土＝现实）。逆位不是「坏牌」，多为受阻、内化或过度，要结合位置与相邻牌判断。";
  }
+
  body+="\n\n【建议】顺着牌面提示的方向，先做一件很小的、可执行的事，让局面开始流动。";
  return body}
 /* 塔罗牌图片：assets/tarot/mNN.jpg（大牌 00-21）与 花色+点数（w/c/s/p + 01-10, j/n/q/k） */
 const MAJOR_ORDER=[/Fool/i,/Magician/i,/High Priestess/i,/Empress/i,/Emperor/i,/Hierophant/i,/Lovers?/i,/Chariot/i,/Strength/i,/Hermit/i,/Wheel/i,/Justice/i,/Hanged/i,/Death/i,/Temperance/i,/Devil/i,/Tower/i,/Star/i,/Moon/i,/Sun/i,/Judg/i,/World/i];
+/* 雷诺曼牌面图：assets/lenormand/01.jpg … 36.jpg（按标准 36 张顺序编号） */
+function lenImgOf(c){try{
+ const i=LENORMAND.findIndex(function(x){return x[0]===c.name});
+ return i>=0?("assets/lenormand/"+pad(i+1)+".jpg"):"";
+}catch(e){return ""}}
 function tarotImgOf(c){try{
  const s=tarotSuitOf(c.name);
  if(!s){const en=String((c&&c.en)||"");for(let i=0;i<MAJOR_ORDER.length;i++){if(MAJOR_ORDER[i].test(en))return "assets/tarot/m"+pad(i)+".jpg"}return ""}
@@ -1904,7 +1910,7 @@ function divCardsHtml(cards){
   let meta="";
   if(c.rev===""){const m=lenMetaOf(c);if(m)meta=m[1]}
   else{meta=tarotKeyword(c)}
-  const _im=tarotImgOf(c);return '<div class="dcard2">'+(_im?'<img class="dcimg" src="'+_im+'" loading="lazy" alt="" onerror="this.remove()">':"")+'<div class="dcpos">'+esc(c.pos||"")+'</div><div class="dcname">'+esc(c.name)+'</div><div class="dcen">'+esc(c.en||"")+(meta?" · "+esc(meta):"")+'</div><div class="dckw">'+(c.rv?"逆位 · ":"")+esc(c.rv?c.rev:c.up)+"</div></div>"}).join("")+"</div>"}
+  const _im=(c.rev==="")?lenImgOf(c):tarotImgOf(c);return '<div class="dcard2">'+(_im?'<img class="dcimg'+(c.rv?" rv":"")+'" src="'+_im+'" loading="lazy" alt="" onerror="this.remove()">':"")+'<div class="dcpos">'+esc(c.pos||"")+'</div><div class="dcname">'+esc(c.name)+'</div><div class="dcen">'+esc(c.en||"")+(meta?" · "+esc(meta):"")+'</div><div class="dckw">'+(c.rv?"逆位 · ":"")+esc(c.rv?c.rev:c.up)+"</div></div>"}).join("")+"</div>"}
 function divViewEntry(){const list=S.divine||[];const id=S.misc.divView;return (id&&list.find(x=>x.id===id))||list[0]||null}
 function divRender(){const e=divViewEntry();if(!e)return '<div class="empty">还没有占卜记录，写下你的问题开始吧</div>';
  return '<div class="card"><div class="dvq">'+esc(e.q)+'</div>'+divCardsHtml(e.cards)+
@@ -1913,6 +1919,7 @@ function divRender(){const e=divViewEntry();if(!e)return '<div class="empty">还
 function divHistHtml(){const list=S.divine||[];if(!list.length)return '<div class="empty">暂无记录</div>';
  return '<div class="card" style="padding:0 12px">'+list.map(e=>'<div class="row" style="padding:10px 2px"><span class="lab" data-act="divine-open" data-id="'+e.id+'" style="cursor:pointer">'+esc(String(e.q).slice(0,26))+(String(e.q).length>26?"…":"")+'<br><span class="sub">'+divineDeckName(e.deck)+" · "+(e.cards||[]).length+" 张 · "+fmtFull(e.ts)+'</span></span><button class="ibtn" data-act="divine-del" data-id="'+e.id+'">'+ico("trash")+"</button></div>").join("")+"</div>"}
 function divOutRefresh(){const o=$("#dvout");if(o)o.innerHTML=divRender();const h=$("#dvhist");if(h)h.innerHTML=divHistHtml()}
+/* ===== 梦占：用塔罗 / 雷诺曼读「梦角」此刻的想法（不是心理学解梦） ===== */
 PAGES.divine={html(){S.misc.divDeck=S.misc.divDeck||"auto";if(!SPREADS.some(s=>s[0]===S.misc.divSpread))S.misc.divSpread="time3";
  const decks=[["auto","自动"],["tarot","韦特塔罗"],["lenormand","雷诺曼"]];
  return phead("占卜")+
