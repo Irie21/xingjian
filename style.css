@@ -1575,3 +1575,10 @@ input,textarea,select,[contenteditable],.msgs .bub,.msgs .bub *,.msgs .txt,.vcop
 .dcards .dcard2 .dcen{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;word-break:break-word !important;line-height:1.35;padding:0 2px 4px}
 .dcards .dcard2{align-items:stretch}
 .dcards .dcard2 .dcmeta{font-size:10px;color:var(--muted);padding:0 2px 4px;line-height:1.35;white-space:normal;word-break:break-word}
+
+/* 三张牌固定并排（不换行）：按容器等分，最多 120px 宽 */
+.dcards .dcard2{flex:1 1 0 !important;min-width:0 !important;max-width:120px !important}
+.dcards{gap:8px !important}
+/* 正好三张时：无论塔罗还是雷诺曼，都强制三等分、同一行 */
+.dcards.n3 .dcard2{flex:1 1 0 !important;min-width:0 !important;max-width:calc((100% - 16px) / 3) !important}
+.dcards.n3{flex-wrap:nowrap !important}

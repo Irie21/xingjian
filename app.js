@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v85";
+const APP_BUILD="v88";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -779,7 +779,7 @@ function renderMsgs(mode){const box=$("#msgs");if(!box)return;
  const more=start>0?'<button type="button" class="moremsg" data-act="chat-more">↑ 加载更早的消息（还有 '+start+' 条）</button>':"";
  box.innerHTML=more+(S.chats.slice(start).map(msgBubble).join("")||'<div class="empty">还没有消息，说句话吧</div>');
  if(sc)sc.scrollTop=near?sc.scrollHeight:Math.max(0,t0+(sc.scrollHeight-h0));
- if(txPopEl)placeTxPop();try{chatLoadMedia()}catch(e){}}
+ if(txPopEl)placeTxPop();try{chatLoadMedia()}catch(e){}try{chatQuoteFill()}catch(e){}}
 ACT["chat-more"]=()=>{chatShowLimit+=CHAT_STEP;renderMsgs("keep")};
 /* 滚到聊天顶部附近就自动加载更早的消息 */
 function bindChatMoreScroll(){try{const sc=$("#chatscroll");if(!sc||sc.dataset.moreBound)return;sc.dataset.moreBound="1";
@@ -1907,7 +1907,7 @@ function tarotImgOf(c){try{
 }catch(e){return ""}}
 function divCardsHtml(cards){
  if(!cards||!cards.length)return "";
- return '<div class="dcards">'+cards.map(function(c){
+ return '<div class="dcards n'+cards.length+'">'+cards.map(function(c){
   let meta="";
   if(c.rev===""){const m=lenMetaOf(c);if(m)meta=m[1]}
   else{meta=tarotKeyword(c)}
@@ -5562,14 +5562,28 @@ function quoteNorm(q,id){
  if(q&&typeof q==="object")return {type:q.type||"text",content:(typeof q.content==="string"?q.content:"")};
  return {type:"text",content:""}}
 /* 图片引用：优先用引用对象里的 content，缺失时按 quoteId 回原消息取（不额外占存储） */
+/* 引用里的图片：刷新后 objectURL 会失效，按 data-qid 从独立记录里补回来 */
+function chatQuoteFill(){try{
+ var imgs=[].slice.call(document.querySelectorAll("#msgs .msg .qimg[data-qid]"));
+ if(!imgs.length)return;
+ var i=0;
+ var step=function(){
+  if(i>=imgs.length)return;
+  var im=imgs[i++];
+  var qid=im.getAttribute("data-qid");
+  if(!qid||im.getAttribute("src")){setTimeout(step,0);return}
+  mediaGet("m",qid,"d").then(function(b){
+   if(b){var u="";try{u=URL.createObjectURL(b)}catch(e){};if(u){try{im.src=u}catch(e){}}}
+   setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
+ setTimeout(step,0)}catch(e){}}
 function quoteImgSrc(o,id){const c=o&&o.content;
- if(typeof c==="string"&&/^(data:|https?:|blob:)/.test(c))return c;
+ if(typeof c==="string"&&/^(data:|https?:)/.test(c))return c;
  if(!id)return "";const m=(S.chats||[]).find(function(x){return x.id===id});
- return (m&&m.type==="img"&&m.data)?m.data:""}
+ return (m&&m.type==="img"&&m.data&&!/^blob:/.test(String(m.data)))?m.data:""}
 function quoteHtml(q,id){const o=quoteNorm(q,id);
  if(o.type==="text"){const t=String(o.content||"");return '<span class="qtx">'+esc(t.length>10?t.slice(0,10)+"…":t)+"</span>"}
  const src=quoteImgSrc(o,id);
- return src?'<img class="qimg" src="'+src+'" alt="">':'<span class="qtx">［图片］</span>'}
+ return src?'<img class="qimg" src="'+src+'" alt="">':'<img class="qimg" data-qid="'+esc(String(id||""))+'" alt="">'}
 function renderQuoteBar(){const bar=$("#quotebar");if(!bar)return;
  if(quoteRef){bar.classList.add("on");bar.innerHTML='<span class="qico">'+ico("quote")+'</span>'+quoteHtml(quoteRef.quote,quoteRef.id)+'<button class="qx" data-act="quote-clear" title="取消引用">'+ico("close")+'</button>'}
  else{bar.classList.remove("on");bar.innerHTML=""}
