@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v81";
+const APP_BUILD="v82";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1401,7 +1401,6 @@ PAGES.letteredit={html(){const nm=esc(S.settings.taName||"TA");const rep=_le.mod
  return phead(rep?("回信 · 给 "+nm):("写信 · 给 "+nm))+
   (rep&&l?'<div class="mlcard"><div class="mlch"><b>'+esc(nm)+'</b><span class="mltime">'+mailDate(l.ts)+'</span></div>'+(l.title?'<div class="mlct">'+esc(l.title)+"</div>":"")+'<div class="mlcc">'+esc(l.content)+"</div>"+(l.sticker?'<img class="mlst" src="'+l.sticker+'">':"")+"</div>":"")+
   '<div class="lebtns"><button class="ibtn" data-act="letter-emo" title="表情包">'+ico("sticker")+'</button><button class="ibtn" data-act="letter-img" title="图片">'+ico("img")+"</button></div>"+
-  '<div class="muted" style="padding:0 2px 8px">选不了多张或点了没反应，是浏览器 / 所在 App 的限制：换 Chrome / Edge 再试。</div>'+
   '<div class="mlcard edit"><div class="mlch"><b>'+esc(rep?"我的回信":(S.settings.myName||"我"))+'</b><span class="mltime">正在写…</span></div>'+
    '<input id="lt2" class="letitle" placeholder="标题（可空）">'+
    '<textarea id="lc2" class="lebody" placeholder="亲爱的，&#10;&#10;今天想跟你说…"></textarea>'+
@@ -1894,15 +1893,15 @@ const MAJOR_ORDER=[/Fool/i,/Magician/i,/High Priestess/i,/Empress/i,/Emperor/i,/
 /* 雷诺曼牌面图：assets/lenormand/01.jpg … 36.jpg（按标准 36 张顺序编号） */
 function lenImgOf(c){try{
  const i=LENORMAND.findIndex(function(x){return x[0]===c.name});
- return i>=0?("assets/lenormand/"+pad(i+1)+".jpg"):"";
+ return i>=0?("assets/lenormand/"+pad(i+1)+".jpg?v="+APP_BUILD):"";
 }catch(e){return ""}}
 function tarotImgOf(c){try{
  const s=tarotSuitOf(c.name);
- if(!s){const en=String((c&&c.en)||"");for(let i=0;i<MAJOR_ORDER.length;i++){if(MAJOR_ORDER[i].test(en))return "assets/tarot/m"+pad(i)+".jpg"}return ""}
+ if(!s){const en=String((c&&c.en)||"");for(let i=0;i<MAJOR_ORDER.length;i++){if(MAJOR_ORDER[i].test(en))return "assets/tarot/m"+pad(i)+".jpg?v="+APP_BUILD}return ""}
  const code={权杖:"w",圣杯:"c",宝剑:"s",星币:"p"}[s];if(!code)return "";
  const n=tarotNumOf(c.name);
  const rk={"一":"01","二":"02","三":"03","四":"04","五":"05","六":"06","七":"07","八":"08","九":"09","十":"10",侍从:"j",骑士:"n",王后:"q",国王:"k"}[n];
- return rk?("assets/tarot/"+code+rk+".jpg"):"";
+ return rk?("assets/tarot/"+code+rk+".jpg?v="+APP_BUILD):"";
 }catch(e){return ""}}
 function divCardsHtml(cards){
  if(!cards||!cards.length)return "";
@@ -5329,7 +5328,7 @@ function askBubbleHtml(m){const ta=S.settings.taName||"TA",ans=m.status==="answe
   return '<span class="askopt'+(pk?" on":"")+'"><i class="asklt">'+L(i)+'.</i><span class="asktx">'+esc(o)+"</span></span>"}).join("");
  const txt=ans&&m.askType==="text"?(m.cards&&m.cards.length?esc(m.cards.join(" ")):esc(m.pickText||"")):"";
  const pickNames=ans&&m.askType!=="text"?(m.pick||[]).map(i=>(m.opts||[])[i]).filter(x=>x!=null):[];
- const foot=ans?(m.askType==="text"?"":(pickNames.length?'<span class="askfoot">'+esc(ta)+" 选了「"+pickNames.map(esc).join("」「")+"」</span>":"")):"";
+ const foot="";
  return '<span class="askcard"><span class="askhead"><span class="askpill">帮我决定</span><span class="askst">'+(ans?"已回答":"等待 "+esc(ta)+" 回答…")+"</span></span>"+
   '<span class="askqq">'+esc(m.q||"")+"</span>"+(txt?'<span class="asktxt">'+txt+"</span>":opts)+foot+"</span>"}
 /* 旧版单题问卷卡片（仅用于渲染历史记录里的 quiz 消息） */
