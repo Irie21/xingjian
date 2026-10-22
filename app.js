@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v83";
+const APP_BUILD="v85";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1911,7 +1911,7 @@ function divCardsHtml(cards){
   let meta="";
   if(c.rev===""){const m=lenMetaOf(c);if(m)meta=m[1]}
   else{meta=tarotKeyword(c)}
-  const _im=(c.rev==="")?lenImgOf(c):tarotImgOf(c);return '<div class="dcard2">'+(_im?'<img class="dcimg'+(c.rv?" rv":"")+'" src="'+_im+'" loading="lazy" alt="" onerror="this.remove()">':"")+'<div class="dcpos">'+esc(c.pos||"")+'</div><div class="dcname">'+esc(c.name)+'</div><div class="dcen">'+esc(c.en||"")+(meta?" · "+esc(meta):"")+'</div><div class="dckw">'+(c.rv?"逆位 · ":"")+esc(c.rv?c.rev:c.up)+"</div></div>"}).join("")+"</div>"}
+  const _im=(c.rev==="")?lenImgOf(c):tarotImgOf(c);return '<div class="dcard2">'+(_im?'<img class="dcimg'+(c.rv?" rv":"")+'" src="'+_im+'" loading="lazy" alt="" onerror="this.remove()">':"")+'<div class="dcpos">'+esc(c.pos||"")+'</div><div class="dcname">'+esc(c.name)+'</div><div class="dcen">'+esc(c.en||"")+'</div>'+(meta?'<div class="dcmeta">'+esc(meta)+'</div>':"")+'<div class="dckw">'+(c.rv?"逆位 · ":"")+esc(c.rv?c.rev:c.up)+"</div></div>"}).join("")+"</div>"}
 function divViewEntry(){const list=S.divine||[];const id=S.misc.divView;return (id&&list.find(x=>x.id===id))||list[0]||null}
 function divRender(){const e=divViewEntry();if(!e)return '<div class="empty">还没有占卜记录，写下你的问题开始吧</div>';
  return '<div class="card"><div class="dvq">'+esc(e.q)+'</div>'+divCardsHtml(e.cards)+
