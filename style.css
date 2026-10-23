@@ -1601,3 +1601,27 @@ html[data-glass="1"] .stepnum{
   backdrop-filter: none !important;
 }
 html[data-glass="1"] .chip.on:not(.danger){border-color: var(--primary) !important}
+/* 液态玻璃：按钮底色改成背景色后，文字/图标颜色必须跟着变成正文色，
+   否则在黑白等主题里「白底 + 白色字」会看不见（.btn.pri / .chip.on 原本用 --on-primary 白字） */
+html[data-glass="1"] .btn:not(.danger),
+html[data-glass="1"] .btn.pri:not(.danger),
+html[data-glass="1"] .ibtn:not(.danger),
+html[data-glass="1"] .chip:not(.danger),
+html[data-glass="1"] .chip.on:not(.danger),
+html[data-glass="1"] .stbtn,
+html[data-glass="1"] .stepnum{color: var(--text) !important}
+html[data-glass="1"] .btn:not(.danger) svg,
+html[data-glass="1"] .ibtn:not(.danger) svg,
+html[data-glass="1"] .chip:not(.danger) svg,
+html[data-glass="1"] .stbtn svg{color: inherit !important}
+
+/* 液态玻璃：聊天页四角按钮（左上返回 / 右上收藏 / 左下功能 / 右下发送）底图改为透明 */
+html[data-glass="1"] .phead.chat-head .ibtn,
+html[data-glass="1"] .chatbar .ibtn{
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
