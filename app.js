@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v91";
+const APP_BUILD="v92";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -6327,7 +6327,7 @@ ACT["libedit-replace"]=()=>{const cat=curParam.cat;const id=curParam.id;const c=
 ACT["libedit-export"]=el=>{const c=S.cards.find(x=>x.id===el.dataset.id);if(!c||!c.data)return toast("没有音频");try{const b=new Blob([c.data],{type:"audio/mpeg"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=(c.name||"语音").replace(/\.[^.]+$/,"")+".mp3";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);toast("已导出 mp3")}catch(e){toast("导出失败")}};
 /* ---- settings actions ---- */
 ACT["set-open"]=el=>go(el.dataset.page);
-ACT["theme-pick"]=el=>{const t=THEMES.find(x=>x[0]===el.dataset.t);S.settings.theme=el.dataset.t;S.settings.custom={primary:(t&&t[2])||"",bg:(t&&t[3])||""};save("settings");applyTheme();render()};
+ACT["theme-pick"]=el=>{S.settings.theme=el.dataset.t;save("settings");applyTheme();render()};
 ACT["flower-app"]=el=>{const id=el.dataset.id;S.settings.flowerApps=S.settings.flowerApps||{};S.settings.flowerApps[id]=!S.settings.flowerApps[id];save("settings");render()};
 ACT["asset-up"]=el=>pickFile("image/*",false,fs=>readAsDataURL(fs[0]).then(u=>compressImage(u,1024,.82)).then(c=>{S.assets[el.dataset.k]=c;save("assets");applyTheme();applyChatUI();render();toast("已上传")}));
 ACT["asset-clr"]=el=>{delete S.assets[el.dataset.k];save("assets");applyTheme();applyChatUI();render()};

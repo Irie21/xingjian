@@ -1587,3 +1587,17 @@ input,textarea,select,[contenteditable],.msgs .bub,.msgs .bub *,.msgs .txt,.vcop
    聊天消息列表是从顶栏下方开始滚动的，所以不会透出文字/表情包/图片。 */
 .phead.chat-head,.phead.chat-head.on{background:transparent !important;background-color:transparent !important;border:none !important;box-shadow:none !important}
 .phead.chat-head>.bar-bg{pointer-events:none}
+/* 液态玻璃：除「清除」类危险按钮外，按钮底色改成和背景色一致（不再用白色卡片底） */
+html[data-glass="1"] .btn:not(.danger),
+html[data-glass="1"] .btn.pri:not(.danger),
+html[data-glass="1"] .ibtn:not(.danger),
+html[data-glass="1"] .chip:not(.danger),
+html[data-glass="1"] .stbtn,
+html[data-glass="1"] .stepnum{
+  background: var(--bg) !important;
+  border-color: var(--line) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[data-glass="1"] .chip.on:not(.danger){border-color: var(--primary) !important}
