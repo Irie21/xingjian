@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v88";
+const APP_BUILD="v90";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -402,7 +402,7 @@ function render(){
  rememberHScroll(_lastPageKey||_key);
  app.innerHTML=p.html(curParam);
  try{if(cur!=="chat")chatShowLimit=CHAT_STEP}catch(e){}
- try{mediaOnPage()}catch(e){}try{bindLibMoreScroll()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{draftStrip()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
+ try{mediaOnPage()}catch(e){}try{bindLibMoreScroll()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{draftStrip()}catch(e){}try{forceChatHeadClear()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
  if(p.init)p.init(curParam);
  applyTyping();
  app.querySelectorAll("button").forEach(b=>{if(!b.getAttribute("type"))b.setAttribute("type","button")});
@@ -572,7 +572,29 @@ function sanitizeUserCss(css){let s=String(css||"");
  s=s.replace(/javascript\s*:/gi,"");
  s=s.replace(/-moz-binding\s*:/gi,"");
  return s}
-function applyChatBg(){const el=$("#chatbg");if(!el)return;
+/* 聊天页顶栏强制透明：不依赖 CSS 是否最新，每次渲染都直接写内联样式（内联优先级最高）。
+   背景图由 #chatbg 提供；顶栏本体完全透明，消息列表在顶栏下方滚动，所以不会透出消息。 */
+function forceChatHeadClear(){try{
+ if(cur!=="chat")return;
+ var h=document.querySelector(".phead.chat-head");
+ if(!h)return;
+ h.style.setProperty("background","transparent","important");
+ h.style.setProperty("background-color","transparent","important");
+ h.style.setProperty("background-image","none","important");
+ h.style.setProperty("border","none","important");
+ h.style.setProperty("box-shadow","none","important");
+ h.style.setProperty("backdrop-filter","none","important");
+ h.style.setProperty("-webkit-backdrop-filter","none","important");
+ var bg=h.querySelector(".bar-bg");
+ if(bg){
+  bg.style.setProperty("backdrop-filter","none","important");
+  bg.style.setProperty("-webkit-backdrop-filter","none","important");
+  /* 透明度只跟「顶栏透明度」走；0 就是完全透明 */
+  var op=String((S.settings.chat||{}).headOp==null?100:(S.settings.chat.headOp));
+  bg.style.setProperty("opacity",String((+op)/100),"important");
+ }
+}catch(e){}}
+function applyChatBg(){try{forceChatHeadClear()}catch(e){}const el=$("#chatbg");if(!el)return;
  /* 聊天页用「聊天背景图」，主页用「手机桌面背景图」，其余页面用纯色 */
  const bg=cur==="chat"?S.assets.chat_bg:(cur==="home"?S.assets.bg_home:"");
  el.style.backgroundImage=bg?"url("+bg+")":""}

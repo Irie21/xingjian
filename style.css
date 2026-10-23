@@ -1582,3 +1582,8 @@ input,textarea,select,[contenteditable],.msgs .bub,.msgs .bub *,.msgs .txt,.vcop
 /* 正好三张时：无论塔罗还是雷诺曼，都强制三等分、同一行 */
 .dcards.n3 .dcard2{flex:1 1 0 !important;min-width:0 !important;max-width:calc((100% - 16px) / 3) !important}
 .dcards.n3{flex-wrap:nowrap !important}
+/* 聊天页顶栏：本体完全透明，底色/毛玻璃只由 .bar-bg 承担（跟随 --head-op），
+   这样「顶栏透明度」和底栏完全同一套机制；拉到 0 就只剩背景图。
+   聊天消息列表是从顶栏下方开始滚动的，所以不会透出文字/表情包/图片。 */
+.phead.chat-head,.phead.chat-head.on{background:transparent !important;background-color:transparent !important;border:none !important;box-shadow:none !important}
+.phead.chat-head>.bar-bg{pointer-events:none}
