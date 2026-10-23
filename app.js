@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v93";
+const APP_BUILD="v94";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -4446,6 +4446,7 @@ PAGES.setapp={html(){const s=S.settings;
  '<div class="sect">内置预设主题</div><div class="card"><div class="chips">'+THEMES.map(t=>'<button class="chip'+(s.theme===t[0]?" on":"")+'" data-act="theme-pick" data-t="'+t[0]+'">'+t[1]+"</button>").join("")+"</div>"+
  '<div class="row" style="margin-top:10px"><span class="lab">自定义主色</span><input type="color" data-custom="primary" value="'+(s.custom.primary||"#DCCDF2")+'"></div>'+
  '<div class="row"><span class="lab">自定义背景色</span><input type="color" data-custom="bg" value="'+(s.custom.bg||"#E7DDEA")+'"></div>'+
+ '<div class="row"><span class="lab">颜色跟随主题</span><button class="btn sm" data-act="custom-follow">恢复跟随</button></div>'+
  '<div class="row"><span class="lab">液态玻璃质感<br><span class="sub">卡片 / 面板 / 按钮 / 弹窗加通透玻璃材质，跟随主题色与自定义色</span></span><label class="sw"><input type="checkbox" data-set="glass" '+(S.settings.glass!==false?"checked":"")+'><i></i></label></div>'+
  '<div class="row"><span class="lab">深色模式</span><label class="sw"><input type="checkbox" data-set="dark" '+(s.dark?"checked":"")+"><i></i></label></div></div>"+
  '<div class="sect">底栏导航</div><div class="card">'+setRowRange("底栏胶囊透明度","navOp","%",0,100)+'<div class="muted" style="padding:2px 0 6px">调低后底栏胶囊变透，露出的是桌面壁纸，不会透出下面滚动的内容与图标。</div></div>'+
@@ -6327,7 +6328,8 @@ ACT["libedit-replace"]=()=>{const cat=curParam.cat;const id=curParam.id;const c=
 ACT["libedit-export"]=el=>{const c=S.cards.find(x=>x.id===el.dataset.id);if(!c||!c.data)return toast("没有音频");try{const b=new Blob([c.data],{type:"audio/mpeg"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=(c.name||"语音").replace(/\.[^.]+$/,"")+".mp3";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);toast("已导出 mp3")}catch(e){toast("导出失败")}};
 /* ---- settings actions ---- */
 ACT["set-open"]=el=>go(el.dataset.page);
-ACT["theme-pick"]=el=>{S.settings.theme=el.dataset.t;save("settings");applyTheme();render()};
+ACT["custom-follow"]=()=>{S.settings.custom={primary:"",bg:""};save("settings");applyTheme();render();toast("已改为跟随主题")};
+ACT["theme-pick"]=el=>{if(!(S.settings.custom&&S.settings.custom.user))S.settings.custom={primary:"",bg:""};S.settings.theme=el.dataset.t;save("settings");applyTheme();render()};
 ACT["flower-app"]=el=>{const id=el.dataset.id;S.settings.flowerApps=S.settings.flowerApps||{};S.settings.flowerApps[id]=!S.settings.flowerApps[id];save("settings");render()};
 ACT["asset-up"]=el=>pickFile("image/*",false,fs=>readAsDataURL(fs[0]).then(u=>compressImage(u,1024,.82)).then(c=>{S.assets[el.dataset.k]=c;save("assets");applyTheme();applyChatUI();render();toast("已上传")}));
 ACT["asset-clr"]=el=>{delete S.assets[el.dataset.k];save("assets");applyTheme();applyChatUI();render()};
@@ -6416,7 +6418,7 @@ document.addEventListener("input",e=>{const t=e.target;
  if(t.matches("[data-pcr]")){const c=pcCfg();c.en=!!t.checked;save("misc");return}
  if(t.matches("[data-pch]")){const c=pcCfg();c.hour=Math.max(0,Math.min(23,+t.value||9));save("misc");return}
  if(t.matches("[data-pset]")){S.misc.periodSet=S.misc.periodSet||{cycle:28,dur:5};S.misc.periodSet[t.dataset.pset]=+t.value;save("misc");if(cur==="period")renderPeriod();return}
- if(t.matches("[data-custom]")){S.settings.custom[t.dataset.custom]=t.value;save("settings");applyTheme();return}
+ if(t.matches("[data-custom]")){S.settings.custom[t.dataset.custom]=t.value;S.settings.custom.user=true;save("settings");applyTheme();return}
  if(t.matches("[data-chatcolor]")){setPath(S.settings,t.dataset.chatcolor,t.value);save("settings");applyChatUI();return}
  if(t.matches("[data-search]")){S.misc.q[t.dataset.search]=t.value;libRefresh(t.dataset.search);return}
   if(t.matches("#qzedit")){S.misc.quizText=t.value;save("misc");const c=$("#qzcount");if(c)c.innerHTML="当前识别到 <b>"+quizParseAll(t.value).length+"</b> 题";return}
