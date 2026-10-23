@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v90";
+const APP_BUILD="v91";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -4111,7 +4111,7 @@ function mediaRepairFlags(){try{
 function mediaLoad(owner,id,slot,obj,field){return new Promise(function(res){
  if(!obj)return res("");
  const v=obj[field];
- if(typeof v==="string"&&v)return res(v);
+ if(typeof v==="string"&&v&&v.indexOf("blob:")!==0)return res(v);
  if(v&&typeof v==="object"&&typeof v.size==="number"){try{return res(URL.createObjectURL(v))}catch(e){}}
  if(!obj.media)return res("");
  mediaGet(owner,id,slot).then(function(b){
@@ -4142,7 +4142,7 @@ function mediaShelve(owner,list,slotOf,fieldOf,onDone){try{
 /* 上次会话里留下的 objectURL 已经失效，开机清掉，让页面按需重新读 */
 function mediaResetUrls(){try{
  const clr=function(list,field){(list||[]).forEach(function(x){if(!x)return;
-  if(x.media&&typeof x[field]==="string"&&x[field].indexOf("blob:")===0){try{delete x[field]}catch(e){}}})};
+  if(typeof x[field]==="string"&&x[field].indexOf("blob:")===0){try{delete x[field]}catch(e){};try{x.media=true}catch(e){}}})};
  clr(S.cards,"data");clr(S.chats,"data");clr(S.moments,"voiceData");
  (S.moments||[]).forEach(function(p){try{(p.imgs||[]).forEach(function(u,ix){
   if(p.imgMedia&&p.imgMedia[ix]&&typeof u==="string"&&u.indexOf("blob:")===0)p.imgs[ix]=""})}catch(e){}});
@@ -4239,19 +4239,34 @@ function mediaShelveMsg(m){try{
  const u=URL.createObjectURL(blob);
  mediaPut("m",m.id,"d",blob).then(function(ok){if(ok===false)return;try{m.dataBytes=blob.size;m.media=true;m.data=u;save("chats")}catch(e){}}).catch(function(){try{delete m.media;delete m.dataBytes;m.data=(typeof v==="string")?v:u;save("chats")}catch(e){}})
 }catch(e){}}
+/* 聊天图片加载失败（例如刷新后临时地址 blob: 失效）：自动去独立记录里重取一次；
+   再取不到才显示「图片已丢失」。这样历史表情包不会变成破图。 */
+document.addEventListener("error",function(e){try{
+ var im=e.target;
+ if(!im||im.tagName!=="IMG"||!im.getAttribute("data-mid"))return;
+ var id=im.getAttribute("data-mid");
+ mediaGet("m",id,"d").then(function(b){
+  if(!b){
+   try{var box=im.parentNode;im.remove();if(box&&box.querySelectorAll("img").length===0){var sp=document.createElement("span");sp.className="muted msglost";sp.textContent="图片已丢失";box.appendChild(sp)}}catch(x){}
+   return;
+  }
+  var u="";try{u=URL.createObjectURL(b)}catch(x){}
+  if(u){try{im.src=u}catch(x){}}
+ }).catch(function(){});
+}catch(err){}},true);
 function mediaUrl(data,key){if(!data)return "";if(typeof data==="string")return data;if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
 function blobToDataUrl(b){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(b)})}
 function dataUrlToBlob(u){return fetch(u).then(r=>r.blob())}
 /* bubble with proactive tag image */
 function msgBubble(m){if(m.type==="sys")return '<div class="sysmsg">'+(m.nickKeep?esc(m.text):esc(nickFill(m.pat?m.pat:m.text)))+(m.img?'<img src="'+m.img+'" alt="">':"")+"</div>";
  const me=m.from==="me";const s=S.settings;const c=s.chat||{};let inner="";
-  if(m.type==="img")inner=(!m.data&&!m.media)?'<span class="muted msglost">图片已丢失</span>':'<img src="'+mediaUrl(m.data,"m"+m.id)+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">"+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
+  if(m.type==="img")inner=(!m.data&&!m.media)?'<span class="muted msglost">图片已丢失</span>':'<img data-mid="'+m.id+'" src="'+mediaUrl(m.data,"m"+m.id)+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">"+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
  else if(m.type==="voice")inner=((!m.data&&!m.media)?'<span class="muted msglost">语音已丢失</span>':'<span class="voice" data-act="play-voice" data-id="'+m.id+'"><span class="vico">'+ico("voicewave")+"</span><span class=\"vdur\">"+(m.dur||2)+'″</span></span>')+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
   else if(m.type==="transfer"||m.type==="redpacket")inner=txBubbleHtml(m,me);
  else if(m.type==="ask")inner=askBubbleHtml(m)
 else if(m.type==="quizset")inner=quizSetBubbleHtml(m)
 else if(m.type==="quiz")inner=quizBubbleHtml(m);
-  else inner=(m.tag?'<span class="msgtag">'+tagHtml(m.tag)+"</span>":"")+(m.quote?'<span class="q"'+(m.quoteId?' data-act="locate-quote" data-qid="'+m.quoteId+'"':"")+'>'+quoteHtml(m.quote,m.quoteId)+"</span>":"")+(m.tagImg?'<img src="'+m.tagImg+'" style="max-width:80px;margin-bottom:4px">':"")+esc(m.text||"")+((m.data||m.media)?'<img class="bubimg'+(m.stk?" stk":"")+'" src="'+mediaUrl(m.data,"m"+m.id)+'">':"");
+  else inner=(m.tag?'<span class="msgtag">'+tagHtml(m.tag)+"</span>":"")+(m.quote?'<span class="q"'+(m.quoteId?' data-act="locate-quote" data-qid="'+m.quoteId+'"':"")+'>'+quoteHtml(m.quote,m.quoteId)+"</span>":"")+(m.tagImg?'<img src="'+m.tagImg+'" style="max-width:80px;margin-bottom:4px">':"")+esc(m.text||"")+((m.data||m.media)?'<img class="bubimg'+(m.stk?" stk":"")+'" data-mid="'+m.id+'" src="'+mediaUrl(m.data,"m"+m.id)+'">':"");
  /* 撤回：默认只显示提示文字；点一下 → 就地还原成原本那条消息，再点一下收回 */
  if(m.retracted){
   inner=m.showRet
