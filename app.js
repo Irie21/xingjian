@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v100";
+const APP_BUILD="v107";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -785,12 +785,12 @@ function renderAiBadge(){const el=$("#caistat");if(!el)return;const t=aiStatusTe
 function setChatStatus(){const el=$("#cstat");
  try{if(!(S.misc.taStatus&&S.misc.taStatus.text)){const st=cardTexts("状态");setTaStatus(st.length?pick(st):"在线")}else curChatStatus=String(S.misc.taStatus.text)}catch(e){}
  if(el)el.textContent=chatStatusText();renderAiBadge()}
-/* TA 主动换状态：距上次更换满 8 小时、且 TA 刚回过话时才可能触发（25%），
-   重进聊天页永远不换，避免每次进来状态都变 */
+/* TA 主动换状态：距上次更换满 8 小时后，每次机会按 20% 概率从「状态」字卡池随机挑一个；
+   触发时机 = TA 回话 / 前台每 10 分钟检查；重进聊天页不会换，状态一直保留 */
 function maybeTaStatusChange(){try{
  const ts=(S.misc&&S.misc.taStatus&&S.misc.taStatus.ts)||0;
  if(Date.now()-ts<8*3600*1000)return;
- if(!chance(25))return;
+ if(!chance(20))return;
  const st=cardTexts("状态");if(!st.length)return;
  let txt=pick(st),n=0;while(txt===chatStatusText()&&n++<10)txt=pick(st);
  setTaStatus(txt);
@@ -957,23 +957,42 @@ function cardMediaInto(card,cb){try{
  if(card.data){cb(card.data);return}
  if(card.media){mediaGet("c",card.id,"d").then(function(b){cb(b||"")}).catch(function(){cb("")});return}
  cb("")}catch(e){try{cb("")}catch(e2){}}}
+/* 把「本会话临时地址 blob:」或 Blob 统一转成能长期保存的东西：
+   durableMedia → {blob,data:dataURL}；durableSrc → Blob / dataURL / http 地址。
+   这是「更新后表情包丢失」的根治点：blob: 地址一重启就失效，绝不能写进存档。 */
+function durableMedia(src){try{
+  if(!src)return Promise.resolve(null);
+  if(typeof src==="string"){
+    if(src.indexOf("blob:")===0)return fetch(src).then(function(r){return r.blob()}).then(function(b){return blobToDataUrl(b).then(function(u){return {blob:b,data:u}})}).catch(function(){return null});
+    if(src.indexOf("data:")===0){const b=dataUrlToBlobSync(src);return Promise.resolve(b?{blob:b,data:src}:null)}
+    return Promise.resolve(null);
+  }
+  if(src instanceof Blob||(src&&typeof src.size==="number"&&src.size>0))return blobToDataUrl(src).then(function(u){return {blob:src,data:u}}).catch(function(){return null});
+  return Promise.resolve(null);
+}catch(e){return Promise.resolve(null)}}
+function durableSrc(src){return durableMedia(src).then(function(d){
+  if(d)return d.blob||d.data||"";
+  if(typeof src==="string"&&src&&src.indexOf("blob:")!==0&&src.indexOf("data:")!==0)return src;
+  return "";
+})}
 /* 统一取成 dataURL / 原字符串，方便塞进消息和朋友圈 */
 function cardMediaUrl(card,cb){cardMediaInto(card,function(v){try{
  if(!v){cb("");return}
- if(typeof v==="string"){cb(v);return}
- blobToDataUrl(v).then(function(u){cb(u||"")}).catch(function(){cb("")});
+ if(typeof v==="string"&&v.indexOf("blob:")!==0){cb(v);return}
+ durableMedia(v).then(function(d){cb((d&&d.data)||"")}).catch(function(){cb("")});
 }catch(e){cb("")}})}
 /* 把一张字卡作为消息发到聊天（表情包 → 图片消息；语音字卡 → 语音消息） */
 function pushCardMsg(from,card,extra){try{
  if(!card)return null;
- cardMediaInto(card,function(v){try{
+ cardMediaInto(card,function(v){durableSrc(v).then(function(dv){try{
   const isV=(card.type==="voice")||CATTYPE(card.cat)==="voice";
   const m={id:uid(),from:from,type:isV?"voice":"img",ts:Date.now()};m.timestamp=m.ts;
   if(isV)m.dur=card.dur||2;else m.stk=1;
   m.cid=card.id;if(extra)for(const k in extra)m[k]=extra[k];
-  if(v)m.data=v;else m.lost=1;
+  if(dv)m.data=dv;else m.lost=1;
   pushChat(m);
- }catch(e){}});
+  if(dv)try{mediaShelveMsg(m)}catch(e){}
+ }catch(e){}})});
 }catch(e){return null}}
 /* 页面上带 data-cid 的字卡图片按需读出来（表情包面板、选表情的弹层都靠它） */
 function loadCardImgsIn(root){try{
@@ -1398,7 +1417,7 @@ function mailGroups(dir){const list=mailList(dir),wk=(typeof feedWeekStart==="fu
  order.sort(function(a,b){return (b.y*100+b.m)-(a.y*100+a.m)});
  return {week:week,months:order}}
 function mailRowHtml(l){const dir=l.from==="ta"?"in":"out";const nm=esc(S.settings.taName||"TA");
- const rp=(l.myReply&&String(l.myReply.content||"").trim())?"已回信":(dir==="out"&&l.taReply?"对方已回信":"");
+ const rp=(dir==="in"&&l.taReply)?"对方已回信":((l.myReply&&(String(l.myReply.content||"").trim()||l.myReply.sticker))?"已回信":(dir==="out"&&l.taReply?"对方已回信":""));
  return '<button class="mletter" data-act="letter-open" data-id="'+l.id+'">'+
   '<span class="mlenv">'+ico("mail")+"</span>"+
   '<span class="mlbody"><span class="mltop"><b>'+(dir==="in"?"来自 "+nm:"寄给 "+nm)+"</b>"+(rp?'<span class="mlpill">'+rp+"</span>":"")+'<span class="mltime">'+mailDate(l.ts)+"</span></span>"+
@@ -1432,6 +1451,7 @@ ACT["letter-rescue"]=()=>{try{kvGet("letters").then(function(v){if(!v||!v.length
 function letterReplyOf(l){return (l&&l.myReply&&String(l.myReply.content||"").trim())?l.myReply:null}
 /* ================= 信箱：写信/回信独立页 + 表情包/图片 + 收藏状态 ================= */
 let _le={mode:"write",replyId:"",sticker:""};
+let _letterSheetId="";
 function letterEditOpen(mode,id){if(mode==="reply"){try{var _l=(S.letters||[]).find(function(x){return x.id===id});if(_l&&_l.myReply&&String(_l.myReply.content||"").trim()){toast("这封信已经回过了，不能再回");return}}catch(e){}}_le={mode:mode||"write",replyId:id||"",sticker:""};go("letteredit")}
 function lePaint(){const el=document.getElementById("lepic");if(el)el.innerHTML=_le.sticker?'<img src="'+_le.sticker+'">':""}
 PAGES.letteredit={html(){const nm=esc(S.settings.taName||"TA");const rep=_le.mode==="reply";
@@ -1463,11 +1483,11 @@ ACT["letter-send"]=()=>{const t=(document.getElementById("lc2")||{}).value||"",t
  if(!String(t).trim()&&!_le.sticker)return toast("信纸是空的");
  if(_le.mode==="reply"){const l=S.letters.find(function(x){return x.id===_le.replyId});
   if(l){l.myReply={content:String(t).trim(),tm:Date.now(),sticker:_le.sticker||""};save("letters");
-   toast("已寄出回信");favTaCollectMail(l.title||"",t);scheduleLetterReply()}}
+   toast("你寄出了一封回信");favTaCollectMail(l.title||"",t);scheduleLetterReply()}}
  else{S.letters.push({id:uid(),from:"me",to:"ta",title:String(ti).trim(),content:String(t).trim(),sticker:_le.sticker||"",ts:Date.now(),read:true});
   save("letters");toast("已寄出");scheduleLetterReply();favTaCollectMail(ti,t)}
  S.misc.letterTab=(_le.mode==="reply")?"in":"out";save("misc");_le={mode:"write",replyId:"",sticker:""};back()};
-function letterSheet(id){const l=S.letters.find(function(x){return x.id===id});if(!l)return;l.read=true;save("letters");
+function letterSheet(id){const l=S.letters.find(function(x){return x.id===id});if(!l)return;l.read=true;save("letters");_letterSheetId=id;
  const mine=l.from==="me",nm=S.settings.taName||"TA";
  const card=function(who,ts,title,content,sticker){return '<div class="mlcard"><div class="mlch"><b>'+esc(who)+'</b><span class="mltime">'+mailDate(ts)+'</span></div>'+
   (title?'<div class="mlct">'+esc(title)+"</div>":"")+'<div class="mlcc">'+esc(content)+"</div>"+(sticker?'<img class="mlst" src="'+sticker+'">':"")+"</div>"};
@@ -1476,10 +1496,11 @@ function letterSheet(id){const l=S.letters.find(function(x){return x.id===id});i
   if(l.taReply)body+=card(nm,l.taReply.ts,"对方的回信",l.taReply.content,l.taReply.sticker)}
  else{body=card(nm,l.ts,l.title,l.content,l.sticker);
   const rp=(l.myReply&&(String(l.myReply.content||"").trim()||l.myReply.sticker))?l.myReply:null;
-  if(rp)body+=card(S.settings.myName||"我",rp.tm,"我的回信",rp.content,rp.sticker)}
+  if(rp)body+=card(S.settings.myName||"我",rp.tm,"我的回信",rp.content,rp.sticker);
+  if(l.taReply)body+=card(nm,l.taReply.ts,"回你的信",l.taReply.content,l.taReply.sticker)}
  const btns=mine
   ?'<div class="btnrow" style="margin-top:12px"><button class="btn danger" data-lg="del" style="flex:1">删除</button><button class="btn" data-lg="close" style="flex:1">关闭</button></div>'
-  :'<div class="btnrow" style="margin-top:12px"><button class="btn" data-lg="fav" style="flex:1">'+(l.myFav?"已收藏":"收藏来信")+'</button>'+(!!(l.myReply&&(String(l.myReply.content||"").trim()||l.myReply.sticker))?'<button class="btn" data-lg="replied" style="flex:1;opacity:.55" aria-disabled="true">已回信</button>':'<button class="btn" data-lg="reply" style="flex:1">提笔回信</button>')+'</div>'+
+  :'<div class="btnrow" style="margin-top:12px"><button class="btn" data-lg="fav" style="flex:1">'+(l.myFav?"已收藏":"收藏来信")+'</button>'+(!!l.taReply?'<button class="btn" data-lg="replied" style="flex:1;opacity:.55" aria-disabled="true">本轮已结束</button>':(!!(l.myReply&&(String(l.myReply.content||"").trim()||l.myReply.sticker))?'<button class="btn" data-lg="replied" style="flex:1;opacity:.55" aria-disabled="true">已回信</button>':'<button class="btn" data-lg="reply" style="flex:1">提笔回信</button>'))+'</div>'+
    '<div class="btnrow" style="margin-top:10px"><button class="btn danger" data-lg="del" style="flex:1">删除</button><button class="btn" data-lg="close" style="flex:1">关闭</button></div>';
  const sh=openSheet('<div class="mtitle">信件<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+body+btns,true);
  sh.onclick=function(e){const b=e.target.closest("[data-lg]");
@@ -1495,7 +1516,7 @@ function letterSheet(id){const l=S.letters.find(function(x){return x.id===id});i
  if(cur==="mail")renderLetters()}
 function letterReply(id,text){const l=S.letters.find(x=>x.id===id);if(!l)return;
  l.myReply={content:String(text||"").trim().slice(0,800),tm:Date.now()};save("letters");
- toast("已寄出回信");favTaCollectMail(l.title||"",l.myReply.content);scheduleLetterReply();
+ toast("你寄出了一封回信");favTaCollectMail(l.title||"",l.myReply.content);scheduleLetterReply();
  if(cur==="mail")renderLetters()}
 function letterDataHtml(){const n=S.letters.length;let bytes=0;try{bytes=new Blob([JSON.stringify(S.letters)]).size}catch(e){bytes=JSON.stringify(S.letters).length}
  return '<div class="sect">信箱 · 数据管理</div><div class="card">'+
@@ -1520,13 +1541,22 @@ function letterCompose(){openSheet('<div class="mtitle">写信给 '+esc(S.settin
 function letterSticker(){const r=S.settings.reply.letter;if(!chance(r.sticker))return null;const st=cardsOf("表情包");return st.length?pick(st).data:null}
 function letterContent(){const r=S.settings.reply.letter;const n=rnd(r.minCards,r.maxCards);const pool=[...cardTexts("主字卡"),...cardTexts("情绪字卡")];let lines=[];for(let i=0;i<n;i++)lines.push(pool.length?pick(pool):"见字如面，甚是思念");let txt="见字如面：\n"+lines.join("\n")+"\n盼复";if(chance(r.kaomoji)){const k=cardTexts("颜文字");if(k.length)txt+=" "+pick(k)}if(chance(r.emoji)){const e=cardTexts("Emoji");if(e.length)txt+=pick(e)}return txt}
 function scheduleLetterReply(){const r=S.settings.reply.letter;if(!chance(r.replyProb))return;setTimeout(()=>{
-  let quote="";
-  try{const mine=(S.letters||[]).filter(function(x){return x.myReply&&String(x.myReply.content||"").trim()}).sort(function(a,b){return (b.myReply.tm||0)-(a.myReply.tm||0)})[0];
-   if(mine){const t=String(mine.myReply.content||"").replace(/\s+/g," ").slice(0,40);if(t)quote="你信里说：「"+t+(mine.myReply.content.length>40?"…":"")+"」\n\n"}}
-  catch(e){}
-  S.letters.push({id:uid(),from:"ta",to:"me",title:quote?"回你的信":"回信",content:quote+letterContent(),sticker:letterSticker(),ts:Date.now(),read:cur==="mail"});
-  save("letters");if(cur==="mail")renderLetters();notifyTA("收到一封回信")},rnd(r.replyTimeMin,r.replyTimeMax)*3600000/60)}
-function taLetterCheck(){const r=S.settings.reply.letter;const last=S.misc.lastTaLetter||0;const h=(Date.now()-last)/3600000;if(h<r.activeTimeMin)return;if(!chance(r.activeProb))return;S.misc.lastTaLetter=Date.now();save("misc");for(let i=0;i<Math.max(1,r.activeCount);i++)S.letters.push({id:uid(),from:"ta",to:"me",title:pick(["近安","见字如面","随笔","念你"]),content:letterContent(),sticker:letterSticker(),ts:Date.now(),read:false});save("letters");toast((S.settings.taName||"TA")+" 给你写了一封信")}
+  try{
+   /* 只在这一轮里回：找到「还没被 TA 回过」的那封，把回复挂在我回信的下面，不再另起一封 */
+   const list=(S.letters||[]).filter(function(l){return l&&!l.taReply});
+   let target=list.filter(function(l){return l.from==="ta"&&l.myReply&&(String(l.myReply.content||"").trim()||l.myReply.sticker)}).sort(function(a,b){return (b.myReply.tm||0)-(a.myReply.tm||0)})[0];
+   if(!target)target=list.filter(function(l){return l.from==="me"}).sort(function(a,b){return (b.ts||0)-(a.ts||0)})[0];
+   if(!target)return;
+   let quote="";
+   if(target.myReply){const raw=String(target.myReply.content||"");const t=raw.replace(/\s+/g," ").slice(0,40);if(t)quote="你信里说：「"+t+(raw.length>40?"…":"")+"」\n\n"}
+   target.taReply={content:quote+letterContent(),sticker:letterSticker(),ts:Date.now()};
+   save("letters");
+   const nm=S.settings.taName||"TA";
+   notifyTA(nm+" 给你回信了");
+   if(cur==="mail"){renderLetters();toast(nm+" 给你回信了");try{if(document.querySelector("#modal .sheet")&&_letterSheetId===target.id)letterSheet(target.id)}catch(e){}}
+  }catch(e){}
+ },rnd(r.replyTimeMin,r.replyTimeMax)*3600000/60)}
+function taLetterCheck(){const r=S.settings.reply.letter;const last=S.misc.lastTaLetter||0;const h=(Date.now()-last)/3600000;if(h<r.activeTimeMin)return;if(!chance(r.activeProb))return;S.misc.lastTaLetter=Date.now();save("misc");for(let i=0;i<Math.max(1,r.activeCount);i++)S.letters.push({id:uid(),from:"ta",to:"me",title:pick(["近安","见字如面","随笔","念你"]),content:letterContent(),sticker:letterSticker(),ts:Date.now(),read:false});save("letters");{const nm=S.settings.taName||"TA";notifyTA(nm+" 给你寄了一封信");if(cur==="mail")toast(nm+" 给你寄了一封信")}}
 /* ================= MOMENTS ================= */
 /* ---- 朋友圈：通知提醒 + 数据管理（对齐 mochi 链路） ---- */
 function feedNotices(){if(!Array.isArray(S.misc.feedNotices))S.misc.feedNotices=[];return S.misc.feedNotices}
@@ -1618,25 +1648,26 @@ ACT["moment-import"]=()=>pickFile("application/json,.json",false,fs=>{readAsText
 ACT["moment-clearall"]=()=>{confirmDlg("清空全部朋友圈数据？删除后无法恢复","清空",true).then(ok=>{if(!ok)return;
  S.moments=[];S.misc.feedNotices=[];save("moments");save("misc");render();toast("已清空朋友圈")})};
 /* ---- 朋友圈：固定底栏评论 + 点名字回复 + 点赞/收藏状态 ---- */
-let _fc={pid:"",ci:null,img:""};
+let _fc={pid:"",ci:null,img:"",cid:""};
 function feedPost(id){return S.moments.find(function(x){return x.id===id})}
-function feedCmtAttach(d){_fc.img=d||"";feedCmtBar();if(_fc.img)toast("已附加，点「发送」一起发出")}
+function feedCmtAttach(d,cid){_fc.img=d||"";_fc.cid=cid||"";feedCmtBar();if(_fc.img)toast("已附加，点「发送」一起发出")}
 function feedCmtSend(text,img){const p=feedPost(_fc.pid);if(!p)return;
  const t=String(text||"").trim();if(!t&&!img)return toast("写点什么吧");
  const parts={text:t,img:img||""};
+ if(_fc.cid&&img)parts.cid=_fc.cid;
  if(_fc.ci!=null){const c=(p.cmts||[])[_fc.ci];if(c)parts.to=c.who}
- addMyComment(p,parts);const pid=_fc.pid;_fc={pid:pid,ci:null,img:""};feedCmtBar()}
+ addMyComment(p,parts);const pid=_fc.pid;_fc={pid:pid,ci:null,img:"",cid:""};feedCmtBar()}
 function feedCmtBar(){let el=document.getElementById("fcbar");
  const show=!!(cur==="moments"&&_fc.pid);
  const app=document.getElementById("app");if(app)app.classList.toggle("feedbar",show);
  if(!show){if(el)el.remove();return}
  if(!el){el=document.createElement("div");el.id="fcbar";el.className="fcbar";document.body.appendChild(el);
   el.onclick=function(e){const b=e.target.closest("[data-fc]");if(!b)return;const k=b.dataset.fc;
-       if(k==="emo"){openStickerPicker(function(c){cardMediaUrl(c,function(u){if(u)feedCmtAttach(u)})});return}
-   if(k==="img"){pickFile("image/*",false,function(fs){if(!fs||!fs[0])return;readAsDataURL(fs[0]).then(function(u){feedCmtAttach(u)})});return}
-   if(k==="rm"){_fc.img="";feedCmtBar();return}
+       if(k==="emo"){openStickerPicker(function(c){cardMediaUrl(c,function(u){if(u)feedCmtAttach(u,c.id)})});return}
+   if(k==="img"){pickFile("image/*",false,function(fs){if(!fs||!fs[0])return;readAsDataURL(fs[0]).then(function(u){feedCmtAttach(u,"")})});return}
+   if(k==="rm"){_fc.img="";_fc.cid="";feedCmtBar();return}
    if(k==="send"){const i=document.getElementById("fcin");const v=i?i.value:"";const im=_fc.img||"";if(i)i.value="";_fc.img="";feedCmtSend(v,im);return}
-   if(k==="close"){_fc={pid:"",ci:null,img:""};feedCmtBar();return}}
+   if(k==="close"){_fc={pid:"",ci:null,img:"",cid:""};feedCmtBar();return}}
  }
  const p=feedPost(_fc.pid),c=(p&&_fc.ci!=null)?(p.cmts||[])[_fc.ci]:null;
  const oldIn=document.getElementById("fcin");
@@ -1667,19 +1698,19 @@ ACT["moment-del"]=el=>{const p=feedPost(el.dataset.id);if(!p)return;
  confirmDlg("删除这条动态？","删除",true).then(function(ok){if(!ok)return;
   S.moments=S.moments.filter(function(x){return x.id!==p.id});save("moments");if(_fc.pid===p.id){_fc={pid:"",ci:null}}render();toast("已删除")})};
 function momentCompose(){openSheet('<div class="mtitle">发朋友圈<button class="ibtn" data-r="x">'+ico("close")+'</button></div><textarea id="mc" placeholder="记录此刻…"></textarea><div id="mpics" class="pics" style="margin-top:8px"></div><div id="mstk" class="stkgrid" style="display:none;margin-top:8px;max-height:34vh;overflow:auto"></div><div class="btnrow" style="margin-top:10px"><button class="btn sm" data-addimg="1">'+ico("img")+' 添加图片</button><button class="btn sm" data-addsticker="1">'+ico("sticker")+' 表情包</button><button class="btn pri" data-r="ok" style="margin-left:auto">发布</button></div>',true);
- let imgs=[];const sh=$("#modal .sheet");
+ let imgs=[],imgCids=[];const sh=$("#modal .sheet");
  const paint=()=>{const el=sh.querySelector("#mpics");if(el)el.innerHTML=imgs.map(i=>'<img src="'+i+'">').join("")};
  sh.onclick=e=>{
-  if(e.target.closest("[data-addimg]")){pickFile("image/*",true,fs=>{Promise.all(fs.map(readAsDataURL)).then(rs=>{imgs=imgs.concat(rs);paint()})});return}
-     if(e.target.closest("[data-addsticker]")){openStickerPicker(function(c){cardMediaUrl(c,function(u){if(u){imgs=imgs.concat([u]);paint();toast("已添加表情")}})});return}
-  const sk=e.target.closest("[data-stk]");if(sk){const c0=S.cards.find(x=>x.id===sk.dataset.stk);if(c0)cardMediaUrl(c0,function(u){if(u){imgs=imgs.concat([u]);paint();toast("已添加表情")}});return}
-  const b=e.target.closest("[data-r]");if(!b)return;const _c=($("#mc")||{value:""}).value;closeModal();if(b.dataset.r!=="ok")return;const c=(_c||"").trim();if(!c&&!imgs.length)return toast("说点什么吧");const p={id:uid(),who:"me",content:c,imgs,ts:Date.now(),likes:0,likesWho:[],cmts:[]};S.moments.push(p);save("moments");renderMoments();taReactTo(p);favTaCollectFeed(c,imgs)};
+  if(e.target.closest("[data-addimg]")){pickFile("image/*",true,fs=>{Promise.all(fs.map(readAsDataURL)).then(rs=>{imgs=imgs.concat(rs);rs.forEach(()=>imgCids.push(""));paint()})});return}
+     if(e.target.closest("[data-addsticker]")){openStickerPicker(function(c){cardMediaUrl(c,function(u){if(u){imgs=imgs.concat([u]);imgCids.push(c.id||"");paint();toast("已添加表情")}})});return}
+  const sk=e.target.closest("[data-stk]");if(sk){const c0=S.cards.find(x=>x.id===sk.dataset.stk);if(c0)cardMediaUrl(c0,function(u){if(u){imgs=imgs.concat([u]);imgCids.push(c0.id||"");paint();toast("已添加表情")}});return}
+  const b=e.target.closest("[data-r]");if(!b)return;const _c=($("#mc")||{value:""}).value;closeModal();if(b.dataset.r!=="ok")return;const c=(_c||"").trim();if(!c&&!imgs.length)return toast("说点什么吧");const p={id:uid(),who:"me",content:c,imgs,imgCids,ts:Date.now(),likes:0,likesWho:[],cmts:[]};S.moments.push(p);save("moments");renderMoments();taReactTo(p);favTaCollectFeed(c,imgs)};
  }
 function taMomentContent(){const r=S.settings.reply.moments;const pool=[...cardTexts("主字卡"),...cardTexts("情绪字卡"),...cardTexts("状态")];let parts=[];for(let i=0;i<Math.max(1,r.cards);i++)parts.push(pool.length?pick(pool):"今天也是平常的一天");let t=parts.join("。");if(chance(r.kaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.emoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}return t}
 function taReactTo(p){const r=S.settings.reply.moments;
  if(chance(r.likeProb))setTimeout(()=>{p.likes=(p.likes||0)+1;p.likesWho=p.likesWho||[];p.likesWho.push(S.settings.taName);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 赞了你的动态")},rnd(20,120)*1000);
- if(chance(r.cmtProb))setTimeout(()=>{let t=cardTexts("情绪字卡").length?pick(cardTexts("情绪字卡")):"真好";if(chance(r.cmtKaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.cmtEmoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}const cmt={id:uid(),who:S.settings.taName,text:t};if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length)mediaFromCardInto(pick(st),cmt,"img")}if(chance(r.cmtVoice)){const vc=cardsOf("语音字卡");if(vc.length)mediaFromCardInto(pick(vc),cmt,"voiceData")}p.cmts=p.cmts||[];p.cmts.push(cmt);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 评论了你的动态")},rnd(60,300)*1000)}
-function taMomentCheck(){const r=S.settings.reply.moments;const day=MEMO_TODAY();const fd=S.misc.feedDay||(S.misc.feedDay={d:day,n:0});if(fd.d!==day){fd.d=day;fd.n=0;save("misc")}if(Date.now()<(S.misc.feedCoolUntil||0))return;const last=S.misc.lastTaMoment||0;if((Date.now()-last)/3600000<r.intervalH)return;if(fd.n>=(r.dailyMax==null?5:r.dailyMax))return;if(!chance(r.activeProb))return;S.misc.lastTaMoment=Date.now();fd.n++;S.misc.feedCoolUntil=Date.now()+(r.cool==null?30:r.cool)*60000;save("misc");const p={id:uid(),who:"ta",content:taMomentContent(),imgs:[],ts:Date.now(),likes:0,likesWho:[],cmts:[]};if(chance(r.sticker)){const st=cardsOf("表情包");if(st.length){const c0=pick(st);p.imgs=[""];mediaFromCardInto(c0,p,"__imgTmp",function(){try{if(p.__imgTmp){p.imgs=[p.__imgTmp];delete p.__imgTmp}}catch(e){}})}}if(chance(r.voice)){const vc=cardsOf("语音字卡");if(vc.length){const v0=pick(vc);p.voice=true;mediaFromCardInto(v0,p,"voiceData",function(){try{if(!p.voiceData)p.voice=false}catch(e){}})}}S.moments.push(p);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 发布了一条朋友圈动态")}
+ if(chance(r.cmtProb))setTimeout(()=>{let t=cardTexts("情绪字卡").length?pick(cardTexts("情绪字卡")):"真好";if(chance(r.cmtKaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.cmtEmoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}const cmt={id:uid(),who:S.settings.taName,text:t};if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length){const c0=pick(st);cmt.stkCid=c0.id;cardMediaUrl(c0,function(u){if(u){cmt.img=u;try{save("moments");if(cur==="moments")renderMoments()}catch(e){}}})}}if(chance(r.cmtVoice)){const vc=cardsOf("语音字卡");if(vc.length)mediaFromCardInto(pick(vc),cmt,"voiceData")}p.cmts=p.cmts||[];p.cmts.push(cmt);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 评论了你的动态")},rnd(60,300)*1000)}
+function taMomentCheck(){const r=S.settings.reply.moments;const day=MEMO_TODAY();const fd=S.misc.feedDay||(S.misc.feedDay={d:day,n:0});if(fd.d!==day){fd.d=day;fd.n=0;save("misc")}if(Date.now()<(S.misc.feedCoolUntil||0))return;const last=S.misc.lastTaMoment||0;if((Date.now()-last)/3600000<r.intervalH)return;if(fd.n>=(r.dailyMax==null?5:r.dailyMax))return;if(!chance(r.activeProb))return;S.misc.lastTaMoment=Date.now();fd.n++;S.misc.feedCoolUntil=Date.now()+(r.cool==null?30:r.cool)*60000;save("misc");const p={id:uid(),who:"ta",content:taMomentContent(),imgs:[],ts:Date.now(),likes:0,likesWho:[],cmts:[]};if(chance(r.sticker)){const st=cardsOf("表情包");if(st.length){const c0=pick(st);p.stkCid=c0.id;cardMediaUrl(c0,function(u){try{p.imgs=u?[u]:[];save("moments");if(cur==="moments")renderMoments()}catch(e){}})}}if(chance(r.voice)){const vc=cardsOf("语音字卡");if(vc.length){const v0=pick(vc);p.voice=true;mediaFromCardInto(v0,p,"voiceData",function(){try{if(!p.voiceData)p.voice=false}catch(e){}})}}S.moments.push(p);save("moments");if(cur==="moments")renderMoments();feedNotice((S.settings.taName||"TA")+" 发布了一条朋友圈动态")}
 /* ================= CALENDAR ================= */
 PAGES.cal={html(){return phead("日历")+'<div class="card"><div class="calhead"><button class="ibtn" data-act="cal-prev">'+ico("back")+'</button><b id="caltitle"></b><button class="ibtn" data-act="cal-next">'+ico("back")+' </button></div><div class="calgrid" id="calgrid"></div></div><div id="calday"></div>'},
  init(){S.misc.calY=S.misc.calY||new Date().getFullYear();S.misc.calM=S.misc.calM==null?new Date().getMonth():S.misc.calM;renderCal()}};
@@ -2376,6 +2407,8 @@ function muEnded(){if(muState().mode==="single"){try{muAudio.currentTime=0;muAud
 function muMode(){const st=muState();const i=MU_MODES.findIndex(function(v){return v[0]===st.mode});
  st.mode=MU_MODES[(i+1)%MU_MODES.length][0];save("misc");toast("已切换："+muModeName());
  muPaint();if(cur==="music"||cur==="muplayer")render()}
+/* 收藏按钮：实心/主色表示已收藏，空心表示未收藏（列表与播放页共用一个样式） */
+function muFavBtn(id){const on=muFav(id);return '<button class="ibtn mufav'+(on?" on":"")+'" data-act="mu-fav" data-id="'+id+'" title="'+(on?"取消收藏":"收藏")+'">'+ico("heart")+'</button>'}
 function muFavToggle(id){const st=muState(),i=st.favs.indexOf(id);
  if(i>=0){st.favs.splice(i,1);toast("已取消收藏")}else{st.favs.push(id);toast("已收藏")}
  save("misc");if(cur==="music"||cur==="muplayer")render()}
@@ -2424,7 +2457,7 @@ function muSongsHtml(){const st=muState();const rows=muRows();
   return '<div class="musong'+(on?" on":"")+'" data-act="mu-play" data-id="'+a.id+'"><span class="mucov">'+muCover(a)+'</span>'+
    '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(muHasLocal(a)?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
    '<span class="mudur">'+(on&&muAudio&&muAudio.duration?muFmt(muAudio.duration):"--:--")+'</span>'+
-   '<button class="ibtn" data-act="mu-fav" data-id="'+a.id+'">'+ico("heart")+'</button>'+
+   muFavBtn(a.id)+
    '<button class="ibtn" data-act="mu-more" data-id="'+a.id+'">'+ico("dots")+"</button></div>"}).join("")+"</div>"}
 function muListsHtml(){const ls=muLists(),st=muState();
  return '<div class="card mulist">'+(ls.length?ls.map(function(l){const n=S.audios.filter(function(a){return (a.listId||"")===l.id}).length;
@@ -2504,7 +2537,7 @@ function muSongRow(a){const st=muState(),on=st.cur===a.id;
  return '<div class="musong'+(on?" on":"")+'" data-act="mu-play" data-id="'+a.id+'"><span class="mucov">'+muCover(a)+'</span>'+
   '<span class="mumid"><b>'+esc(muName(a))+'</b><span>'+esc(a.artist||"未知歌手")+(muHasLocal(a)?" · 本机":(a.url?" · 网络":" · 本地"))+(on?" · 正在播放":"")+'</span></span>'+
   '<span class="mudur">'+(on&&muAudio&&muAudio.duration?muFmt(muAudio.duration):"--:--")+'</span>'+
-  '<button class="ibtn" data-act="mu-fav" data-id="'+a.id+'">'+ico("heart")+'</button>'+
+  muFavBtn(a.id)+
   '<button class="ibtn" data-act="mu-more" data-id="'+a.id+'">'+ico("dots")+"</button></div>"}
 ACT["mu-searchbtn"]=()=>{const st=muState();st.searchOn=!st.searchOn;if(!st.searchOn)st.q="";save("misc");render();
  if(st.searchOn)setTimeout(function(){const i=document.getElementById("muq");if(i)i.focus()},80)};
@@ -2534,7 +2567,7 @@ PAGES.muplayer={html(){const a=muCur()||{},st=muState();
   '<div class="muprog" data-seek="1"><span class="mufill" id="mudiscfill"></span></div>'+
   '<div class="mulrc" id="mulrc">'+esc(a.lrc?muLrcLine(a):"（还没有歌词，可在歌曲 ⋯ 里粘贴）")+"</div>"+
   '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span id="mutimes2">00:00 / --:--</span><span>'+muModeName()+"</span></div>"+
-  '<div class="muctrl"><button class="mubtn" data-act="mu-mode">'+muModeIcon()+'</button><button class="mubtn" data-act="mu-prev">'+ico("skipprev")+'</button><button class="mubtn big" data-act="mu-toggle">'+ico(muAudio&&!muAudio.paused?"pause":"play")+'</button><button class="mubtn" data-act="mu-next">'+ico("skipnext")+'</button><button class="mubtn" data-act="mu-favnow">'+ico("heart")+"</button></div>"+
+  '<div class="muctrl"><button class="mubtn" data-act="mu-mode">'+muModeIcon()+'</button><button class="mubtn" data-act="mu-prev">'+ico("skipprev")+'</button><button class="mubtn big" data-act="mu-toggle">'+ico(muAudio&&!muAudio.paused?"pause":"play")+'</button><button class="mubtn" data-act="mu-next">'+ico("skipnext")+'</button><button class="mubtn mufav'+(muFav(a.id)?" on":"")+'" data-act="mu-favnow" title="'+(muFav(a.id)?"取消收藏":"收藏")+'">'+ico("heart")+"</button></div>"+
   '<div class="btnrow" style="margin-top:16px"><button class="btn" style="flex:1" data-act="mu-queue">播放队列'+(st.queue.length?(" "+st.queue.length):"")+'</button><button class="btn" style="flex:1" data-act="mu-back">返回曲库</button><button class="btn" style="flex:none" data-act="mu-rate" id="murate">'+muRate()+"x</button></div>"},
  init(){muPaint();muTick()}};
 ACT["mu-tab"]=el=>{const st=muState();st.tab=el.dataset.v;if(el.dataset.v!=="songs")st.listId="";save("misc");render()};
@@ -4233,6 +4266,41 @@ function chatLoadMedia(){try{
    try{const box=document.querySelector('.msg[data-id="'+m.id+'"] .bub');const im=box?box.querySelector(':scope > img'):null;if(im){if(u){im.src=u}else{im.remove();const sp=document.createElement("span");sp.className="muted msglost";sp.textContent="图片已丢失";box.appendChild(sp)}}}catch(e){}
    setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
  setTimeout(step,60)}catch(e){}}
+/* 启动自愈：朋友圈/评论的图片、表情包只认长期数据（独立记录 / dataURL / 卡片 cid）；
+   临时地址 blob: 一律尝试转存，绝不删除任何还能用的图片。 */
+let _momSaveT=0;
+function saveMomentsSoon(){if(_momSaveT)clearTimeout(_momSaveT);_momSaveT=setTimeout(function(){_momSaveT=0;try{save("moments")}catch(e){}},350)}
+function feedMediaRepair(){try{
+ const jobs=[];
+ (S.moments||[]).forEach(function(p){
+  (p.cmts||[]).forEach(function(c){
+   if(!c)return;const v=c.img;
+   if(typeof v==="string"&&v.indexOf("data:")===0&&v.length>=MEDIA_MIN){const b=dataUrlToBlobSync(v);if(b)mediaPut("mc",c.id,"i",b).then(function(ok){if(ok===false)return;c.imgMedia=1;c.img="";saveMomentsSoon()});return}
+   if(!v||typeof v!=="string"||v.indexOf("blob:")===0)jobs.push({own:"mc",id:c.id,slot:"i",obj:c,idx:-1,cid:c.stkCid});
+  });
+  (p.imgs||[]).forEach(function(u,ix){
+   if(typeof u==="string"&&u.indexOf("data:")===0&&u.length>=MEDIA_MIN){const b=dataUrlToBlobSync(u);if(b)mediaPut("f",p.id,"i"+ix,b).then(function(ok){if(ok===false)return;p.imgMedia=p.imgMedia||{};p.imgMedia[ix]=1;p.imgs[ix]="";saveMomentsSoon()});return}
+   if(!u||typeof u!=="string"||u.indexOf("blob:")===0)jobs.push({own:"f",id:p.id,slot:"i"+ix,obj:p,idx:ix,cid:(p.imgCids&&p.imgCids[ix])||(ix===0?p.stkCid:"")});
+  });
+  if(p.stkCid&&(!p.imgs||p.imgs.length===0))jobs.push({own:"f",id:p.id,slot:"i0",obj:p,idx:0,cid:p.stkCid});
+ });
+ let i=0;
+ const apply=function(j){
+  if(j.own==="mc"){j.obj.imgMedia=1;j.obj.img=""}
+  else{j.obj.imgMedia=j.obj.imgMedia||{};j.obj.imgMedia[j.idx]=1;j.obj.imgs[j.idx]=""}
+  saveMomentsSoon();
+ };
+ const step=function(){
+  if(i>=jobs.length){if(jobs.length)setTimeout(function(){try{feedLoadMedia();if(cur==="moments")renderMoments()}catch(e){}},400);return}
+  const j=jobs[i++];
+  mediaGet(j.own,j.id,j.slot).then(function(b){
+   if(b&&b.size){apply(j);step();return}
+   if(!j.cid){step();return}
+   mediaGet("c",j.cid,"d").then(function(cb){if(cb&&cb.size)mediaPut(j.own,j.id,j.slot,cb).then(function(ok){if(ok!==false)apply(j);step()});else step()}).catch(function(){step()});
+  }).catch(function(){step()});
+ };
+ step();
+}catch(e){}}
 function feedLoadMedia(){try{
  const list=(S.moments||[]),jobs=[];
  (S.moments||[]).forEach(function(p){try{(p.cmts||[]).forEach(function(c){
@@ -4299,14 +4367,16 @@ document.addEventListener("error",function(e){try{
   if(u){try{im.src=u}catch(x){}}
  }).catch(function(){});
 }catch(err){}},true);
-function mediaUrl(data,key){if(!data)return "";if(typeof data==="string")return data;if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
+function mediaUrl(data,key){if(!data)return "";if(typeof data==="string")return data;if(!(data instanceof Blob)&&!(data&&typeof data.size==="number"&&data.size>0))return "";if(customUrlCache[key])return customUrlCache[key];const u=URL.createObjectURL(data);customUrlCache[key]=u;return u}
 function blobToDataUrl(b){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(b)})}
 function dataUrlToBlob(u){return fetch(u).then(r=>r.blob())}
 /* bubble with proactive tag image */
 function msgBubble(m){if(m.type==="sys")return '<div class="sysmsg">'+(m.nickKeep?esc(m.text):esc(nickFill(m.pat?m.pat:m.text)))+(m.img?'<img src="'+m.img+'" alt="">':"")+"</div>";
  const me=m.from==="me";const s=S.settings;const c=s.chat||{};let inner="";
-  if(m.type==="img")inner=(!m.data&&!m.media)?'<span class="muted msglost">图片已丢失</span>':'<img data-mid="'+m.id+'" src="'+mediaUrl(m.data,"m"+m.id)+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">"+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
- else if(m.type==="voice")inner=((!m.data&&!m.media)?'<span class="muted msglost">语音已丢失</span>':'<span class="voice" data-act="play-voice" data-id="'+m.id+'"><span class="vico">'+ico("voicewave")+"</span><span class=\"vdur\">"+(m.dur||2)+'″</span></span>')+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
+ /* 引用预览：图片/表情包/语音气泡也要显示引用（否则「引用后发图片」会看不到引用了谁） */
+ const qh=m.quote?('<span class="q"'+(m.quoteId?' data-act="locate-quote" data-qid="'+m.quoteId+'"':"")+'>'+quoteHtml(m.quote,m.quoteId)+"</span>"):"";
+  if(m.type==="img")inner=qh+((!m.data&&!m.media)?'<span class="muted msglost">图片已丢失</span>':'<img data-mid="'+m.id+'" src="'+mediaUrl(m.data,"m"+m.id)+'" class="'+(m.stk?"stk":"")+(msgMulti?"":" zoomable")+'"'+(msgMulti?"":' data-act="img-view"')+">"+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":""));
+ else if(m.type==="voice")inner=qh+((!m.data&&!m.media)?'<span class="muted msglost">语音已丢失</span>':'<span class="voice" data-act="play-voice" data-id="'+m.id+'"><span class="vico">'+ico("voicewave")+"</span><span class=\"vdur\">"+(m.dur||2)+'″</span></span>')+(m.text?'<span class="vtext">'+esc(m.text)+"</span>":"");
   else if(m.type==="transfer"||m.type==="redpacket")inner=txBubbleHtml(m,me);
  else if(m.type==="ask")inner=askBubbleHtml(m)
 else if(m.type==="quizset")inner=quizSetBubbleHtml(m)
@@ -5096,10 +5166,6 @@ function assetRow(k,label){const v=S.assets[k];return '<div class="row"><span cl
 function colorRow(label,path,def){const v=getPath(S.settings,path)||def;return '<div class="row"><span class="lab">'+label+'</span><input type="color" data-chatcolor="'+path+'" value="'+v+'"></div>'}
 PAGES.chatset={html(){const c=S.settings.chat;
  return phead("聊天设置")+
- '<div class="sect">对方状态</div><div class="card">'+
-  '<div class="row"><span class="lab">当前状态</span><span class="muted" style="flex:none">'+esc(chatStatusText())+'</span></div>'+
-  '<div class="row"><span class="lab">让对方换个状态</span><button class="btn sm" data-act="ta-status-change">换一个</button></div>'+
-  '<div class="muted" style="padding:4px 2px 8px">状态会一直保留，重进聊天页不会变；只有 TA 主动更换（或点这里）才会换。</div></div>'+
  '<div class="sect">聊天背景图</div><div class="card">'+assetRow("chat_bg","聊天背景图")+'</div>'+
  '<div class="sect">头像与昵称</div><div class="card">'+assetRow("ava_me","我的头像")+assetRow("ava_ta","对方头像")+
   '<div class="row"><span class="lab">我的昵称</span><input data-nick="me" value="'+esc(S.settings.myName)+'" maxlength="30" style="flex:none;width:130px"></div>'+
@@ -5564,10 +5630,10 @@ function draftStrip(){try{
  let el=document.getElementById("draftstrip");
  if(!draftMedia||cur!=="chat"){if(el)el.remove();return}
  if(!el){el=document.createElement("div");el.id="draftstrip";el.className="draftstrip";document.body.appendChild(el)}
- el.innerHTML='<img src="'+mediaUrl(draftMedia.data,"draft")+'" alt=""><span class="dslbl">'+(draftMedia.stk?"表情包":"图片")+'会和文字/引用一起发出</span><button class="dsx" type="button" data-act="draft-clear" title="移除">'+ico("close")+'</button>';
+ el.innerHTML='<img src="'+mediaUrl(draftMedia.data,"draft")+'" alt=""><button class="dsx" type="button" data-act="draft-clear" title="移除">'+ico("close")+'</button>';
 }catch(e){}}
 ACT["draft-clear"]=()=>{draftMedia=null;draftStrip()};
-function attachMedia(u,stk){draftMedia={data:u,stk:!!stk};draftStrip();toast(stk?"已附加表情包：可继续输入（或直接发送）":"已附加图片：可继续输入（或直接发送）");try{const i=$("#cin");if(i)i.focus()}catch(e){}}
+function attachMedia(u,stk){draftMedia={data:u,stk:!!stk};draftStrip();try{const i=$("#cin");if(i)i.focus()}catch(e){}}
 function stkRecentTouch(id){try{if(!S.misc.stkRecent)S.misc.stkRecent=[];S.misc.stkRecent=[id].concat(S.misc.stkRecent.filter(function(x){return x!==id})).slice(0,24);save("misc")}catch(e){}}
 /* ===== 共用表情包选择器：和聊天左下角同一套卡池（最近使用 + 分组）===== */
 function stkPickBody(k){
@@ -5611,7 +5677,8 @@ function sendStickerCard(id){const c=S.cards.find(function(x){return x.id===id})
  if(draftHas()){cardMediaUrl(c,function(u){if(u)attachMedia(u,true)});closeChatPanel();return}
  const m={id:uid(),from:"me",type:"img",data:"",stk:1,ts:Date.now()};m.timestamp=m.ts;
  if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}
- mediaFromCardInto(c,m,"data",function(){try{mediaShelveMsg(m)}catch(e){};try{S.chats.push(m)}catch(e){};save("chats");if(cur==="chat")renderMsgs("bottom")});
+ m.cid=c.id;
+ cardMediaUrl(c,function(u){try{m.data=u||"";if(!u)m.lost=1;mediaShelveMsg(m);S.chats.push(m);save("chats");if(cur==="chat")renderMsgs("bottom")}catch(e){}});
  playBlock("me");taRespond("");closeChatPanel()}
 /* ---- 消息操作菜单 ---- */
 let msgTarget=null;
@@ -5641,38 +5708,45 @@ function locateQuote(qid){const t=document.querySelector('.msg[data-id="'+qid+'"
 /* ---- 引用 ---- */
 let quoteRef=null;
 /* 引用数据结构：{type:"text"|"image"|"sticker", content:文字或图片地址} —— 不再渲染任何发送者昵称；兼容旧的纯字符串 */
-function quoteObjOf(m){return (m.type==="img")?{type:(m.stk?"sticker":"image"),content:(m.data||"")}:{type:"text",content:msgPlain(m)}}
+function quoteObjOf(m){
+ /* 聊天里的图片/表情包可能是 type:"img"，也可能是「草稿图片+文字」的 type:"text"，
+    两者都要按图片/表情包引用，否则引用会变成一条空文字（不显示图）。 */
+ if(m.type==="img"||((m.data||m.media)&&m.type!=="voice")){
+  const d=(typeof m.data==="string"&&/^(data:|https?:)/.test(m.data))?m.data:"";
+  return {type:(m.stk?"sticker":"image"),content:d};
+ }
+ return {type:"text",content:msgPlain(m)}}
 /* 红包 / 帮我决定 / 问卷：双方都不能被引用 */
 function canQuote(m){return !!m&&["transfer","redpacket","ask","quiz","quizset"].indexOf(m.type)<0}
 function quoteNorm(q,id){
  if(typeof q==="string")return {type:"text",content:q.replace(/^[^：:]{1,12}[：:]\s*/,"")};
  if(q&&typeof q==="object")return {type:q.type||"text",content:(typeof q.content==="string"?q.content:"")};
  return {type:"text",content:""}}
-/* 图片引用：优先用引用对象里的 content，缺失时按 quoteId 回原消息取（不额外占存储） */
-/* 引用里的图片：刷新后 objectURL 会失效，按 data-qid 从独立记录里补回来 */
-function chatQuoteFill(){try{
- var imgs=[].slice.call(document.querySelectorAll("#msgs .msg .qimg[data-qid]"));
- if(!imgs.length)return;
- var i=0;
- var step=function(){
-  if(i>=imgs.length)return;
-  var im=imgs[i++];
-  var qid=im.getAttribute("data-qid");
-  if(!qid||im.getAttribute("src")){setTimeout(step,0);return}
-  mediaGet("m",qid,"d").then(function(b){
-   if(b){var u="";try{u=URL.createObjectURL(b)}catch(e){};if(u){try{im.src=u}catch(e){}}}
-   setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
- setTimeout(step,0)}catch(e){}}
-function quoteImgSrc(o,id){const c=o&&o.content;
- if(typeof c==="string"&&/^(data:|https?:)/.test(c))return c;
- if(!id)return "";const m=(S.chats||[]).find(function(x){return x.id===id});
- return (m&&m.type==="img"&&m.data&&!/^blob:/.test(String(m.data)))?m.data:""}
+/* 引用图片/表情包：先留 <img class="qimg" data-qid> 占位，再按
+   ①原消息里还在的图 → ②独立记录 xjMedia:m:<id>:d → ③（会话内）原临时地址
+   的顺序补图。这样引用栏、已发出的引用气泡、刷新后都能正常显示。 */
+function fillQuoteImgs(scope){try{
+ const root=scope||document;
+ [].slice.call(root.querySelectorAll("img.qimg[data-qid]")).forEach(function(im){
+  if(im.getAttribute("src"))return;
+  const qid=im.getAttribute("data-qid");
+  const m=qid?(S.chats||[]).find(function(x){return x.id===qid}):null;
+  const use=function(src){
+   if(!src)return false;
+   if(typeof src==="string"){if(/^(data:|https?:|blob:)/.test(src)){im.src=src;return true}return false}
+   try{im.src=URL.createObjectURL(src);return true}catch(e){return false}
+  };
+  if(m&&use(m.data))return;
+  if(!qid)return;
+  mediaGet("m",qid,"d").then(function(b){if(b&&b.size){try{im.src=URL.createObjectURL(b)}catch(e){}}}).catch(function(){});
+ });
+}catch(e){}}
+function chatQuoteFill(){try{fillQuoteImgs(document.getElementById("msgs")||document)}catch(e){}}
 function quoteHtml(q,id){const o=quoteNorm(q,id);
  if(o.type==="text"){const t=String(o.content||"");return '<span class="qtx">'+esc(t.length>10?t.slice(0,10)+"…":t)+"</span>"}
- const src=quoteImgSrc(o,id);
- return src?'<img class="qimg" src="'+src+'" alt="">':'<img class="qimg" data-qid="'+esc(String(id||""))+'" alt="">'}
+ return '<img class="qimg'+(o.type==="sticker"?" qstk":"")+'" data-qid="'+esc(String(id||""))+'" alt="">'}
 function renderQuoteBar(){const bar=$("#quotebar");if(!bar)return;
- if(quoteRef){bar.classList.add("on");bar.innerHTML='<span class="qico">'+ico("quote")+'</span>'+quoteHtml(quoteRef.quote,quoteRef.id)+'<button class="qx" data-act="quote-clear" title="取消引用">'+ico("close")+'</button>'}
+ if(quoteRef){bar.classList.add("on");bar.innerHTML='<span class="qico">'+ico("quote")+'</span>'+quoteHtml(quoteRef.quote,quoteRef.id)+'<button class="qx" data-act="quote-clear" title="取消引用">'+ico("close")+'</button>';fillQuoteImgs(bar)}
  else{bar.classList.remove("on");bar.innerHTML=""}
  syncAboveBar()}
 function setQuote(m){if(!canQuote(m))return toast("红包 / 帮我决定 / 问卷 不能引用");quoteRef={id:m.id,quote:quoteObjOf(m)};renderQuoteBar()}
@@ -5760,10 +5834,6 @@ ACT["locate-quote"]=el=>locateQuote(el.dataset.qid);
 ACT["chat-img"]=()=>pickFile("image/*",false,fs=>readAsDataURL(fs[0]).then(u=>compressImage(u,1024,.82)).then(c=>{attachMedia(c,false)}));
 ACT["chat-kbd"]=()=>setVoiceMode(false);
 ACT["chat-set"]=()=>go("chatset");
-/* 让对方（TA）主动换一个状态：写进 S.misc.taStatus 并立即刷新顶栏 */
-ACT["ta-status-change"]=()=>{const st=cardTexts("状态");if(!st.length)return toast("状态字卡库是空的");
- let txt=pick(st),n=0;while(txt===chatStatusText()&&n++<10)txt=pick(st);
- setTaStatus(txt);toast((S.settings.taName||"TA")+" 换了个状态："+txt);try{render()}catch(e){}};
 ACT["chat-rename"]=async()=>{const v=await promptDlg("对方昵称",S.settings.taName);if(v==null)return;
  /* 统一走 applyTaNick：清洗 → 落库 → 历史系统消息昵称清扫（{ta} 占位符）→ 顶栏/面板同步 */
  applyTaNick(v.trim()||"TA");save("settings");render()};
@@ -6143,7 +6213,7 @@ function momentComment(p){
 }
 function addMyComment(p,parts){p.cmts=p.cmts||[];p.cmts.push(Object.assign({id:uid(),who:S.settings.myName,text:""},parts));save("moments");renderMoments();taReplyToMyComment(p)}
 function taReplyToMyComment(p){const r=S.settings.reply.moments;if(!chance(70))return;setTimeout(()=>{const cmt={id:uid(),who:S.settings.taName,text:""};
- if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length)mediaFromCardInto(pick(st),cmt,"img")}
+ if(chance(r.cmtSticker)){const st=cardsOf("表情包");if(st.length){const c0=pick(st);cmt.stkCid=c0.id;cardMediaUrl(c0,function(u){if(u){cmt.img=u;try{save("moments");if(cur==="moments")renderMoments()}catch(e){}}})}}
  if(!cmt.img){let t=cardTexts("情绪字卡").length?pick(cardTexts("情绪字卡")):"嗯嗯";if(chance(r.cmtKaomoji)){const k=cardTexts("颜文字");if(k.length)t+=" "+pick(k)}if(chance(r.cmtEmoji)){const e=cardTexts("Emoji");if(e.length)t+=pick(e)}cmt.text=t}
  p.cmts=p.cmts||[];p.cmts.push(cmt);save("moments");if(cur==="moments")renderMoments();notifyTA("回复了你的评论")},rnd(30,120)*1000)}
 ACT["cal-prev"]=()=>{S.misc.calM--;if(S.misc.calM<0){S.misc.calM=11;S.misc.calY--}renderCal()};
@@ -6549,7 +6619,7 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
  for(const k in FLOWER_MASKS){try{document.documentElement.style.setProperty("--flower-"+k,'url("'+FLOWER_MASKS[k]+'")')}catch(e){}}
   applyTheme();applyChatUI();applyFont();applySystem();renderTabbar();render();initCallMiniDrag();initKeyboardAdapt();
 /* 后置加载音乐库：大库也不会卡住启动；顺手把老数据里塞在数组里的音频搬到单独记录 */
- try{setTimeout(function(){try{mediaShelveAll()}catch(e){}},2600)}catch(e){}
+ try{setTimeout(function(){try{mediaShelveAll()}catch(e){}},2600);setTimeout(function(){try{feedMediaRepair()}catch(e){}},4200)}catch(e){}
  try{kvGet("audios").then(function(v){if(v===KV_ERR){kvBad["audios"]=1;return}if(v!==undefined)S.audios=v||[];
   try{muBlobMigrate()}catch(e){}
   try{if(cur==="music"||cur==="muplayer")render()}catch(e){}
@@ -6557,7 +6627,7 @@ async function boot(){try{if(/MicroMessenger/i.test(navigator.userAgent))documen
  /* 老数据清理：已移除「优化电量消耗」模块，删掉遗留设置项（S 是 Proxy，需整体重建对象） */
  try{const sy=S.settings.system;if(sy&&("battery" in sy)){const c={};Object.keys(sy).forEach(function(k){if(k!=="battery")c[k]=sy[k]});S.settings.system=c;save("settings")}}catch(e){}
  offlineCheck();scheduleActive();
- taMomentCheck();taLetterCheck();setInterval(whenAwake(function(){taMomentCheck();taLetterCheck()}),10*60000);
+ taMomentCheck();taLetterCheck();setInterval(whenAwake(function(){taMomentCheck();taLetterCheck();try{maybeTaStatusChange()}catch(e){}}),10*60000);
  try{quizSetTickAll();setInterval(whenAwake(function(){quizSetTickAll()}),20000)}catch(e){}
  try{catchUpAsks()}catch(e){}
  try{trCheck();setInterval(whenAwake(trCheck),60000);locCheck();setInterval(whenAwake(locCheck),60000);locHintTick();setInterval(whenAwake(locHintTick),30000)}catch(e){} try{moodSeedIntoLib()}catch(e){}

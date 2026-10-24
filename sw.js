@@ -4,8 +4,11 @@
         页面导航 → 网络优先（离线回退缓存）；
         其它资源 → 缓存优先 + 后台静默更新（下次打开就是新版）。
           */
-const CACHE = 'xingjian-v100';
+const CACHE = 'xingjian-v107';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
+/* 更新后必须第一次打开就生效：这些是「界面本身」的文件，走网络优先。
+   以前是缓存优先，上传新版后第一次打开还是旧界面，容易误以为修复没生效。 */
+const SHELL = /(\/|\.html|app\.js|style\.css|sw\.js|manifest\.json)$/;
 
 self.addEventListener('install', function (e) {
   self.skipWaiting();
@@ -49,6 +52,22 @@ self.addEventListener('fetch', function (e) {
         .catch(function () {
           return caches.match(req).then(function (r) { return r || caches.match('./index.html'); });
         })
+    );
+    return;
+  }
+
+  /* 界面文件（app.js / style.css / 页面本身）：网络优先，
+     这样上传新版后第一次打开就是新代码；离线时才用缓存。 */
+  let isShell = false;
+  try { isShell = SHELL.test(new URL(req.url).pathname); } catch (err) { isShell = false; }
+  if (isShell) {
+    e.respondWith(
+      fetch(req, { cache: 'no-cache' })
+        .then(function (r) {
+          if (r && r.ok) caches.open(CACHE).then(function (c) { c.put(req, r.clone()).catch(function () {}); });
+          return r;
+        })
+        .catch(function () { return caches.match(req).then(function (r) { return r || caches.match('./index.html'); }); })
     );
     return;
   }
