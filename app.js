@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v94";
+const APP_BUILD="v100";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -769,9 +769,12 @@ PAGES.chat={html(){const s=S.settings;
   '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button type="button" class="ibtn" data-act="chat-menu" title="功能">'+ico("moon")+'</button><button type="button" class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
   '<div id="chatpanel"></div><div id="msgmenu"></div>'},
  init(){renderMsgs("bottom");bindChatMoreScroll();setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});renderTabbar()}};
-let curChatStatus="在线";
-function chatStatusText(){return curChatStatus||"在线"}
-function pickStatusCard(){const st=cardTexts("状态");curChatStatus=st.length?pick(st):"在线";return curChatStatus}
+let curChatStatus="";
+/* 顶栏状态落盘在 S.misc.taStatus：重进聊天页一直沿用，
+   只有 TA 主动更换（或用户在聊天设置里点「换一个」）才会变 */
+function chatStatusText(){try{if(!curChatStatus&&S.misc&&S.misc.taStatus&&S.misc.taStatus.text)curChatStatus=String(S.misc.taStatus.text)}catch(e){}return curChatStatus||"在线"}
+function setTaStatus(txt){curChatStatus=String(txt||"在线");try{S.misc.taStatus={text:curChatStatus,ts:Date.now()};save("misc")}catch(e){}const el=$("#cstat");if(el)el.textContent=curChatStatus;try{renderAiBadge()}catch(e){}return curChatStatus}
+function pickStatusCard(){const st=cardTexts("状态");return setTaStatus(st.length?pick(st):"在线")}
 /* AI 状态小字（聊天页顶栏）：开启 AI / AI 聊天模式 / 语音时在昵称旁显示一条提醒 */
 function aiStatusText(){const a=[];
  try{if(S.settings.aiOn!==false){const c=aiActive();if(c&&c.apiKey)a.push("AI 已开启")}}catch(e){}
@@ -779,7 +782,20 @@ function aiStatusText(){const a=[];
  try{const v=S.settings.voice||{};if(v.on&&voiceCoreReady())a.push("语音已开启")}catch(e){}
  return a.join(" · ")}
 function renderAiBadge(){const el=$("#caistat");if(!el)return;const t=aiStatusText();el.textContent=t;el.style.display=t?"":"none"}
-function setChatStatus(){pickStatusCard();const el=$("#cstat");if(el)el.textContent=curChatStatus;renderAiBadge()}
+function setChatStatus(){const el=$("#cstat");
+ try{if(!(S.misc.taStatus&&S.misc.taStatus.text)){const st=cardTexts("状态");setTaStatus(st.length?pick(st):"在线")}else curChatStatus=String(S.misc.taStatus.text)}catch(e){}
+ if(el)el.textContent=chatStatusText();renderAiBadge()}
+/* TA 主动换状态：距上次更换满 8 小时、且 TA 刚回过话时才可能触发（25%），
+   重进聊天页永远不换，避免每次进来状态都变 */
+function maybeTaStatusChange(){try{
+ const ts=(S.misc&&S.misc.taStatus&&S.misc.taStatus.ts)||0;
+ if(Date.now()-ts<8*3600*1000)return;
+ if(!chance(25))return;
+ const st=cardTexts("状态");if(!st.length)return;
+ let txt=pick(st),n=0;while(txt===chatStatusText()&&n++<10)txt=pick(st);
+ setTaStatus(txt);
+ if(cur==="chat")toast((S.settings.taName||"TA")+" 换了个状态："+txt);
+}catch(e){}}
 /* 跨页面的「对方正在输入」状态：不随页面切换而消失，回复送达后才收起；并带到期看门狗防止一直挂着 */
 const TYPING={on:false,due:0};
 function showTyping(on,dueMs){if(on){TYPING.on=true;TYPING.due=Date.now()+(dueMs||60000)+15000}else{TYPING.on=false;TYPING.due=0}applyTyping()}
@@ -979,7 +995,7 @@ function afterTaText(){const s=S.settings.reply.chat;
  if(chance(s.voice)){const vc=cardsOf("语音字卡");if(vc.length)setTimeout(()=>{pushCardMsg("ta",pick(vc));playBlock("ta")},rnd(1000,3000))}
  if(chance(s.retract))setTimeout(()=>{const m=pushChat({from:"ta",type:"text",text:taTextContent(1),nopick:true});setTimeout(()=>{m.retracted=true;save("chats");if(cur==="chat")renderMsgs()},rnd(1200,2500))},rnd(500,1500));
  if(chance(s.pat))setTimeout(()=>taPat(),rnd(600,2000));
- tryProactiveVoice();tryTaTransfer();try{maybeIncoming()}catch(e){}}
+ tryProactiveVoice();tryTaTransfer();try{maybeIncoming()}catch(e){}try{maybeTaStatusChange()}catch(e){}}
 /* 本地模板回复（AI 关闭或失败时使用，保持与原来完全一致） */
 function localTaReply(myText,text){const s=S.settings.reply.chat;let quote=null,quoteId=null;
  if(chance(s.quote)){const lm=lastMeMsgId?S.chats.find(x=>x.id===lastMeMsgId):null;if(lm&&canQuote(lm)){quote=quoteObjOf(lm);quoteId=lm.id}}
@@ -1416,7 +1432,7 @@ ACT["letter-rescue"]=()=>{try{kvGet("letters").then(function(v){if(!v||!v.length
 function letterReplyOf(l){return (l&&l.myReply&&String(l.myReply.content||"").trim())?l.myReply:null}
 /* ================= 信箱：写信/回信独立页 + 表情包/图片 + 收藏状态 ================= */
 let _le={mode:"write",replyId:"",sticker:""};
-function letterEditOpen(mode,id){_le={mode:mode||"write",replyId:id||"",sticker:""};go("letteredit")}
+function letterEditOpen(mode,id){if(mode==="reply"){try{var _l=(S.letters||[]).find(function(x){return x.id===id});if(_l&&_l.myReply&&String(_l.myReply.content||"").trim()){toast("这封信已经回过了，不能再回");return}}catch(e){}}_le={mode:mode||"write",replyId:id||"",sticker:""};go("letteredit")}
 function lePaint(){const el=document.getElementById("lepic");if(el)el.innerHTML=_le.sticker?'<img src="'+_le.sticker+'">':""}
 PAGES.letteredit={html(){const nm=esc(S.settings.taName||"TA");const rep=_le.mode==="reply";
  const l=rep?S.letters.find(function(x){return x.id===_le.replyId}):null;
@@ -1463,13 +1479,14 @@ function letterSheet(id){const l=S.letters.find(function(x){return x.id===id});i
   if(rp)body+=card(S.settings.myName||"我",rp.tm,"我的回信",rp.content,rp.sticker)}
  const btns=mine
   ?'<div class="btnrow" style="margin-top:12px"><button class="btn danger" data-lg="del" style="flex:1">删除</button><button class="btn" data-lg="close" style="flex:1">关闭</button></div>'
-  :'<div class="btnrow" style="margin-top:12px"><button class="btn" data-lg="fav" style="flex:1">'+(l.myFav?"已收藏":"收藏来信")+'</button><button class="btn" data-lg="reply" style="flex:1">提笔回信</button></div>'+
+  :'<div class="btnrow" style="margin-top:12px"><button class="btn" data-lg="fav" style="flex:1">'+(l.myFav?"已收藏":"收藏来信")+'</button>'+(!!(l.myReply&&(String(l.myReply.content||"").trim()||l.myReply.sticker))?'<button class="btn" data-lg="replied" style="flex:1;opacity:.55" aria-disabled="true">已回信</button>':'<button class="btn" data-lg="reply" style="flex:1">提笔回信</button>')+'</div>'+
    '<div class="btnrow" style="margin-top:10px"><button class="btn danger" data-lg="del" style="flex:1">删除</button><button class="btn" data-lg="close" style="flex:1">关闭</button></div>';
  const sh=openSheet('<div class="mtitle">信件<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+body+btns,true);
  sh.onclick=function(e){const b=e.target.closest("[data-lg]");
   if(b){const k=b.dataset.lg;
    if(k==="close"){closeModal();if(cur==="mail")renderLetters();return}
    if(k==="reply"){closeModal();letterEditOpen("reply",l.id);return}
+   if(k==="replied"){toast("这封信已经回过了，不能再回");return}
    if(k==="fav"){if(l.myFav){l.myFav=false;save("letters");toast("已取消收藏")}else if(favAdd({by:"me",kind:"mail",title:l.title||"",text:l.content})){l.myFav=true;save("letters");toast("已收藏到我的收藏")}else{l.myFav=true;save("letters");toast("已收藏")}
     closeModal();letterSheet(id);return}
    if(k==="del"){closeModal();confirmDlg("删除这封信？","删除",true).then(function(ok){if(!ok)return;
@@ -1502,8 +1519,14 @@ function letterCompose(){openSheet('<div class="mtitle">写信给 '+esc(S.settin
  $("#modal .sheet").onclick=e=>{const b=e.target.closest("[data-r]");if(!b)return;closeModal();if(b.dataset.r!=="ok")return;const c=$("#lc").value.trim();if(!c)return toast("信纸是空的");S.letters.push({id:uid(),from:"me",to:"ta",title:$("#lt").value.trim(),content:c,ts:Date.now(),read:true});save("letters");renderLetters();toast("已寄出");favTaCollectMail($("#lt").value.trim(),c);scheduleLetterReply()}}
 function letterSticker(){const r=S.settings.reply.letter;if(!chance(r.sticker))return null;const st=cardsOf("表情包");return st.length?pick(st).data:null}
 function letterContent(){const r=S.settings.reply.letter;const n=rnd(r.minCards,r.maxCards);const pool=[...cardTexts("主字卡"),...cardTexts("情绪字卡")];let lines=[];for(let i=0;i<n;i++)lines.push(pool.length?pick(pool):"见字如面，甚是思念");let txt="见字如面：\n"+lines.join("\n")+"\n盼复";if(chance(r.kaomoji)){const k=cardTexts("颜文字");if(k.length)txt+=" "+pick(k)}if(chance(r.emoji)){const e=cardTexts("Emoji");if(e.length)txt+=pick(e)}return txt}
-function scheduleLetterReply(){const r=S.settings.reply.letter;if(!chance(r.replyProb))return;setTimeout(()=>{S.letters.push({id:uid(),from:"ta",to:"me",title:"回信",content:letterContent(),sticker:letterSticker(),ts:Date.now(),read:cur==="mail"});save("letters");if(cur==="mail")renderLetters();notifyTA("收到一封回信")},rnd(r.replyTimeMin,r.replyTimeMax)*3600000/60)}
-function taLetterCheck(){const r=S.settings.reply.letter;const last=S.misc.lastTaLetter||0;const h=(Date.now()-last)/3600000;if(h<r.activeTimeMin)return;if(!chance(r.activeProb))return;S.misc.lastTaLetter=Date.now();save("misc");for(let i=0;i<Math.max(1,r.activeCount);i++)S.letters.push({id:uid(),from:"ta",to:"me",title:pick(["近安","见字如面","随笔","念你"]),content:letterContent(),sticker:letterSticker(),ts:Date.now(),read:false});save("letters");toast("信箱里有新信")}
+function scheduleLetterReply(){const r=S.settings.reply.letter;if(!chance(r.replyProb))return;setTimeout(()=>{
+  let quote="";
+  try{const mine=(S.letters||[]).filter(function(x){return x.myReply&&String(x.myReply.content||"").trim()}).sort(function(a,b){return (b.myReply.tm||0)-(a.myReply.tm||0)})[0];
+   if(mine){const t=String(mine.myReply.content||"").replace(/\s+/g," ").slice(0,40);if(t)quote="你信里说：「"+t+(mine.myReply.content.length>40?"…":"")+"」\n\n"}}
+  catch(e){}
+  S.letters.push({id:uid(),from:"ta",to:"me",title:quote?"回你的信":"回信",content:quote+letterContent(),sticker:letterSticker(),ts:Date.now(),read:cur==="mail"});
+  save("letters");if(cur==="mail")renderLetters();notifyTA("收到一封回信")},rnd(r.replyTimeMin,r.replyTimeMax)*3600000/60)}
+function taLetterCheck(){const r=S.settings.reply.letter;const last=S.misc.lastTaLetter||0;const h=(Date.now()-last)/3600000;if(h<r.activeTimeMin)return;if(!chance(r.activeProb))return;S.misc.lastTaLetter=Date.now();save("misc");for(let i=0;i<Math.max(1,r.activeCount);i++)S.letters.push({id:uid(),from:"ta",to:"me",title:pick(["近安","见字如面","随笔","念你"]),content:letterContent(),sticker:letterSticker(),ts:Date.now(),read:false});save("letters");toast((S.settings.taName||"TA")+" 给你写了一封信")}
 /* ================= MOMENTS ================= */
 /* ---- 朋友圈：通知提醒 + 数据管理（对齐 mochi 链路） ---- */
 function feedNotices(){if(!Array.isArray(S.misc.feedNotices))S.misc.feedNotices=[];return S.misc.feedNotices}
@@ -4211,8 +4234,8 @@ function chatLoadMedia(){try{
    setTimeout(step,0)}).catch(function(){setTimeout(step,0)})};
  setTimeout(step,60)}catch(e){}}
 function feedLoadMedia(){try{
- const list=(S.moments||[]).slice(-40),jobs=[];
- (S.moments||[]).slice(-40).forEach(function(p){try{(p.cmts||[]).forEach(function(c){
+ const list=(S.moments||[]),jobs=[];
+ (S.moments||[]).forEach(function(p){try{(p.cmts||[]).forEach(function(c){
   if(c&&c.imgMedia&&!c.img)jobs.push([null,0,c]);})}catch(e){}});
  list.forEach(function(p){if(!p||!p.imgMedia)return;
   (p.imgs||[]).forEach(function(u,ix){if(p.imgMedia[ix]&&!u)jobs.push([p,ix])})});
@@ -4243,13 +4266,35 @@ function mediaShelveMsg(m){try{
    再取不到才显示「图片已丢失」。这样历史表情包不会变成破图。 */
 document.addEventListener("error",function(e){try{
  var im=e.target;
- if(!im||im.tagName!=="IMG"||!im.getAttribute("data-mid"))return;
+ if(!im||im.tagName!=="IMG"||!im.getAttribute("data-mid"))return;if(!im.closest||!im.closest("#msgs"))return;
  var id=im.getAttribute("data-mid");
  mediaGet("m",id,"d").then(function(b){
   if(!b){
    try{var box=im.parentNode;im.remove();if(box&&box.querySelectorAll("img").length===0){var sp=document.createElement("span");sp.className="muted msglost";sp.textContent="图片已丢失";box.appendChild(sp)}}catch(x){}
    return;
   }
+  var u="";try{u=URL.createObjectURL(b)}catch(x){}
+  if(u){try{im.src=u}catch(x){}}
+ }).catch(function(){});
+}catch(err){}},true);
+/* 朋友圈：评论里的表情包/图片、动态里的图片，加载失败时自动从独立记录重取一次
+   （评论图片存 mc 记录；动态图片存 f + "i索引" 记录） */
+document.addEventListener("error",function(e){try{
+ var im=e.target;
+ if(!im||im.tagName!=="IMG")return;
+ var mid=im.getAttribute("data-mid");if(!mid)return;
+ var mi=im.getAttribute("data-mi");
+ if(mi===null){
+  if(!im.closest||!im.closest(".fcmt"))return;
+  mediaGet("mc",mid,"i").then(function(b){
+   if(!b)return;
+   var u="";try{u=URL.createObjectURL(b)}catch(x){}
+   if(u){try{im.src=u}catch(x){}}
+  }).catch(function(){});
+  return;
+ }
+ mediaGet("f",mid,"i"+mi).then(function(b){
+  if(!b)return;
   var u="";try{u=URL.createObjectURL(b)}catch(x){}
   if(u){try{im.src=u}catch(x){}}
  }).catch(function(){});
@@ -5051,6 +5096,10 @@ function assetRow(k,label){const v=S.assets[k];return '<div class="row"><span cl
 function colorRow(label,path,def){const v=getPath(S.settings,path)||def;return '<div class="row"><span class="lab">'+label+'</span><input type="color" data-chatcolor="'+path+'" value="'+v+'"></div>'}
 PAGES.chatset={html(){const c=S.settings.chat;
  return phead("聊天设置")+
+ '<div class="sect">对方状态</div><div class="card">'+
+  '<div class="row"><span class="lab">当前状态</span><span class="muted" style="flex:none">'+esc(chatStatusText())+'</span></div>'+
+  '<div class="row"><span class="lab">让对方换个状态</span><button class="btn sm" data-act="ta-status-change">换一个</button></div>'+
+  '<div class="muted" style="padding:4px 2px 8px">状态会一直保留，重进聊天页不会变；只有 TA 主动更换（或点这里）才会换。</div></div>'+
  '<div class="sect">聊天背景图</div><div class="card">'+assetRow("chat_bg","聊天背景图")+'</div>'+
  '<div class="sect">头像与昵称</div><div class="card">'+assetRow("ava_me","我的头像")+assetRow("ava_ta","对方头像")+
   '<div class="row"><span class="lab">我的昵称</span><input data-nick="me" value="'+esc(S.settings.myName)+'" maxlength="30" style="flex:none;width:130px"></div>'+
@@ -5708,9 +5757,13 @@ ACT["multi-cancel"]=()=>exitMulti();
 ACT["multi-del"]=()=>{if(!msgSel.size)return toast("未选择");S.chats=S.chats.filter(x=>!msgSel.has(x.id));save("chats");exitMulti();toast("已删除")};
 ACT["multi-fav"]=()=>{if(!msgSel.size)return toast("未选择");const sel=S.chats.filter(x=>msgSel.has(x.id));sel.forEach(m=>addFav(m));exitMulti();toast("已收藏 "+sel.length+" 条")};
 ACT["locate-quote"]=el=>locateQuote(el.dataset.qid);
-ACT["chat-img"]=()=>pickFile("image/*",false,fs=>readAsDataURL(fs[0]).then(u=>compressImage(u,1024,.82)).then(c=>{if(draftHas()){attachMedia(c,false);return}const m={from:"me",type:"img",data:c};if(quoteRef){m.quote=quoteRef.quote;m.quoteId=quoteRef.id;clearQuote()}pushChat(m);playBlock("me");taRespond("")}));
+ACT["chat-img"]=()=>pickFile("image/*",false,fs=>readAsDataURL(fs[0]).then(u=>compressImage(u,1024,.82)).then(c=>{attachMedia(c,false)}));
 ACT["chat-kbd"]=()=>setVoiceMode(false);
 ACT["chat-set"]=()=>go("chatset");
+/* 让对方（TA）主动换一个状态：写进 S.misc.taStatus 并立即刷新顶栏 */
+ACT["ta-status-change"]=()=>{const st=cardTexts("状态");if(!st.length)return toast("状态字卡库是空的");
+ let txt=pick(st),n=0;while(txt===chatStatusText()&&n++<10)txt=pick(st);
+ setTaStatus(txt);toast((S.settings.taName||"TA")+" 换了个状态："+txt);try{render()}catch(e){}};
 ACT["chat-rename"]=async()=>{const v=await promptDlg("对方昵称",S.settings.taName);if(v==null)return;
  /* 统一走 applyTaNick：清洗 → 落库 → 历史系统消息昵称清扫（{ta} 占位符）→ 顶栏/面板同步 */
  applyTaNick(v.trim()||"TA");save("settings");render()};
@@ -6565,17 +6618,19 @@ window.addEventListener("pageshow",function(){setTimeout(function(){try{uiStateR
 /* ================= 信箱增强补丁（覆盖式，避免改动原函数体）================= */
 (function () {
   try {
-    /* 生成对方写信正文：从主字卡随机抽 minCards~maxCards 张，用「，」连成一段，
-          一行写不下自然换行（不再一句一行）——与聊天「拼字卡」同一套逻辑 */
+    /* 生成对方写信正文：从主字卡随机抽 minCards~maxCards 张，用「，」连成一段作为正文，
+          排版固定为「见字如面：」第一行 → 正文另起一行 → 最后「盼复」独占一行
+          （正文保留换行靠 .mlcc 的 white-space:pre-wrap） */
     window.letterContent = function () {
       const r = S.settings.reply.letter;
       const n = rnd(r.minCards, r.maxCards);
       const pool = [].concat(cardTexts("主字卡"), cardTexts("情绪字卡"));
       const lines = [];
       for (let i = 0; i < n; i++) lines.push(pool.length ? pick(pool) : "见字如面，甚是思念");
-      let txt = "见字如面" + lines.join("，") + "。盼复";
+      let txt = "见字如面：\n" + lines.join("，");
       if (chance(r.kaomoji)) { const k = cardTexts("颜文字"); if (k.length) txt += " " + pick(k); }
       if (chance(r.emoji)) { const e = cardTexts("Emoji"); if (e.length) txt += pick(e); }
+      txt += "\n盼复";
       return txt;
     };
   } catch (e) {}

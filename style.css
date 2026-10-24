@@ -1625,3 +1625,17 @@ html[data-glass="1"] .chatbar .ibtn{
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+/* 全站禁止出现滚动条（含朋友圈表情包面板、弹层、列表）——仍然可以滑动 */
+*{scrollbar-width:none !important;-ms-overflow-style:none !important}
+*::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important;background:transparent !important}
+html,body{scrollbar-width:none !important;-ms-overflow-style:none !important}
+
+/* 信件正文保留换行：见字如面 / 正文 / 盼复 各自成行 */
+.mlcc,.mlcard .mlcc,.lebody{white-space:pre-wrap !important}
+
+/* 音乐悬浮小球：更小 + 旋转（只在收起成小球时生效，
+   展开成播放卡片时必须恢复卡片尺寸，否则弹窗会被 46px 的 !important 挤坏） */
+.mufloat:not(.open){width:46px !important;height:46px !important;padding:3px !important;animation:muBallSpin 9s linear infinite}
+.mufloat.open{width:min(336px,calc(100vw - 24px)) !important;height:auto !important;min-height:0 !important;padding:10px 12px 12px !important;animation:none !important;transform:none !important}
+.mufloat.open::after{content:none !important;display:none !important}
+@keyframes muBallSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
