@@ -408,8 +408,23 @@ input[type="search"]::-ms-reveal{display:none;width:0;height:0}
 .post .who b{font-size:14px}
 .post .who time{font-size:12px;color:var(--muted)}
 .post .txt{font-size:14px;white-space:pre-wrap;margin-bottom:6px}
-.post .pics{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:6px}
-.post .pics img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px}
+/* 朋友圈图片/表情包统一小尺寸：和表情包一样大，完整显示不裁切 */
+.post .pics{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.post .pics img{width:76px;height:76px;aspect-ratio:auto;object-fit:contain;border-radius:8px;
+ background:color-mix(in srgb,var(--text) 6%,transparent);padding:2px;box-sizing:border-box;cursor:zoom-in}
+/* 编辑面板里的已选图片预览（之前没有约束，会按原图大小铺满 → 只能看到局部） */
+#mpics{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#mpics .mpic{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;
+ background:color-mix(in srgb,var(--text) 7%,transparent);box-shadow:inset 0 0 0 1px var(--line)}
+#mpics .mpic img{width:100%;height:100%;object-fit:contain;display:block;padding:3px;box-sizing:border-box}
+#mpics .mpic .mrm{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;
+ background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
+#mpics .mpic .mrm svg{width:11px;height:11px}
+/* 编辑面板内嵌表情包区域：标题 + 收起，避免只能靠顶栏 X 退出整个面板 */
+#mstk .mstkhead{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
+ font-size:12px;color:var(--muted);padding:2px 2px 4px}
+#mstk .mstkhead button{border:none;background:var(--bg);color:var(--text);border-radius:999px;
+ padding:4px 12px;font-size:12px;box-shadow:inset 0 0 0 1px var(--line)}
 .post .acts{display:flex;gap:14px;font-size:13px;color:var(--muted)}
 .post .acts span{display:flex;align-items:center;gap:4px}
 .fcbar{position:fixed;left:0;right:0;bottom:var(--kb,0px);margin:0 auto;max-width:560px;z-index:64;display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card);border-top:1px solid var(--line);transition:bottom .12s}
@@ -1675,3 +1690,34 @@ html[data-glass="1"] .mubtn.mufav.on{
 .mufav.on svg,
 html[data-glass="1"] .ibtn.mufav.on svg,
 html[data-glass="1"] .mubtn.mufav.on svg{stroke:color-mix(in srgb,var(--text) 32%,var(--primary)) !important}
+
+/* 朋友圈语音：主色胶囊 + 圆底播放键 + 五格音波（播放时跳动） */
+.feedvoice{display:inline-flex;align-items:center;gap:7px;border:none;border-radius:999px;
+ padding:5px 12px 5px 7px;margin:7px 0 3px;cursor:pointer;vertical-align:middle;
+ background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);
+ font:inherit;font-size:12px;font-weight:600;line-height:1;
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 26%,transparent);
+ -webkit-tap-highlight-color:transparent}
+.fcmt .feedvoice{margin:0 0 0 4px;padding:4px 10px 4px 6px}
+.feedvoice:active{transform:scale(.96)}
+.feedvoice .fv-ico{display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;
+ border-radius:50%;background:var(--primary);color:var(--on-primary,#fff)}
+.feedvoice .fv-ico svg{width:11px;height:11px;fill:currentColor}
+.feedvoice .fv-pause{display:none}
+.feedvoice.playing .fv-play{display:none}
+.feedvoice.playing .fv-pause{display:flex}
+.feedvoice .fv-waves{display:inline-flex;align-items:flex-end;gap:2px;height:14px}
+.feedvoice .fv-waves i{display:block;width:2.5px;border-radius:2px;background:currentColor;
+ height:4px;opacity:.5;transform-origin:50% 100%}
+.feedvoice .fv-waves i:nth-child(1){height:5px}
+.feedvoice .fv-waves i:nth-child(2){height:8px}
+.feedvoice .fv-waves i:nth-child(3){height:12px}
+.feedvoice .fv-waves i:nth-child(4){height:9px}
+.feedvoice .fv-waves i:nth-child(5){height:6px}
+.feedvoice .fv-dur{letter-spacing:.3px;min-width:2em;text-align:left}
+.feedvoice.playing .fv-waves i{opacity:1;animation:fvWave .8s ease-in-out infinite}
+.feedvoice.playing .fv-waves i:nth-child(2){animation-delay:.08s}
+.feedvoice.playing .fv-waves i:nth-child(3){animation-delay:.16s}
+.feedvoice.playing .fv-waves i:nth-child(4){animation-delay:.24s}
+.feedvoice.playing .fv-waves i:nth-child(5){animation-delay:.32s}
+@keyframes fvWave{0%,100%{transform:scaleY(.45)}50%{transform:scaleY(1.35)}}
