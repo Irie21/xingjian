@@ -4,7 +4,7 @@
         页面导航 → 网络优先（离线回退缓存）；
         其它资源 → 缓存优先 + 后台静默更新（下次打开就是新版）。
           */
-const CACHE = 'xingjian-v115';
+const CACHE = 'xingjian-v121';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 /* 更新后必须第一次打开就生效：这些是「界面本身」的文件，走网络优先。
    以前是缓存优先，上传新版后第一次打开还是旧界面，容易误以为修复没生效。 */

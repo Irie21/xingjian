@@ -1721,3 +1721,22 @@ html[data-glass="1"] .mubtn.mufav.on svg{stroke:color-mix(in srgb,var(--text) 32
 .feedvoice.playing .fv-waves i:nth-child(4){animation-delay:.24s}
 .feedvoice.playing .fv-waves i:nth-child(5){animation-delay:.32s}
 @keyframes fvWave{0%,100%{transform:scaleY(.45)}50%{transform:scaleY(1.35)}}
+
+/* 字卡池：一键回顶部（悬浮圆钮，滚过一屏才出现） */
+.libtop{position:fixed;right:16px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:58;
+ width:42px;height:42px;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+ background:var(--primary);color:var(--on-primary,#fff);box-shadow:0 6px 18px rgba(0,0,0,.22);
+ padding:0;cursor:pointer;animation:libtopIn .18s ease-out;-webkit-tap-highlight-color:transparent}
+.libtop svg{width:20px;height:20px}
+.libtop:active{transform:scale(.9)}
+html[data-glass="1"] .libtop{background:var(--primary);color:var(--on-primary,#fff);-webkit-backdrop-filter:none;backdrop-filter:none}
+@keyframes libtopIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* 聊天：回到底部（往上翻过一屏才出现） */
+.chatbottom{position:fixed;right:14px;bottom:calc(var(--kb,0px) + 66px + env(safe-area-inset-bottom));z-index:31;
+ width:38px;height:38px;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+ background:var(--card);color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.2);padding:0;cursor:pointer;
+ animation:libtopIn .18s ease-out;-webkit-tap-highlight-color:transparent;
+ border:1px solid color-mix(in srgb,var(--text) 8%,transparent)}
+.chatbottom svg{width:18px;height:18px}
+.chatbottom:active{transform:scale(.9)}

@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v115";
+const APP_BUILD="v118";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -402,7 +402,7 @@ function render(){
  rememberHScroll(_lastPageKey||_key);
  app.innerHTML=p.html(curParam);
  try{if(cur!=="chat")chatShowLimit=CHAT_STEP}catch(e){}
- try{mediaOnPage()}catch(e){}try{bindLibMoreScroll()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{draftStrip()}catch(e){}try{forceChatHeadClear()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
+ try{mediaOnPage()}catch(e){}try{bindLibMoreScroll()}catch(e){}try{updateLibTop()}catch(e){}try{updateChatBottom()}catch(e){}app.classList.toggle("inkbg",cur==="trace"||cur==="loc");app.classList.toggle("inkhead",cur==="trace"||cur==="loc");app.classList.toggle("multion",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));var _tw=document.getElementById("tabbarwrap");if(_tw)_tw.classList.toggle("hide",cur==="libcat"&&!!((S.misc.multi||{})[curParam]));try{feedCmtBar()}catch(e){}try{muPaint()}catch(e){}try{muFloatSync()}catch(e){}try{draftStrip()}catch(e){}try{forceChatHeadClear()}catch(e){}try{const _a=document.getElementById("app");if(_a&&cur!=="letteredit")_a.classList.remove("lebar")}catch(e){}
  if(p.init)p.init(curParam);
  applyTyping();
  app.querySelectorAll("button").forEach(b=>{if(!b.getAttribute("type"))b.setAttribute("type","button")});
@@ -817,11 +817,12 @@ function renderMsgs(mode){const box=$("#msgs");if(!box)return;
  const more=start>0?'<button type="button" class="moremsg" data-act="chat-more">↑ 加载更早的消息（还有 '+start+' 条）</button>':"";
  box.innerHTML=more+(S.chats.slice(start).map(msgBubble).join("")||'<div class="empty">还没有消息，说句话吧</div>');
  if(sc)sc.scrollTop=near?sc.scrollHeight:Math.max(0,t0+(sc.scrollHeight-h0));
- if(txPopEl)placeTxPop();try{chatLoadMedia()}catch(e){}try{chatQuoteFill()}catch(e){}}
+ if(txPopEl)placeTxPop();try{chatLoadMedia()}catch(e){}try{chatQuoteFill()}catch(e){}try{updateChatBottom()}catch(e){}}
 ACT["chat-more"]=()=>{chatShowLimit+=CHAT_STEP;renderMsgs("keep")};
 /* 滚到聊天顶部附近就自动加载更早的消息 */
 function bindChatMoreScroll(){try{const sc=$("#chatscroll");if(!sc||sc.dataset.moreBound)return;sc.dataset.moreBound="1";
  sc.addEventListener("scroll",function(){try{
+  try{updateChatBottom()}catch(e){}
   if(sc.scrollTop>40)return;
   if(chatShowLimit>=S.chats.length)return;
   chatShowLimit+=CHAT_STEP;renderMsgs("keep")}catch(e){}},{passive:true})}catch(e){}}
@@ -1460,15 +1461,16 @@ PAGES.letteredit={html(){const nm=esc(S.settings.taName||"TA");const rep=_le.mod
   (rep&&l?'<div class="mlcard"><div class="mlch"><b>'+esc(nm)+'</b><span class="mltime">'+mailDate(l.ts)+'</span></div>'+(l.title?'<div class="mlct">'+esc(l.title)+"</div>":"")+'<div class="mlcc">'+esc(l.content)+"</div>"+(l.sticker?'<img class="mlst" src="'+l.sticker+'">':"")+"</div>":"")+
   '<div class="lebtns"><button class="ibtn" data-act="letter-emo" title="表情包">'+ico("sticker")+'</button><button class="ibtn" data-act="letter-img" title="图片">'+ico("img")+"</button></div>"+
   '<div class="mlcard edit"><div class="mlch"><b>'+esc(rep?"我的回信":(S.settings.myName||"我"))+'</b><span class="mltime">正在写…</span></div>'+
-   '<input id="lt2" class="letitle" placeholder="标题（可空）" enterkeyhint="send">'+
-   '<textarea id="lc2" class="lebody" enterkeyhint="send" placeholder="亲爱的，&#10;&#10;今天想跟你说…"></textarea>'+
+   '<input id="lt2" class="letitle" placeholder="标题（可空）" enterkeyhint="next">'+
+   '<textarea id="lc2" class="lebody" placeholder="亲爱的，&#10;&#10;今天想跟你说…"></textarea>'+
    '<div id="lepic"></div>'+
   "</div>"+
   '<div class="lesend"><button class="btn pri" style="width:100%" data-act="letter-send">'+ico("send")+" 封 · 寄出</button></div>"},
  init(){try{document.getElementById("app").classList.add("lebar")}catch(e){};lePaint();
-  const send=function(){const b=document.querySelector('[data-act="letter-send"]');if(b){try{b.click()}catch(e){}}};
-  ["lc2","lt2"].forEach(function(id){const t=document.getElementById(id);if(!t)return;
-   t.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.isComposing&&!e.shiftKey){e.preventDefault();send()}})})}};
+  /* 标题回车 = 跳到正文（不寄出）；正文回车 = 正常换行，只有点「寄出」才发送 */
+  const t2=document.getElementById("lt2");
+  if(t2)t2.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();const b=document.getElementById("lc2");if(b)b.focus()}});
+ }};
 ACT["letter-emo"]=()=>{openStickerPicker(function(c){cardMediaUrl(c,function(u){if(!u)return;_le.sticker=u;try{lePaint()}catch(e){};toast("已添加表情")})});return;const cats=["表情包","颜文字","Emoji"];
  const sh=openSheet('<div class="mtitle">选个表情<button class="ibtn" data-r="x">'+ico("close")+'</button></div>'+
   '<div class="chips">'+cats.map(function(c){return '<button class="chip" data-lec="'+c+'">'+c+"</button>"}).join("")+"</div>"+
@@ -1539,8 +1541,10 @@ ACT["letter-import"]=()=>pickFile("application/json,.json",false,fs=>{readAsText
   save("letters");render();toast("已导入 "+n+" 封")})})});
 ACT["letter-clearall"]=()=>{confirmDlg("清空全部信件数据？删除后无法恢复","清空",true).then(ok=>{if(!ok)return;
  S.letters=[];save("letters");render();toast("已清空信箱")})};
-function letterCompose(){openSheet('<div class="mtitle">写信给 '+esc(S.settings.taName)+'<button class="ibtn" data-r="x">'+ico("close")+'</button></div><input id="lt" placeholder="标题（可空）" enterkeyhint="send" style="margin-bottom:8px"><textarea id="lc" enterkeyhint="send" style="min-height:140px" placeholder="见字如面…"></textarea><div class="btnrow" style="justify-content:flex-end;margin-top:10px"><button class="btn pri" data-r="ok">寄出</button></div>',true);
- ["lt","lc"].forEach(function(id){const t=document.getElementById(id);if(!t)return;t.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.isComposing&&!e.shiftKey){e.preventDefault();const b=document.querySelector('#modal [data-r="ok"]');if(b)b.click()}})});
+function letterCompose(){openSheet('<div class="mtitle">写信给 '+esc(S.settings.taName)+'<button class="ibtn" data-r="x">'+ico("close")+'</button></div><input id="lt" placeholder="标题（可空）" enterkeyhint="next" style="margin-bottom:8px"><textarea id="lc" style="min-height:140px" placeholder="见字如面…"></textarea><div class="btnrow" style="justify-content:flex-end;margin-top:10px"><button class="btn pri" data-r="ok">寄出</button></div>',true);
+ /* 标题回车 = 跳到正文；正文回车 = 换行，不直接寄出 */
+ const _lt=document.getElementById("lt");
+ if(_lt)_lt.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();const b=document.getElementById("lc");if(b)b.focus()}});
  $("#modal .sheet").onclick=e=>{
   const b=e.target.closest("[data-r]");if(!b)return;
   /* 先读输入框，再关弹层（closeModal 会清空 .sheet，之后再读就取不到了） */
@@ -4528,8 +4532,33 @@ function libRefresh(cat){const box=$("#liblist");if(box){box.innerHTML=libListHt
 /* 大列表分屏：先进页面只渲染 LIB_STEP 条（秒进），滑到底或点按钮再续下一批 */
 const LIB_STEP=80;let libShowLimit=LIB_STEP,_libWinKey=null;
 ACT["lib-win"]=()=>{libShowLimit+=LIB_STEP;if(cur==="pickup"){try{render()}catch(e){}}else{try{libRefresh(curParam)}catch(e){};try{libLoadMedia(curParam)}catch(e){}}};
+/* 聊天页「回到底部」悬浮按钮：往上翻过一屏才出现，点了平滑回到底并隐藏 */
+function updateChatBottom(){try{
+ let b=document.getElementById("chatbottom");
+ if(cur!=="chat"){if(b)b.remove();return}
+ const sc=document.getElementById("chatscroll");if(!sc){if(b)b.remove();return}
+ if(!b){b=document.createElement("button");b.id="chatbottom";b.className="chatbottom";b.type="button";
+  b.innerHTML=ico("chevdown");b.title="回到最新消息";
+  b.addEventListener("click",function(){try{sc.scrollTo({top:sc.scrollHeight,behavior:"smooth"})}catch(e){sc.scrollTop=sc.scrollHeight}updateChatBottom()});
+  document.body.appendChild(b)}
+ const d=sc.scrollHeight-sc.scrollTop-sc.clientHeight;
+ b.style.display=d>240?"flex":"none";
+}catch(e){}}
+/* 字卡池的「一键回顶部」悬浮按钮（只在字卡分类 / 拾取页出现，滚动超过一屏才显示） */
+function updateLibTop(){try{
+ let b=document.getElementById("libtop");
+ const show=(cur==="libcat"||cur==="pickup");
+ if(!show){if(b)b.remove();return}
+ if(!b){b=document.createElement("button");b.id="libtop";b.className="libtop";b.type="button";
+  b.innerHTML=ico("chevup");b.title="回到顶部";
+  b.addEventListener("click",function(){const a=document.getElementById("app");if(a){try{a.scrollTo({top:0,behavior:"smooth"})}catch(e){a.scrollTop=0}}});
+  document.body.appendChild(b)}
+ const a=document.getElementById("app");
+ b.style.display=(a&&a.scrollTop>160)?"flex":"none";
+}catch(e){}}
 function bindLibMoreScroll(){try{const app=$("#app");if(!app||app.dataset.libBound)return;app.dataset.libBound="1";
  app.addEventListener("scroll",function(){try{
+    try{updateLibTop()}catch(e){}
     if(cur!=="libcat"&&cur!=="pickup")return;
     const box=$("#app");if(!box||!box.querySelector('[data-act="lib-win"]'))return;
     if(app.scrollTop+app.clientHeight<app.scrollHeight-320)return;
@@ -5493,14 +5522,17 @@ function askSheet(){const d=askDraft();
  sh.onclick=e=>{const b=e.target.closest("[data-ask]");if(!b)return;const op=b.dataset.ask;
   const t=sh.querySelector("#askq"),o=sh.querySelector("#asko"),v=sh.querySelector("#askv");
   if(t)d.q=t.value;if(o)d.opts=o.value;if(v)d.val=+v.value||5;
-  if(op==="clrq"){d.q="";save("misc");askSheet();return}
-  if(op==="clro"){d.opts="";save("misc");askSheet();return}
+  /* 点框里的 X 清空时，顺手收起手机键盘（不收起键盘会挡住下面的内容） */
+  const kbOff=function(){try{const a=document.activeElement;if(a&&a.blur)a.blur()}catch(err){}};
+  if(op==="clrq"){kbOff();d.q="";save("misc");askSheet();return}
+  if(op==="clro"){kbOff();d.opts="";save("misc");askSheet();return}
   if(op==="mmax"){const dir=b.dataset.dir;let n=(+d.mmax||3)+(dir==="up"?1:-1);d.mmax=Math.max(2,Math.min(12,n));save("misc");askSheet();return}
   if(op==="type"){d.type=b.dataset.v;save("misc");askSheet();return}
   if(op==="unit"){d.unit=b.dataset.v;save("misc");askSheet();return}
-  if(op==="cancel"){closeModal();return}
+  if(op==="cancel"){kbOff();closeModal();return}
   sendAsk()}}
 function sendAsk(){const d=askDraft();
+ try{const a=document.activeElement;if(a&&a.blur)a.blur()}catch(e){}
  const q=String(d.q||"").trim();if(!q)return toast("先写下你的问题");
  let opts=[];
  if(d.type!=="text"){opts=askLines(d.opts);
