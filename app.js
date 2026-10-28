@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v118";
+const APP_BUILD="v123";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -5522,14 +5522,21 @@ function askSheet(){const d=askDraft();
  sh.onclick=e=>{const b=e.target.closest("[data-ask]");if(!b)return;const op=b.dataset.ask;
   const t=sh.querySelector("#askq"),o=sh.querySelector("#asko"),v=sh.querySelector("#askv");
   if(t)d.q=t.value;if(o)d.opts=o.value;if(v)d.val=+v.value||5;
-  /* 点框里的 X 清空时，顺手收起手机键盘（不收起键盘会挡住下面的内容） */
-  const kbOff=function(){try{const a=document.activeElement;if(a&&a.blur)a.blur()}catch(err){}};
-  if(op==="clrq"){kbOff();d.q="";save("misc");askSheet();return}
-  if(op==="clro"){kbOff();d.opts="";save("misc");askSheet();return}
+  /* 点框里的 X：只清空这一格（不重画整个面板），并让键盘继续保持弹起状态 */
+  const kbOff=function(btn){
+   const once=function(){
+    try{const a=document.activeElement;if(a&&a!==btn&&a.blur)a.blur()}catch(err){}
+    try{if(btn&&btn.focus)btn.focus({preventScroll:true})}catch(err){}
+    try{if(navigator.virtualKeyboard&&navigator.virtualKeyboard.hide)navigator.virtualKeyboard.hide()}catch(err){}
+   };
+   once();setTimeout(once,50);setTimeout(once,180);
+  };
+  if(op==="clrq"){d.q="";save("misc");if(t){t.value="";try{t.focus({preventScroll:true});t.setSelectionRange(0,0)}catch(err){}}return}
+  if(op==="clro"){d.opts="";save("misc");if(o){o.value="";try{o.focus({preventScroll:true});o.setSelectionRange(0,0)}catch(err){}}return}
   if(op==="mmax"){const dir=b.dataset.dir;let n=(+d.mmax||3)+(dir==="up"?1:-1);d.mmax=Math.max(2,Math.min(12,n));save("misc");askSheet();return}
   if(op==="type"){d.type=b.dataset.v;save("misc");askSheet();return}
   if(op==="unit"){d.unit=b.dataset.v;save("misc");askSheet();return}
-  if(op==="cancel"){kbOff();closeModal();return}
+  if(op==="cancel"){kbOff(b);closeModal();return}
   sendAsk()}}
 function sendAsk(){const d=askDraft();
  try{const a=document.activeElement;if(a&&a.blur)a.blur()}catch(e){}
