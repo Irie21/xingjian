@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v138";
+const APP_BUILD="v139";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -7268,13 +7268,11 @@ if("serviceWorker" in navigator){window.addEventListener("load",function(){navig
 /* 启动页兜底：设备慢 / 数据大最多 4 秒也把启动页收掉；如果界面还是空的，
    给一个能点的「重新加载」，绝不出现"点了没反应"。 */
 (function(){var s=document.getElementById("splash");if(!s)return;
- /* t0 用 performance.now()：它从「导航开始」计时，所以慢启动时不会再额外多等 2.3 秒 */
- var t0=performance.now(),gone=false;
- /* 判断是不是「页面被系统回收后重新载入 / 返回」：是的话不再强撑 2.3 秒，界面一好就收起 */
- var quick=false;try{var nav=performance.getEntriesByType&&performance.getEntriesByType("navigation")[0];quick=!!(nav&&(nav.type==="reload"||nav.type==="back_forward"))}catch(e){}
+ /* 动画完整播完后停住，等用户轻触屏幕再进入首页 */
+ var gone=false,ready=false,pending=false;
  var done=function(){if(gone)return;gone=true;s.dataset.gone="1";
   try{ac()}catch(e){}
-  s.classList.add("hide");setTimeout(function(){try{s.style.display="none"}catch(e){}},650);
+  s.classList.add("hide");setTimeout(function(){try{s.style.display="none"}catch(e){}},800);
   setTimeout(function(){try{
    var app=document.getElementById("app");
    if(app&&!app.childElementCount){
@@ -7284,13 +7282,10 @@ if("serviceWorker" in navigator){window.addEventListener("load",function(){navig
      '<div class="btnrow"><button class="btn pri" data-act="hard-reload" style="flex:1">重新加载</button></div></div>';
    }}catch(e){}},1600);
  };
- /* boot 结束后调用：让「细线展开」完整走完（2.6s 动画 + 0.14s 延迟），再停一小会儿才收起；
-    用 performance.now() 从导航开始计时，所以慢设备不会额外多等一整段。 */
- window.__splashDone=function(){
-  setTimeout(done,Math.max(0,3000-performance.now()));
- };
- s.addEventListener("click",done,true);
- setTimeout(done,4000)})();
+ /* boot 结束后：开屏已经完整播放，停在这里等用户轻触；若之前已经点过，就等界面就绪后立即进入 */
+ window.__splashDone=function(){ready=true;if(pending)done();};
+ s.addEventListener("click",function(){if(ready)return done();pending=true;setTimeout(function(){if(!gone)done()},2000);},true);
+})();
 ACT["hard-reload"]=()=>{try{location.reload()}catch(e){}};
 boot();
 /* 页面（很可能是被系统回收后重新载入的）起来后，把离开前的通话形态 / 小窗位置 / 滚动位置再兜一次：

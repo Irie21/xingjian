@@ -32,7 +32,7 @@ img{display:block}
 #app.inkhead .phead .t{color:var(--ink)}
 #app.inkhead .phead .ibtn{background:var(--ink-bg);color:var(--ink);border:1px solid var(--ink-line);box-shadow:none}#app{flex:1 1 auto;min-height:0;width:100%;max-width:560px;margin:0 auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;will-change:scroll-position;padding:0 12px calc(16px + var(--kb,0px))}
 
-/* ---------- splash ---------- */#splash{position:fixed;inset:0;background:#fff;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .6s;cursor:pointer}
+/* ---------- splash ---------- */#splash{position:fixed;inset:0;background:#fff;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .75s ease;cursor:pointer}
 #splash.hide{opacity:0;pointer-events:none}
 #splash img{width:100%;height:100%;object-fit:contain}
 @media (max-aspect-ratio:3/5){#splash img{object-fit:cover;object-position:63% 50%}}
