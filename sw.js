@@ -4,7 +4,7 @@
         页面导航 → 网络优先（离线回退缓存）；
         其它资源 → 缓存优先 + 后台静默更新（下次打开就是新版）。
           */
-const CACHE = 'xingjian-v139';
+const CACHE = 'xingjian-v145';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 /* 更新后必须第一次打开就生效：这些是「界面本身」的文件，走网络优先。
    以前是缓存优先，上传新版后第一次打开还是旧界面，容易误以为修复没生效。 */
@@ -40,34 +40,24 @@ self.addEventListener('fetch', function (e) {
   /* 带 Range 的请求（音频拖进度）也别拦 */
   if (req.headers && req.headers.get && req.headers.get('range')) return;
 
-  /* 页面导航：网络优先，离线时回退缓存 */
-  if (req.mode === 'navigate') {
-    e.respondWith(
-      fetch(req)
-        .then(function (r) {
-          const cp = r.clone();
-          caches.open(CACHE).then(function (c) { c.put(req, cp); }).catch(function () {});
-          return r;
-        })
-        .catch(function () {
-          return caches.match(req).then(function (r) { return r || caches.match('./index.html'); });
-        })
-    );
-    return;
-  }
-
-  /* 界面文件（app.js / style.css / 页面本身）：网络优先，
-     这样上传新版后第一次打开就是新代码；离线时才用缓存。 */
+  /* 页面导航 + 界面文件（index / app.js / style.css）：缓存优先，打开即秒进。
+     新版靠 sw.js 里的缓存版本号触发安装，安装时会把新文件预缓存好；
+     新版本接管后按提示「重新打开一次」即可。 */
   let isShell = false;
   try { isShell = SHELL.test(new URL(req.url).pathname); } catch (err) { isShell = false; }
-  if (isShell) {
+  if (req.mode === 'navigate' || isShell) {
     e.respondWith(
-      fetch(req, { cache: 'no-cache' })
-        .then(function (r) {
-          if (r && r.ok) caches.open(CACHE).then(function (c) { c.put(req, r.clone()).catch(function () {}); });
-          return r;
-        })
-        .catch(function () { return caches.match(req).then(function (r) { return r || caches.match('./index.html'); }); })
+      caches.open(CACHE).then(function (c) {
+        return c.match(req).then(function (hit) {
+          const net = fetch(req, { cache: 'no-cache' })
+            .then(function (r) {
+              if (r && r.ok) c.put(req, r.clone()).catch(function () {});
+              return r;
+            })
+            .catch(function () { return hit; });
+          return hit || net;
+        });
+      })
     );
     return;
   }

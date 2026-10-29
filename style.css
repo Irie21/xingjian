@@ -1501,12 +1501,14 @@ html,body{scrollbar-width:none !important;-ms-overflow-style:none !important}
 @keyframes fvWave{0%,100%{transform:scaleY(.45)}50%{transform:scaleY(1.35)}}
 
 /* 字卡池：一键回顶部（悬浮圆钮，滚过一屏才出现） */
-.libtop{position:fixed;right:16px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:58;
+.libtop{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:58;
  width:42px;height:42px;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
  background:var(--primary);color:var(--on-primary,#fff);box-shadow:0 6px 18px rgba(0,0,0,.22);
  padding:0;cursor:pointer;animation:libtopIn .18s ease-out;-webkit-tap-highlight-color:transparent}
 .libtop svg{width:20px;height:20px}
 .libtop:active{transform:scale(.9)}
+/* 牌面与牌义页没有底部标签栏，按钮放低一些，贴着安全区 */
+.libtop.low{bottom:calc(18px + env(safe-area-inset-bottom,0px))}
 @keyframes libtopIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* 聊天：回到底部（往上翻过一屏才出现） */
@@ -1537,56 +1539,121 @@ html,body{scrollbar-width:none !important;-ms-overflow-style:none !important}
 /* 底栏：输入框做成独立的胶囊，四个按钮做成小圆钮，整体离屏幕边缘更远一点 */
 .chatbar{height:calc(60px + env(safe-area-inset-bottom));gap:8px;padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .chatbar input{height:40px;padding:0 16px;border-radius:20px;background:var(--card);border:1px solid color-mix(in srgb,var(--text) 7%,transparent);box-shadow:0 1px 4px rgba(0,0,0,.05);font-size:14px}
-/* 底栏四个按钮：半透明灰底、圆形、尺寸略小，颜色不跟随主题主色 */
+/* 底栏四个按钮：透明底、无边框，只留图标 */
 .chatbar .ibtn{width:34px !important;height:34px !important;border-radius:50% !important;
- background:rgba(128,128,128,.14) !important;color:var(--text) !important;
- border:1px solid rgba(128,128,128,.12) !important;box-shadow:none !important}
+ background:transparent !important;color:var(--text) !important;
+ border:1px solid transparent !important;box-shadow:none !important}
 .chatbar .ibtn svg{width:21px !important;height:21px !important;color:inherit !important;stroke:currentColor !important}
-/* 顶栏按钮：和底栏一致的圆形半透明灰底，再小一点 */
+/* 顶栏按钮：同样透明，再小一点 */
 .phead.chat-head .ibtn{width:32px !important;height:32px !important;border-radius:50% !important;
- background:rgba(128,128,128,.14) !important;color:var(--text) !important;
- border:1px solid rgba(128,128,128,.12) !important;box-shadow:none !important}
+ background:transparent !important;color:var(--text) !important;
+ border:1px solid transparent !important;box-shadow:none !important}
 .phead.chat-head .ibtn svg{width:19px !important;height:19px !important;color:inherit !important;stroke:currentColor !important}
-/* 输入框：半透明灰底 */
-.chatbar input{background:rgba(128,128,128,.12) !important;border-color:rgba(128,128,128,.16) !important;color:var(--text);box-shadow:none !important}
+/* 输入框：透明底，只留一圈很淡的描边 */
+.chatbar input{background:transparent !important;border-color:rgba(128,128,128,.22) !important;color:var(--text);box-shadow:none !important}
 .chatbar input::placeholder{color:var(--muted)}
 /* 回到底部按钮随新底栏高度上移 */
 .chatbottom{bottom:calc(var(--kb,0px) + var(--chatfoot) + 8px)}
 /* 引用/多选条与输入区左右对齐 */
 #abovebar{left:12px;right:12px;bottom:calc(var(--chatfoot) + var(--kb,0px) + 2px)}
 
-/* ================= 占卜：牌面与牌义独立页（点击翻转） ================= */
+/* ================= 占卜：牌面与牌义独立页（三列牌阵 + 点开详解） ================= */
 .dlibtabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 10px}
 .dlibtabs .btn{width:100%;justify-content:center;height:38px;background:var(--card);border:1px solid var(--line);color:var(--text)}
 .dlibtabs .btn.on{background:var(--primary);border-color:var(--primary);color:var(--on-primary,#fff);font-weight:600}
 .dlibfilter{display:flex;gap:8px;overflow-x:auto;padding:0 2px 10px;scrollbar-width:none;-ms-overflow-style:none}
 .dlibfilter::-webkit-scrollbar{display:none;width:0;height:0}
-.dlibfilter .chip{flex:none;border-radius:999px;padding:8px 14px;font-size:12px;white-space:nowrap;
+.dlibfilter .chip{flex:none;border-radius:999px;padding:7px 13px;font-size:12px;white-space:nowrap;
  background:var(--card);border:1px solid var(--line);color:var(--muted);font-weight:400}
 .dlibfilter .chip.on{background:var(--card);border-color:var(--text);color:var(--text);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .dlibfilter .dn{margin-left:2px;font-size:11px;opacity:.7}
 .dlibfilter .chip.on .dn{opacity:.85}
 .dlibfilter+.searchbox{margin:0 0 12px}
 .dlibgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:14px 12px;padding:0 0 22px}
-.dlib{position:relative;height:auto;border:none;background:none;padding:0;cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
+.dlib{position:relative;height:auto;border:none;background:none;padding:0;cursor:pointer;text-align:left;
+ -webkit-tap-highlight-color:transparent;scroll-margin-top:66px}
 .dlib-inner{position:relative;display:block;width:100%;height:auto;transform-origin:50% 50%;transition:transform .15s ease-in-out}
 .dlib-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;box-sizing:border-box;transition:opacity .04s linear}
 /* 正面：只有牌面本身，去掉白色外框 */
 .dlib-front{position:relative;inset:auto;display:block;background:transparent;border:none;box-shadow:none;padding:0;overflow:visible}
-.dlib-front img{width:100%;height:auto;display:block;object-fit:cover;border-radius:14px;background:var(--bg)}
-.dlib-noimg{width:100%;aspect-ratio:3/5;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;background:var(--bg);border-radius:14px}
-.dlib-name{display:block;text-align:center;padding:8px 2px 2px}
-.dlib-name b{font-size:13px;font-weight:600;line-height:1.3;color:var(--text)}
-.dlib-en{display:block;font-size:10px;line-height:1.35;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* 背面：卡片式说明面板 */
-.dlib-back{opacity:0;visibility:hidden;align-items:flex-start;justify-content:flex-start;gap:2px;
- padding:12px;border-radius:14px;background:var(--card);border:1px solid var(--line);
- box-shadow:0 2px 7px rgba(0,0,0,.06);overflow:hidden}
-.dlib.flip .dlib-front{opacity:0;visibility:hidden}
-.dlib.flip .dlib-back{opacity:1;visibility:visible}
-.dlib-back b{font-size:13px;font-weight:600;line-height:1.3}
-.dlib-back .dlib-en{margin-bottom:4px}
-.dlib-txt{display:block;font-size:10.5px;line-height:1.42;color:var(--text);word-break:break-word;overflow:hidden}
-.dlib-txt em{font-style:normal;color:var(--primary);font-weight:700;margin-right:2px}
-.dlib-tip{display:block;font-size:10px;line-height:1.42;color:var(--muted);margin-top:3px}
+.dlib-front img{width:100%;height:auto;display:block;object-fit:cover;border-radius:12px;background:var(--bg)}
+.dlib-noimg{width:100%;aspect-ratio:3/5;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;background:var(--bg);border-radius:12px}
+.dlib-name{display:block;text-align:center;padding:7px 1px 1px}
+.dlib-name b{display:block;font-size:13px;font-weight:600;line-height:1.3;color:var(--text);
+ max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlib-en{display:block;font-size:9.5px;line-height:1.35;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 背面：点开后整行展开的详解面板 */
+.dlib-back{opacity:0;visibility:hidden;display:block;overflow:hidden;padding:0;border:none;background:none}
+.dlib.flip{grid-column:1/-1}
+.dlib.flip .dlib-front{display:none}
+.dlib.flip .dlib-back{position:relative;inset:auto;opacity:1;visibility:visible;height:auto;padding:14px 14px 12px;
+ border-radius:14px;background:var(--card);border:1px solid var(--line);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.dlibbhead{display:flex;align-items:flex-start;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.dlibbimg{width:42px;height:auto;flex:none;display:block;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.dlibbmeta{flex:1;min-width:0}
+.dlibbmeta b{display:block;font-size:16px;line-height:1.25;font-weight:600;color:var(--text)}
+.dlibbmeta i{display:block;font-style:normal;font-size:10.5px;color:var(--muted);margin-top:2px}
+.dlibbmeta u{display:block;text-decoration:none;font-size:11px;color:var(--primary);margin-top:4px;opacity:.92}
+.dlibbclose{flex:none;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px;line-height:1.2}
+.dlibbody{display:block;padding:1px 0 0}
+/* 牌性 / 对应元素 / 行星 / 星座 */
+.dlcorr{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.dlpol{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;color:#fff}
+.dlpol.pos{background:color-mix(in srgb,var(--primary) 78%,#6b7f63)}
+.dlpol.neg{background:color-mix(in srgb,var(--primary) 38%,#b06860)}
+.dlpol.mid{background:color-mix(in srgb,var(--text) 36%,transparent)}
+.dlctag{font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);
+ color:var(--muted);background:color-mix(in srgb,var(--text) 3%,transparent)}
+/* 关键词条 */
+.dlkw{display:block;margin-top:10px;padding:9px 12px;border-radius:10px;
+ background:color-mix(in srgb,var(--primary) 9%,transparent);
+ font-size:12.5px;line-height:1.65;color:var(--text);word-break:break-word}
+.dlkw em{font-style:normal;font-weight:700;color:var(--primary);margin-right:6px}
+/* 塔罗：正位 / 逆位两行关键词 */
+.dlkw2{padding:8px 12px}
+.dlkw2 .kwrow{display:flex;gap:8px;align-items:baseline;line-height:1.6;font-size:12.5px}
+.dlkw2 .kwrow+.kwrow{margin-top:3px;padding-top:5px;border-top:1px dashed color-mix(in srgb,var(--primary) 22%,transparent)}
+.dlkw2 .kwrow em{flex:none;margin-right:0;font-size:11.5px}
+.dlkw2 .kwrow.r em{color:color-mix(in srgb,var(--primary) 42%,#b06860)}
+/* 牌面解析 / 建议 / 备注 */
+.dlblock{display:block;margin-top:12px;padding:10px 12px;border-radius:10px;
+ background:color-mix(in srgb,var(--text) 3.5%,transparent)}
+.dlbt{display:block;font-size:11.5px;font-weight:700;color:var(--primary);margin-bottom:4px;letter-spacing:.02em}
+.dlbp{display:block;font-size:12.5px;line-height:1.78;color:var(--text);word-break:break-word}
+.dladvice{background:color-mix(in srgb,var(--primary) 7%,transparent);border-left:2px solid color-mix(in srgb,var(--primary) 55%,transparent)}
+/* 正位解读 / 逆位解读 */
+.dldual{display:block;margin-top:14px}
+.dlcol{display:block;padding:11px 0 2px;border-top:1px solid var(--line)}
+.dlcol+.dlcol{margin-top:10px}
+.dlh{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.dlh:before{content:"";width:3px;height:13px;border-radius:2px;background:currentColor}
+.dlh.pos{color:var(--primary)}
+.dlh.neg{color:color-mix(in srgb,var(--primary) 42%,#b06860)}
+.dlrow{display:flex;gap:8px;font-size:12.5px;line-height:1.7;padding:4px 0}
+.dlrow b{flex:none;width:34px;font-weight:600;color:var(--muted)}
+.dlrow span{flex:1;min-width:0;color:var(--text);word-break:break-word}
+/* 雷诺曼：领域格子 */
+.dlfgrid{display:block;margin-top:10px}
+.dlf{display:block;padding:8px 10px;border-radius:9px;margin-top:7px;
+ background:color-mix(in srgb,var(--text) 3%,transparent)}
+.dlf b{display:block;font-size:11.5px;font-weight:700;color:var(--primary);margin-bottom:1px}
+.dlf span{display:block;font-size:12.5px;line-height:1.7;color:var(--text);word-break:break-word}
 .dlib.hidden{display:none}
+/* 手机：固定三列，牌面与牌名都缩小，避免一张牌占满整行 */
+@media (max-width:600px){
+ .dlibgrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 7px;padding:0 0 18px}
+ .dlib-front img{border-radius:9px}
+ .dlib-noimg{border-radius:9px}
+ .dlib-name{padding:5px 0 0}
+ .dlib-name b{font-size:11px;line-height:1.25}
+ .dlib-en{font-size:8.5px;line-height:1.3}
+ .dlib.flip .dlib-back{padding:12px 12px 10px;border-radius:12px}
+ .dlibbmeta b{font-size:15px}
+ .dlkw,.dlbp,.dlrow,.dlf span{font-size:12px}
+}
+@media (min-width:521px){
+ .dldual{display:grid;grid-template-columns:1fr 1fr;gap:0 22px;align-items:start}
+ .dlcol+.dlcol{border-left:1px solid var(--line);padding-left:22px;margin-top:0}
+ .dlfgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}
+ .dlf{margin-top:0}
+}
