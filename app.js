@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v139";
+const APP_BUILD="v140";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -5793,6 +5793,7 @@ function chatSearchOpen(){
   '<div class="cssearch"><input id="csq" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="搜关键词：红包 / 晚安 / 图片…"></div>'+
   '<div class="muted" id="cscount" style="padding:8px 2px 6px">输入关键词开始搜索</div>'+
   '<div class="csres" id="csres"></div>',true);
+ sh.classList.add("pincenter");
  const inp=sh.querySelector("#csq"),box=sh.querySelector("#csres"),cnt=sh.querySelector("#cscount");
  const paint=function(){
   const raw=String(inp.value||"").trim(),q=raw.toLowerCase();
@@ -5865,7 +5866,7 @@ function txAll(){return S.chats.filter(m=>m&&(m.type==="transfer"||m.type==="red
 /* ---------- 一、转账发起弹窗 ---------- */
 function transferSheet(){const nm=esc(S.settings.taName||"TA");
  const sh=openSheet('<div class="mtitle"><span class="mtt">发红包给 '+nm+'</span><button class="ibtn" data-r="x">'+ico("close")+"</button></div>"+
-  '<div class="txbig"><span class="cur">¥</span><input id="txamt" type="number" inputmode="decimal" placeholder="0.00" value="'+esc(txDraft.amt)+'"></div>'+
+  '<div class="txbig"><span class="cur">¥</span><input id="txamt" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" name="rp_amount" data-form-type="other" placeholder="0.00" value="'+esc(txDraft.amt)+'"></div>'+
   '<div class="chips">'+TXQC.map(q=>'<button class="chip" data-tr="amt" data-v="'+q+'">¥'+q+"</button>").join("")+"</div>"+
   '<div class="row"><input id="txnote" placeholder="添加备注（可不填）" value="'+esc(txDraft.note)+'"></div>'+
   '<div class="btnrow"><button class="btn" data-tr="rec">记录</button><button class="btn pri" data-tr="ok">发红包</button></div>');
@@ -6441,6 +6442,8 @@ ACT["chat-css-up"]=()=>{const cur=S.settings.chat.bubbleCss||"";
   '<div class="muted" style="margin-bottom:8px">输入自定义样式：直接写声明（如 border-radius:20px;）或写选择器（可用 .bub、.message、.message-sent、.message-received）。同优先级下用户样式后加载，无需 !important 即可覆盖。注意 color-mix 等新语法在旧版 WebView 上不支持，会导致该条声明整体失效。</div>'+
   '<textarea id="cssbox" placeholder="在此输入 CSS…" style="min-height:170px;font-family:ui-monospace,Consolas,monospace;font-size:13px">'+esc(cur)+"</textarea>"+
   '<div class="btnrow" style="margin-top:12px"><button class="btn" data-css="clear" style="flex:1">清空</button><button class="btn pri" data-css="apply" style="flex:1">应用</button></div>',true);
+ document.getElementById("modal").classList.remove("center");
+ $("#modal .sheet").classList.add("csssheet");
  $("#modal .sheet").onclick=e=>{const b=e.target.closest("[data-css]");if(!b){if(e.target.closest("[data-r]"))closeModal();return}
   const v=$("#cssbox").value;
   if(b.dataset.css==="clear"){S.settings.chat.bubbleCss="";save("settings");applyChatUI();const t=$("#cssbox");if(t)t.value="";toast("已清空气泡样式");return}
@@ -6451,6 +6454,7 @@ ACT["chat-font-up"]=()=>{const cur=S.settings.appFont||"";
   '<div class="muted" style="margin-bottom:8px">上传本地字体 (ttf / otf / woff / woff2)，应用后本桌面全部页面生效；也可直接粘贴字体链接或字体名（如 Microsoft YaHei）</div>'+
   '<input id="fontin" placeholder="字体链接或字体名" value="'+esc(cur==="__file__"?"本地字体（已上传）":cur)+'">'+
   '<div class="btnrow" style="margin-top:12px"><button class="btn" data-font="up" style="flex:1">上传字体</button><button class="btn" data-font="reset" style="flex:1">恢复默认</button><button class="btn pri" data-font="apply" style="flex:1">应用</button></div>',true);
+ $("#modal .sheet").classList.add("pincenter");
  $("#modal .sheet").onclick=e=>{const b=e.target.closest("[data-font]");if(!b){if(e.target.closest("[data-r]"))closeModal();return}const op=b.dataset.font;
   if(op==="up"){pickFile(".ttf,.otf,.woff,.woff2,font/*",false,fs=>readAsDataURL(fs[0]).then(u=>{S.assets.app_font=u;S.settings.appFont="__file__";save("assets");save("settings");const inp=$("#fontin");if(inp)inp.value="本地字体（已上传）";applyFont();toast("字体已上传并生效")}));return}
   if(op==="reset"){S.settings.appFont="";delete S.assets.app_font;save("settings");save("assets");applyFont();const inp2=$("#fontin");if(inp2)inp2.value="";toast("已恢复默认字体");return}

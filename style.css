@@ -1657,3 +1657,69 @@ html,body{scrollbar-width:none !important;-ms-overflow-style:none !important}
  .dlfgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}
  .dlf{margin-top:0}
 }
+
+/* ================= 聊天底部面板：满屏宽 · 贴住输入栏 · 跟随键盘 ================= */
+#modal .sheet.panelsheet,
+#modal .sheet.avsheet,
+#modal .sheet.askpanel,
+#modal .sheet.patsheet,
+#modal .sheet.rpsheet{
+ width:100% !important;
+ max-width:560px !important;
+ height:auto !important;
+ max-height:calc(100dvh - var(--chatfoot) - var(--kb,0px) - 8px) !important;
+ margin:0 auto calc(var(--chatfoot) + var(--kb,0px)) !important;
+ border-radius:22px 22px 0 0 !important;
+ box-shadow:0 -8px 30px rgba(0,0,0,.16);
+ overflow-y:auto;
+}
+#modal .sheet.panelsheet{padding:12px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#modal .sheet.askpanel{padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#modal .sheet.rpsheet{padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#modal .sheet.patsheet,
+#modal .sheet.avsheet{
+ padding:0 !important;overflow:hidden;display:flex;flex-direction:column;
+ height:min(58vh,440px) !important;
+}
+#modal .sheet.avsheet{height:auto !important;overflow-y:auto !important}
+#modal .sheet.patsheet .patbar{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+
+/* 键盘弹起时：这些面板仍贴着输入栏上移，不跳到屏幕顶部 */
+html.kb-open #modal:has(.panelsheet),
+html.kb-open #modal:has(.askpanel),
+html.kb-open #modal:has(.patsheet),
+html.kb-open #modal:has(.rpsheet){
+ align-items:flex-end !important;
+ justify-content:center !important;
+ padding-top:0 !important;
+ padding-bottom:0 !important;
+ overflow:hidden !important;
+}
+html.kb-open #modal .panelsheet,
+html.kb-open #modal .askpanel,
+html.kb-open #modal .patsheet,
+html.kb-open #modal .avsheet,
+html.kb-open #modal .rpsheet{
+ margin-top:0 !important;
+ margin-bottom:calc(var(--chatfoot) + var(--kb,0px)) !important;
+ max-height:calc(100dvh - var(--chatfoot) - var(--kb,0px) - 8px) !important;
+}
+
+/* 搜索 / 上传字体：固定在屏幕中央，键盘弹起也不上移 */
+html.kb-open #modal.center:has(.pincenter){
+ align-items:center !important;
+ justify-content:center !important;
+ padding:20px !important;
+ overflow:visible !important;
+}
+html.kb-open #modal.center:has(.pincenter) .sheet{
+ margin:0 !important;
+ max-height:86vh !important;
+}
+
+/* 气泡 CSS：满宽底部弹层，可上下滑动 */
+#modal .sheet.csssheet{
+ width:100% !important;max-width:560px !important;
+ border-radius:22px 22px 0 0 !important;
+ max-height:86vh;overflow-y:auto;
+}
