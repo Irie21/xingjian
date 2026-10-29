@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v123";
+const APP_BUILD="v132";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -219,7 +219,7 @@ const kvClear=()=>new Promise(res=>{const t=DB.transaction("kv","readwrite").obj
 const kvKeys=()=>new Promise(res=>{const t=DB.transaction("kv").objectStore("kv").getAllKeys();t.onsuccess=()=>res(t.result||[])});
 /* ================= state ================= */
 const DEF_SETTINGS={
- theme:"ink",dark:false,glass:true,custom:{primary:"",bg:""},flowerApps:{},appFont:"",
+ theme:"ink",dark:false,custom:{primary:"",bg:""},flowerApps:{},appFont:"",
  together:"",quote:"一纸星笺，万般思意",taName:"TA",myName:"我",
  chat:{myBubble:"",taBubble:"",myText:"",taText:"",headOp:100,footOp:100,bubbleCss:"",size:14,read:true,voice:true,avaSize:40,avaShape:"square",triggerName:true},
  navOp:100,
@@ -426,7 +426,7 @@ function render(){
 let _hjTrap=false,_hjSelf=false;
 /* 页面层级：侧滑返回时如果栈里已经没有上一页了，就按层级往上跳一层，而不是直接退出应用。
    这样「设置 → AI → AI 配置」需要滑三次才退出，和页面层数一致。 */
-const PAGE_PARENT={setai:"setapp",setaimodels:"setai",setaireply:"setai",setaibook:"setai",setaivoice:"setai",setailogs:"setai",
+const PAGE_PARENT={divinecards:"divine",setai:"setapp",setaimodels:"setai",setaireply:"setai",setaibook:"setai",setaivoice:"setai",setailogs:"setai",
  setstore:"setapp",chatset:"setapp",setreply:"setapp",
  libmanage:"lib",libcatmanage:"libcat",libgroups:"libcatmanage",
  muplayer:"music",letteredit:"mail"};
@@ -471,11 +471,8 @@ function rgbOf(v){v=String(v||"").trim();if(!v)return null;
  return null}
 const lumOf=c=>0.2126*c[0]+0.7152*c[1]+0.0722*c[2];
 const rgbStr=c=>"rgb("+c.map(x=>Math.max(0,Math.min(255,Math.round(x)))).join(",")+")";
-function applyGlass(){
+function applyBgGrad(){
  try{
-  const on=(S.settings.glass===undefined)?true:!!S.settings.glass;
-  const isInkTheme=(S.settings.theme==="ink");
-  if(on&&!isInkTheme)document.documentElement.setAttribute("data-glass","1");else document.documentElement.removeAttribute("data-glass");
   const st=getComputedStyle(document.documentElement);
   const toRgb=function(c){c=String(c||"").trim();
    if(/^#([0-9a-f]{3})$/i.test(c)){c="#"+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]}
@@ -485,32 +482,19 @@ function applyGlass(){
    if(m2)return [ +m2[1],+m2[2],+m2[3] ];
    return [180,150,200]};
   const pri=toRgb(st.getPropertyValue("--primary")||"#b59bd0");
-  const lum=(pri[0]*299+pri[1]*587+pri[2]*114)/1000;
-  const dark=lum<120;
-  const bg=dark?"rgba("+pri[0]+","+pri[1]+","+pri[2]+",.22)":"rgba("+pri[0]+","+pri[1]+","+pri[2]+",.16)";
-  const bd=dark?"rgba(255,255,255,.34)":"rgba(255,255,255,.5)";
-  const tp=dark?"rgba("+Math.min(255,pri[0]+60)+","+Math.min(255,pri[1]+60)+","+Math.min(255,pri[2]+60)+",.55)":"rgba(255,255,255,.62)";
-  const sh="0 10px 26px rgba("+pri[0]+","+pri[1]+","+pri[2]+",.15)";
-  const ts=dark?"0 1px 2px rgba(255,255,255,.18)":"0 1px 2px rgba(0,0,0,.07)";
-  const root=document.documentElement.style;
-  root.setProperty("--glass-bg",bg);
-  root.setProperty("--glass-border",bd);
-  root.setProperty("--glass-top",tp);
-  root.setProperty("--glass-shadow",sh);
-  root.setProperty("--glass-text-shadow",ts);
-  root.setProperty("--glass-blur","16px");
   const bgc=(S.settings.custom&&S.settings.custom.bg)?S.settings.custom.bg:"";
   const b=toRgb(bgc||st.getPropertyValue("--bg")||"#f6f6f3");
   const isInk=(S.settings.theme==="ink"||S.settings.theme==="bw");
   const mix=function(t){return [Math.round(b[0]+(pri[0]-b[0])*t),Math.round(b[1]+(pri[1]-b[1])*t),Math.round(b[2]+(pri[2]-b[2])*t)]};
   const rg=function(t,a){const c=mix(t);return "rgba("+c[0]+","+c[1]+","+c[2]+","+(a==null?1:a)+")"};
-  /* 背景：从上到下的柔和线性渐变（多节点均匀过渡，无断层） */
+  /* 主题背景：从上到下的柔和线性渐变（多节点均匀过渡，无断层） */
   const gg="linear-gradient(to bottom, "
    +rg(.46)+" 0%, "+rg(.36)+" 22%, "+rg(.26)+" 45%, "+rg(.15)+" 70%, "+rg(.05)+" 100%)";
+  const root=document.documentElement.style;
   if(isInk){root.removeProperty("--bg-grad")}
   else{root.setProperty("--bg-grad",gg)}
  }catch(e){}}
-function applyTheme(){const s=S.settings;document.documentElement.dataset.theme=s.theme;s.dark?document.documentElement.dataset.dark="1":document.documentElement.removeAttribute("data-dark");const st=document.documentElement.style;if(s.custom.primary)st.setProperty("--primary",s.custom.primary);else st.removeProperty("--primary");if(s.custom.bg)st.setProperty("--bg",s.custom.bg);else st.removeProperty("--bg");st.setProperty("--navop",(s.navOp==null?100:s.navOp)+"%");applyGlass();
+function applyTheme(){const s=S.settings;document.documentElement.dataset.theme=s.theme;s.dark?document.documentElement.dataset.dark="1":document.documentElement.removeAttribute("data-dark");const st=document.documentElement.style;if(s.custom.primary)st.setProperty("--primary",s.custom.primary);else st.removeProperty("--primary");if(s.custom.bg)st.setProperty("--bg",s.custom.bg);else st.removeProperty("--bg");st.setProperty("--navop",(s.navOp==null?100:s.navOp)+"%");applyBgGrad();
  /* 图标色 / 主色底上的文字色：按与背景的对比自动校正，浅色主题（如紫黛）也看得清 */
  try{const cs=getComputedStyle(document.documentElement);
   const p=rgbOf(cs.getPropertyValue("--primary")),b=rgbOf(cs.getPropertyValue("--bg"));
@@ -2057,10 +2041,133 @@ function divRender(){const e=divViewEntry();if(!e)return '<div class="empty">还
 function divHistHtml(){const list=S.divine||[];if(!list.length)return '<div class="empty">暂无记录</div>';
  return '<div class="card" style="padding:0 12px">'+list.map(e=>'<div class="row" style="padding:10px 2px"><span class="lab" data-act="divine-open" data-id="'+e.id+'" style="cursor:pointer">'+esc(String(e.q).slice(0,26))+(String(e.q).length>26?"…":"")+'<br><span class="sub">'+divineDeckName(e.deck)+" · "+(e.cards||[]).length+" 张 · "+fmtFull(e.ts)+'</span></span><button class="ibtn" data-act="divine-del" data-id="'+e.id+'">'+ico("trash")+"</button></div>").join("")+"</div>"}
 function divOutRefresh(){const o=$("#dvout");if(o)o.innerHTML=divRender();const h=$("#dvhist");if(h)h.innerHTML=divHistHtml()}
+/* ===== 牌面与牌义：塔罗 78 / 雷诺曼 36，点牌面翻转查看大致意思 ===== */
+function divineCardHtml(tab,r,i,gk){
+ const len=tab==="lenormand";
+ const img=len?lenImgOf({name:r[0]}):tarotImgOf({name:r[0],en:r[1]});
+ let back="",search=r.join(" ");
+ if(len){
+  const m=LEN_META[i]||[];
+  const role={心:"感情与在意的人",戒指:"承诺与关系",锚:"工作与稳定",鱼:"金钱与流动",熊:"资源与权威",十字架:"考验与信念",书:"尚未公开的信息",钥匙:"关键的答案"}[r[0]]||"";
+  search+=" "+(m||[]).join(" ")+" "+role;
+  back='<span class="dlib-txt"><em>含义</em>'+esc(r[2])+"</span>"+
+   (m[0]?'<span class="dlib-txt"><em>关键词</em>'+esc(m[0])+"</span>":"")+
+   (role?'<span class="dlib-txt"><em>主题</em>'+esc(role)+"</span>":"")+
+   (m[1]?'<span class="dlib-txt"><em>时间</em>'+esc(m[1])+"</span>":"")+
+   (m[2]?'<span class="dlib-txt"><em>倾向</em>'+(m[2]==="+"?"有利":(m[2]==="-"? "需注意":"中性"))+"</span>":"")+
+   '<span class="dlib-tip">看组合：左边是起因／背景，右边是发展／结果；离主题牌越近，影响越强。</span>';
+ }else{
+  const suit=tarotSuitOf(r[0]),num=tarotNumOf(r[0]);
+  const elem=suit?(suit+" · "+TAROT_ELEM[suit]):"大牌 · 人生阶段与重要课题";
+  const numTxt=num?(NUM_MEANING[num]||""):"";
+  search+=" "+elem+" "+numTxt;
+  back='<span class="dlib-txt"><em>正位</em>'+esc(r[2])+"</span>"+
+   '<span class="dlib-txt"><em>逆位</em>'+esc(r[3])+"</span>"+
+   '<span class="dlib-txt"><em>牌组</em>'+esc(elem)+"</span>"+
+   (numTxt?'<span class="dlib-txt"><em>数字</em>'+esc(num+" · "+numTxt)+"</span>":"")+
+   '<span class="dlib-tip">'+(suit?"先看正位主调，再看逆位提醒的能量受阻或过度；结合牌阵位置与旁边的牌判断。":"大牌代表这一阶段的重要课题；先看它与问题的主轴是否对应，逆位时留意需要放慢或调整的地方。")+"</span>";
+ }
+ return '<button type="button" class="dlib" data-act="divine-lib-card" data-s="'+esc(search.toLowerCase())+'" data-gk="'+esc(gk||"")+'" aria-label="'+esc(r[0])+'">'+
+  '<span class="dlib-inner">'+
+   '<span class="dlib-face dlib-front">'+(img?'<img src="'+img+'" loading="lazy" alt="">':'<span class="dlib-noimg">'+esc(r[0])+"</span>")+
+    '<span class="dlib-name"><b>'+esc(r[0])+'</b><span class="dlib-en">'+esc(r[1]||"")+"</span></span></span>"+
+   '<span class="dlib-face dlib-back"><b>'+esc(r[0])+"</b><span class=\"dlib-en\">"+esc(r[1]||"")+"</span>"+back+"</span>"+
+  "</span></button>";
+}
+function divineCardGroupData(tab){
+ const len=tab==="lenormand",rows=len?LENORMAND:TAROT,groups=[];
+ if(len){
+  const order=[
+   ["love","感情与人际","感情",["心","戒指","狗","花束","百合","男人","女人","小孩"]],
+   ["work","工作与金钱","工作",["锚","鱼","熊","狐狸","塔","花园","书","钥匙"]],
+   ["news","消息与移动","消息",["骑士","信","船","鹳鸟","鸟","十字路口"]],
+   ["block","阻碍与考验","阻碍",["云","蛇","棺材","镰刀","鞭子","山","老鼠","十字架"]],
+   ["daily","日常与状态","日常",["房子","树","三叶草","星星","太阳","月亮"]]
+  ];
+  const used={};
+  order.forEach(function(g){
+   const items=[];rows.forEach(function(r,i){if(g[3].indexOf(r[0])>=0){items.push([r,i]);used[r[0]]=1}});
+   if(items.length)groups.push({k:g[0],t:g[1],s:g[2],items:items});
+  });
+  const rest=rows.map(function(r,i){return [r,i]}).filter(function(x){return !used[x[0][0]]});
+  if(rest.length)groups.push({k:"other",t:"其他",s:"其他",items:rest});
+ }else{
+  const defs=[
+   ["major","大牌 · 人生课题","大牌",function(i){return i<22}],
+   ["wands","权杖 · 行动与热情","权杖",function(i){return i>=22&&i<36}],
+   ["cups","圣杯 · 情感与关系","圣杯",function(i){return i>=36&&i<50}],
+   ["swords","宝剑 · 思维与冲突","宝剑",function(i){return i>=50&&i<64}],
+   ["pentacles","星币 · 现实与金钱","星币",function(i){return i>=64&&i<78}]
+  ];
+  defs.forEach(function(g){
+   const items=rows.map(function(r,i){return [r,i]}).filter(function(x){return g[3](x[1])});
+   if(items.length)groups.push({k:g[0],t:g[1],s:g[2],items:items});
+  });
+ }
+ return groups;
+}
+function divineCardLibHtml(tab){
+ const len=tab==="lenormand",rows=len?LENORMAND:TAROT,groups=divineCardGroupData(tab),gk={};
+ groups.forEach(function(g){g.items.forEach(function(x){gk[x[1]]=g.k})});
+ return rows.map(function(r,i){return divineCardHtml(tab,r,i,gk[i]||"")}).join("");
+}
+/* 两段式翻牌：先压扁到看不见，换面后再展开——比 3D 旋转在手机上更顺 */
+function dlibFlip(card){
+ try{
+  if(!card||card.dataset.flipping)return;
+  card.dataset.flipping="1";
+  const inner=card.querySelector(".dlib-inner");if(!inner){delete card.dataset.flipping;return}
+  inner.style.willChange="transform";
+  inner.style.transform="scaleX(0)";
+  setTimeout(function(){
+   card.classList.toggle("flip");
+   inner.style.transform="scaleX(1)";
+   setTimeout(function(){inner.style.transform="";inner.style.willChange="";delete card.dataset.flipping},170);
+  },160);
+ }catch(e){try{delete card.dataset.flipping}catch(x){}}
+}
+PAGES.divinecards={html(){
+ const tab=(S.misc.divLibTab==="lenormand")?"lenormand":"tarot";
+ const groups=divineCardGroupData(tab);
+ const total=groups.reduce(function(n,g){return n+g.items.length},0);
+ const active=S.misc.divLibFilter||"";
+ const chip=function(k,s,n){return '<button class="chip dlibchip'+(active===k?" on":"")+'" data-act="divine-lib-filter" data-gk="'+k+'">'+esc(s)+' <span class="dn">'+n+"</span></button>"};
+ return phead("牌面与牌义")+
+  '<div class="dlibtabs">'+
+   '<button class="btn sm'+(tab==="tarot"?" on":"")+'" data-act="divine-lib-tab" data-v="tarot">韦特塔罗 · 78</button>'+
+   '<button class="btn sm'+(tab==="lenormand"?" on":"")+'" data-act="divine-lib-tab" data-v="lenormand">雷诺曼 · 36</button>'+
+  "</div>"+
+  '<div class="dlibfilter">'+chip("","全部",total)+groups.map(function(g){return chip(g.k,g.s,g.items.length)}).join("")+"</div>"+
+  '<div class="searchbox"><input id="dlsearch" type="search" autocomplete="off" placeholder="搜索牌名 / 英文 / 牌义"></div>'+
+  '<div class="dlibgrid" id="dlgrid">'+divineCardLibHtml(tab)+"</div>"+
+  '<div class="empty" id="dlempty" style="display:none">没有匹配的牌</div>';
+},init(){
+ const i=document.getElementById("dlsearch");if(!i)return;
+ i.addEventListener("input",divineLibApply);
+}};
+function divineLibApply(){
+ const i=document.getElementById("dlsearch");
+ const q=i?String(i.value||"").trim().toLowerCase():"";
+ const active=S.misc.divLibFilter||"";
+ let total=0;
+ [].slice.call(document.querySelectorAll("#dlgrid .dlib")).forEach(function(c){
+  const gok=!active||c.getAttribute("data-gk")===active;
+  const hit=gok&&(!q||(c.getAttribute("data-s")||"").indexOf(q)>=0);
+  c.classList.toggle("hidden",!hit);if(hit)total++;
+ });
+ [].slice.call(document.querySelectorAll(".dlibfilter .dlibchip")).forEach(function(b){
+  b.classList.toggle("on",(b.getAttribute("data-gk")||"")===active);
+ });
+ const em=document.getElementById("dlempty");if(em)em.style.display=total?"none":"";
+}
+ACT["divine-lib-tab"]=el=>{S.misc.divLibTab=el.dataset.v;S.misc.divLibFilter="";save("misc");render()};
+ACT["divine-lib-filter"]=el=>{S.misc.divLibFilter=el.dataset.gk||"";save("misc");divineLibApply()};
+ACT["divine-lib-card"]=el=>{dlibFlip(el)};
+ACT["divine-cards"]=()=>go("divinecards");
 /* ===== 梦占：用塔罗 / 雷诺曼读「梦角」此刻的想法（不是心理学解梦） ===== */
 PAGES.divine={html(){S.misc.divDeck=S.misc.divDeck||"auto";if(!SPREADS.some(s=>s[0]===S.misc.divSpread))S.misc.divSpread="time3";
  const decks=[["auto","自动"],["tarot","韦特塔罗"],["lenormand","雷诺曼"]];
- return phead("占卜")+
+ return phead("占卜",'<button class="ibtn" data-act="divine-cards" title="牌面与牌义">'+ico("book")+'</button>')+
  '<div class="sect" style="margin-top:6px">提问</div><div class="card"><textarea id="dvin" style="min-height:84px" placeholder="写下你的问题"></textarea></div>'+
  '<div class="sect">牌组 / 牌阵</div><div class="card">'+
   '<div class="row sliderrow" style="border:none"><span class="lab">牌组</span><span class="chips">'+decks.map(d=>'<button class="chip'+(S.misc.divDeck===d[0]?" on":"")+'" data-act="divine-deck" data-v="'+d[0]+'">'+d[1]+"</button>").join("")+"</span></div>"+
@@ -4547,7 +4654,7 @@ function updateChatBottom(){try{
 /* 字卡池的「一键回顶部」悬浮按钮（只在字卡分类 / 拾取页出现，滚动超过一屏才显示） */
 function updateLibTop(){try{
  let b=document.getElementById("libtop");
- const show=(cur==="libcat"||cur==="pickup");
+ const show=(cur==="libcat"||cur==="pickup"||cur==="divinecards");
  if(!show){if(b)b.remove();return}
  if(!b){b=document.createElement("button");b.id="libtop";b.className="libtop";b.type="button";
   b.innerHTML=ico("chevup");b.title="回到顶部";
@@ -4648,7 +4755,6 @@ PAGES.setapp={html(){const s=S.settings;
  '<div class="row" style="margin-top:10px"><span class="lab">自定义主色</span><input type="color" data-custom="primary" value="'+(s.custom.primary||"#DCCDF2")+'"></div>'+
  '<div class="row"><span class="lab">自定义背景色</span><input type="color" data-custom="bg" value="'+(s.custom.bg||"#E7DDEA")+'"></div>'+
  '<div class="row"><span class="lab">颜色跟随主题</span><button class="btn sm" data-act="custom-follow">恢复跟随</button></div>'+
- '<div class="row"><span class="lab">液态玻璃质感<br><span class="sub">卡片 / 面板 / 按钮 / 弹窗加通透玻璃材质，跟随主题色与自定义色</span></span><label class="sw"><input type="checkbox" data-set="glass" '+(S.settings.glass!==false?"checked":"")+'><i></i></label></div>'+
  '<div class="row"><span class="lab">深色模式</span><label class="sw"><input type="checkbox" data-set="dark" '+(s.dark?"checked":"")+"><i></i></label></div></div>"+
  '<div class="sect">底栏导航</div><div class="card">'+setRowRange("底栏胶囊透明度","navOp","%",0,100)+'<div class="muted" style="padding:2px 0 6px">调低后底栏胶囊变透，露出的是桌面壁纸，不会透出下面滚动的内容与图标。</div></div>'+
  '<div class="sect">花卉图标（主页 / 底栏）</div><div class="card"><div class="chips">'+APPS.map(a=>'<button class="chip'+((s.flowerApps&&s.flowerApps[a[0]])?" on":"")+'" data-act="flower-app" data-id="'+a[0]+'">'+a[1]+"</button>").join("")+[["nav_home","底栏·首页"],["nav_lib","底栏·字卡库"],["nav_set","底栏·设置"]].map(a=>'<button class="chip'+((s.flowerApps&&s.flowerApps[a[0]])?" on":"")+'" data-act="flower-app" data-id="'+a[0]+'">'+a[1]+"</button>").join("")+'</div><div class="muted" style="margin-top:8px">点亮某个图标，其主页 / 底栏图标即换成花卉图标（颜色随主题与自定义主色变化）</div></div>'+
@@ -6643,7 +6749,7 @@ document.addEventListener("click",e=>{
  const mm=$("#msgmenu");if(mm&&mm.classList.contains("on")&&!e.target.closest("#msgmenu")&&!e.target.closest('[data-act="msg-tap"]'))closeMsgMenu();
 });
 document.addEventListener("input",e=>{const t=e.target;
- if(t.matches("[data-set]")){const p=t.dataset.set;let v=t.type==="checkbox"?t.checked:(t.type==="number"||t.type==="range"?+t.value:t.value);setPath(S.settings,p,v);normalizeActive(p);save("settings");const lab=document.querySelector('[data-labfor="'+p+'"]');if(lab)lab.textContent=v+(lab.dataset.unit||"");const pnote=document.querySelector('[data-probnote="'+p+'"]');if(pnote)pnote.style.display=(+v===0)?"":"none";if(p==="dark"||p==="theme"||p==="navOp"||p==="glass"||p.startsWith("custom"))applyTheme();if(p==="aiOn"&&v){S.settings.aiReply=S.settings.aiReply||{};S.settings.aiReply.on=true}if(p.startsWith("system"))applySystem();if(p.startsWith("chat"))applyChatUI();if(p.indexOf("ai")===0||p.indexOf("voice")===0)renderAiBadge();if(p.indexOf("reply.chat.active")===0)scheduleActive();if(p==="system.storageWarn")renderStorageCard();if(p==="taName")try{localStorage.setItem("nickname",v)}catch(e){}return}
+ if(t.matches("[data-set]")){const p=t.dataset.set;let v=t.type==="checkbox"?t.checked:(t.type==="number"||t.type==="range"?+t.value:t.value);setPath(S.settings,p,v);normalizeActive(p);save("settings");const lab=document.querySelector('[data-labfor="'+p+'"]');if(lab)lab.textContent=v+(lab.dataset.unit||"");const pnote=document.querySelector('[data-probnote="'+p+'"]');if(pnote)pnote.style.display=(+v===0)?"":"none";if(p==="dark"||p==="theme"||p==="navOp"||p.startsWith("custom"))applyTheme();if(p==="aiOn"&&v){S.settings.aiReply=S.settings.aiReply||{};S.settings.aiReply.on=true}if(p.startsWith("system"))applySystem();if(p.startsWith("chat"))applyChatUI();if(p.indexOf("ai")===0||p.indexOf("voice")===0)renderAiBadge();if(p.indexOf("reply.chat.active")===0)scheduleActive();if(p==="system.storageWarn")renderStorageCard();if(p==="taName")try{localStorage.setItem("nickname",v)}catch(e){}return}
  
  if(t.matches("[data-mall]")){const s=S.settings.reply.mall=S.settings.reply.mall||{};s[t.dataset.mall]=!!t.checked;save("settings");return}
  if(t.matches("[data-pcr]")){const c=pcCfg();c.en=!!t.checked;save("misc");return}
