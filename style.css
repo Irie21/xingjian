@@ -270,7 +270,7 @@ input[type="search"]::-ms-reveal{display:none;width:0;height:0}
 .retview{margin-top:6px;padding:6px 10px;background:rgba(0,0,0,.05);border-radius:8px;font-size:13px;color:#555;white-space:pre-wrap;text-align:left}
 #abovebar{position:fixed;left:12px;right:12px;margin:0 auto;max-width:536px;bottom:calc(var(--chatfoot) + var(--kb,0px));z-index:28;display:flex;flex-direction:column;gap:6px;pointer-events:none}
 #abovebar>*{pointer-events:auto}
-.typing{position:absolute;left:0;bottom:100%;margin-bottom:6px;display:none;font-size:12px;color:#222;background:rgba(255,255,255,.7);border-radius:14px;padding:6px 12px;box-shadow:0 2px 8px rgba(0,0,0,.1);white-space:nowrap}
+.typing{position:absolute;left:0;bottom:100%;margin-bottom:6px;display:none;font-size:12px;color:var(--muted);background:transparent;border-radius:0;padding:2px 0;box-shadow:none;white-space:nowrap}
 .phead .chat-title{flex:1;display:flex;flex-direction:row;align-items:baseline;justify-content:center;gap:6px;min-width:0}
 .phead .chat-title .cn{font-size:16px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .phead .chat-title .cstat{font-size:11px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}/* AI 状态小字（聊天顶栏） */
@@ -1658,7 +1658,7 @@ html,body{scrollbar-width:none !important;-ms-overflow-style:none !important}
  .dlf{margin-top:0}
 }
 
-/* ================= 聊天底部面板：满屏宽 · 贴住输入栏 · 跟随键盘 ================= */
+/* ================= 聊天底部面板：满屏宽 · 位置与高度固定 · 不跟键盘走 ================= */
 #modal .sheet.panelsheet,
 #modal .sheet.avsheet,
 #modal .sheet.askpanel,
@@ -1666,33 +1666,31 @@ html,body{scrollbar-width:none !important;-ms-overflow-style:none !important}
 #modal .sheet.rpsheet{
  width:100% !important;
  max-width:560px !important;
- height:auto !important;
- max-height:calc(100dvh - var(--chatfoot) - var(--kb,0px) - 8px) !important;
- margin:0 auto calc(var(--chatfoot) + var(--kb,0px)) !important;
+ height:min(calc(var(--apph,100dvh) * .58),440px) !important;
+ max-height:calc(var(--apph,100dvh) - 10px) !important;
+ margin:0 auto !important;
  border-radius:22px 22px 0 0 !important;
  box-shadow:0 -8px 30px rgba(0,0,0,.16);
  overflow-y:auto;
 }
-#modal .sheet.panelsheet{padding:12px 16px calc(16px + env(safe-area-inset-bottom,0px))}
-#modal .sheet.askpanel{padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
-#modal .sheet.rpsheet{padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
-#modal .sheet.patsheet,
-#modal .sheet.avsheet{
- padding:0 !important;overflow:hidden;display:flex;flex-direction:column;
- height:min(58vh,440px) !important;
-}
-#modal .sheet.avsheet{height:auto !important;overflow-y:auto !important}
+#modal .sheet.panelsheet{height:min(calc(var(--apph,100dvh) * .46),380px) !important;padding:12px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#modal .sheet.askpanel{height:min(calc(var(--apph,100dvh) * .66),620px) !important;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#modal .sheet.rpsheet{height:min(calc(var(--apph,100dvh) * .42),330px) !important;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#modal .sheet.patsheet{height:min(calc(var(--apph,100dvh) * .58),440px) !important;padding:0 !important;overflow:hidden;display:flex;flex-direction:column}
+#modal .sheet.avsheet{height:min(calc(var(--apph,100dvh) * .52),400px) !important;padding:0 !important;overflow-y:auto;display:flex;flex-direction:column}
 #modal .sheet.patsheet .patbar{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 
-/* 键盘弹起时：这些面板仍贴着输入栏上移，不跳到屏幕顶部 */
+/* 键盘弹起时：面板留在原来的位置和高度，不跟着输入栏一起上移 */
 html.kb-open #modal:has(.panelsheet),
 html.kb-open #modal:has(.askpanel),
 html.kb-open #modal:has(.patsheet),
-html.kb-open #modal:has(.rpsheet){
+html.kb-open #modal:has(.rpsheet),
+html.kb-open #modal:has(.csssheet){
+ top:0 !important;bottom:auto !important;
+ height:var(--apph,100dvh) !important;
  align-items:flex-end !important;
  justify-content:center !important;
- padding-top:0 !important;
- padding-bottom:0 !important;
+ padding:0 !important;
  overflow:hidden !important;
 }
 html.kb-open #modal .panelsheet,
@@ -1701,8 +1699,8 @@ html.kb-open #modal .patsheet,
 html.kb-open #modal .avsheet,
 html.kb-open #modal .rpsheet{
  margin-top:0 !important;
- margin-bottom:calc(var(--chatfoot) + var(--kb,0px)) !important;
- max-height:calc(100dvh - var(--chatfoot) - var(--kb,0px) - 8px) !important;
+ margin-bottom:0 !important;
+ max-height:calc(var(--apph,100dvh) - 10px) !important;
 }
 
 /* 搜索 / 上传字体：固定在屏幕中央，键盘弹起也不上移 */
@@ -1717,9 +1715,16 @@ html.kb-open #modal.center:has(.pincenter) .sheet{
  max-height:86vh !important;
 }
 
-/* 气泡 CSS：满宽底部弹层，可上下滑动 */
+/* 气泡 CSS：满宽底部弹层，固定高度，可上下滑动，不跟键盘走 */
 #modal .sheet.csssheet{
  width:100% !important;max-width:560px !important;
+ height:min(calc(var(--apph,100dvh) * .62),520px) !important;
+ max-height:calc(var(--apph,100dvh) - 8px) !important;
+ margin:0 auto !important;
  border-radius:22px 22px 0 0 !important;
- max-height:86vh;overflow-y:auto;
+ overflow-y:auto;
+}
+html.kb-open #modal .csssheet{
+ margin-top:0 !important;margin-bottom:0 !important;
+ max-height:calc(100vh - 8px) !important;
 }

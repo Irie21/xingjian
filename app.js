@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v140";
+const APP_BUILD="v142";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -643,7 +643,7 @@ else try{initAutofillHardening()}catch(e){}
 /* 让聊天列表贴到最新消息：键盘动画期间容器高度会变好几次，所以立刻滚一次 + 随后再补几次 */
 function chatBottomSoon(){const put=()=>{try{if(cur!=="chat")return;const sc=document.getElementById("chatscroll");if(sc)sc.scrollTop=sc.scrollHeight}catch(e){}};
  put();[60,140,260,420,650,900].forEach(function(ms){setTimeout(put,ms)})}
-function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,baseInner=0,kbOpen=false;
+function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let raf=0,baseH=0,baseInner=0,kbOpen=false,fullH=window.innerHeight||0;
  /* 键盘高度 = 键盘收起时记下的视口高度 − 当前 visualViewport 高度。
     ⚠️ 本应用 viewport 里声明了 interactive-widget=resizes-content：安卓 Chrome 键盘弹出时
     「布局视口」也会一起变矮（innerHeight 变小），此时 --kb 必须保持 0，否则底栏会被抬高两次
@@ -655,9 +655,12 @@ function initKeyboardAdapt(){const vv=window.visualViewport;if(!vv)return;let ra
   const gapVisual=Math.max(0,Math.round(baseH-h));
   const layoutShrank=(baseInner-(window.innerHeight||0))>60;
   const kb=(!layoutShrank&&gapVisual>120)?gapVisual:0;
-  kbOpen=layoutShrank||gapVisual>120;
+  const openNow=layoutShrank||gapVisual>120;
+  if(!openNow)fullH=Math.max(window.innerHeight||0,1);
+  kbOpen=openNow;
   const st=document.documentElement.style;
   st.setProperty("--kb",kb+"px");
+  try{if(kbOpen)st.setProperty("--apph",(fullH||window.innerHeight||0)+"px");else st.removeProperty("--apph")}catch(e){}
   if(kbOpen)document.documentElement.classList.add("kb-open");
   else document.documentElement.classList.remove("kb-open");
  };
