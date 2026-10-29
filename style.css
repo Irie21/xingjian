@@ -16,7 +16,7 @@ html[data-dark="1"]{--bg:#14171c;--card:#1e232b;--text:#e6e8ea;--muted:#98a0a8;-
 body{font-family:var(--app-font,-apple-system,"PingFang SC","HarmonicOS Sans SC","Microsoft YaHei",sans-serif);background:transparent;color:var(--text);font-size:15px;line-height:1.5;display:flex;flex-direction:column;height:100dvh}
 /* 背景层：固定全屏壁纸，位于最底层 */
 #chatbg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;background-color:transparent;background-size:cover;background-position:center;background-repeat:no-repeat}
-:root{--chathead:calc(51px + env(safe-area-inset-top));--chatfoot:calc(52px + env(safe-area-inset-bottom));--accent-color:var(--primary);--secondary-bg:var(--card);--text-primary:var(--text)}
+:root{--chathead:calc(56px + env(safe-area-inset-top));--chatfoot:calc(60px + env(safe-area-inset-bottom));--accent-color:var(--primary);--secondary-bg:var(--card);--text-primary:var(--text)}
 button{font-family:inherit;color:inherit;touch-action:manipulation}
 input,textarea,select{font-family:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;outline:none;width:100%}
 textarea{resize:none;min-height:80px}
@@ -1740,3 +1740,40 @@ html[data-glass="1"] .libtop{background:var(--primary);color:var(--on-primary,#f
  border:1px solid color-mix(in srgb,var(--text) 8%,transparent)}
 .chatbottom svg{width:18px;height:18px}
 .chatbottom:active{transform:scale(.9)}
+
+/* ================= 聊天页：更松、更有呼吸感的排版 ================= */
+/* 消息区：左右留白加大，消息之间拉开 */
+.chatscroll{padding:14px 16px 22px}
+.msgs{gap:16px;padding:2px 0 18px}
+.msg{max-width:82%;gap:10px}
+.msgcol{gap:5px}
+.msgcol .meta{margin-top:1px;padding:0 4px;font-size:10.5px}
+/* 气泡：更厚的留白、更软的圆角，靠近头像那侧收一个小角 */
+.bub{padding:10px 14px;border-radius:16px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.055)}
+.msg.me .bub{border-bottom-right-radius:6px}
+.msg:not(.me) .bub{border-bottom-left-radius:6px}
+.sysmsg{padding:5px 12px;border-radius:12px;margin:4px 0}
+/* 顶栏：留白加大，昵称与状态字号略收，避免横向挤在一起 */
+.phead.chat-head{padding:9px 14px;padding-top:calc(9px + env(safe-area-inset-top))}
+.phead .chat-title{gap:6px}
+.phead .chat-title .cn{font-size:16px;line-height:1.25}
+.phead .chat-title .cstat{font-size:10.5px}
+.phead .chat-title .caistat{font-size:9.5px;padding:0 5px}
+/* 底栏：输入框做成独立的胶囊，四个按钮做成小圆钮，整体离屏幕边缘更远一点 */
+.chatbar{height:calc(60px + env(safe-area-inset-bottom));gap:8px;padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+.chatbar input{height:40px;padding:0 16px;border-radius:20px;background:var(--card);border:1px solid color-mix(in srgb,var(--text) 7%,transparent);box-shadow:0 1px 4px rgba(0,0,0,.05);font-size:14px}
+.chatbar .ibtn{width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid color-mix(in srgb,var(--text) 7%,transparent);box-shadow:0 1px 3px rgba(0,0,0,.045);color:var(--text)}
+.chatbar .ibtn svg{width:23px;height:23px}
+/* 发送键用主色，给底栏一个视觉落点 */
+.chatbar .ibtn[data-act="chat-send"]{background:var(--primary) !important;border-color:transparent !important;color:var(--on-primary,#fff) !important;box-shadow:0 3px 10px color-mix(in srgb,var(--primary) 35%,transparent)}
+.chatbar .ibtn[data-act="chat-send"] svg{color:var(--on-primary,#fff) !important;stroke:var(--on-primary,#fff) !important}
+/* 玻璃模式：输入胶囊和圆钮保持半透明玻璃质感 */
+html[data-glass="1"] .chatbar input{background:color-mix(in srgb,var(--card) 62%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-color:color-mix(in srgb,var(--text) 12%,transparent);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+/* 玻璃模式：圆钮形状保持不变；发送键仍然保持主色实心（其余角上按钮沿用之前的透明底） */
+html[data-glass="1"] .chatbar .ibtn{border-radius:50% !important}
+html[data-glass="1"] .chatbar .ibtn[data-act="chat-send"]{background:var(--primary) !important;border-color:transparent !important;color:var(--on-primary,#fff) !important;box-shadow:0 3px 10px color-mix(in srgb,var(--primary) 35%,transparent) !important}
+html[data-glass="1"] .chatbar .ibtn[data-act="chat-send"] svg{color:var(--on-primary,#fff) !important;stroke:var(--on-primary,#fff) !important}
+/* 回到底部按钮随新底栏高度上移 */
+.chatbottom{bottom:calc(var(--kb,0px) + var(--chatfoot) + 8px)}
+/* 引用/多选条与输入区左右对齐 */
+#abovebar{left:14px;right:14px;bottom:calc(var(--chatfoot) + var(--kb,0px) + 2px)}
