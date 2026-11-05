@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v142";
+const APP_BUILD="v143";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -4990,6 +4990,7 @@ function libTools(cat){return '<div class="toolbar libtools">'+
  '<button class="chip" data-act="lib-dedup">去除重复</button>'+
  (CATTYPE(cat)!=="img"?'<button class="chip" data-act="lib-block-menu">屏蔽功能</button>':"")+
  '<button class="chip" data-act="lib-export-cat">导出数据</button>'+
+ '<button class="chip" data-act="lib-export-txt">导出 TXT</button>'+
  '<button class="chip" data-act="lib-import-cat">导入数据</button>'+
  '<button class="chip danger" data-act="lib-cat-clear">清除'+esc(cat)+'</button>'+
  '</div>'}
@@ -5075,6 +5076,7 @@ PAGES.libcatmanage={html(cat){
   actionRow("multi","多选管理",'data-act="lib-multi"')+
   actionRow("copy","去除重复",'data-act="lib-dedup"')+
   actionRow("down","导出本分类",'data-act="lib-export-cat"')+
+  actionRow("down","导出为 TXT 文本",'data-act="lib-export-txt"')+
  '</div>'+
  '<div class="sect">危险操作</div><div class="card" style="padding:0 12px">'+
   actionRow("trash","清空本分类",'data-act="lib-cat-clear"',true)+
@@ -5118,7 +5120,7 @@ PAGES.pickup={html(){
  _libWinKey="pickup";
  const shown=(items.length>libShowLimit)?items.slice(0,libShowLimit):items;
  const more=(items.length>libShowLimit)?'<div class="moremsg" data-act="lib-win">↓ 还有 '+(items.length-libShowLimit)+' 条 · 点这里继续</div>':"";
- const head=phead("TA的拾取",items.length?'<button class="ibtn" data-act="pickup-clear" title="清空拾取">'+ico("trash")+'</button>':"");
+ const head=phead("TA的拾取",items.length?'<button class="ibtn" data-act="pickup-export-txt" title="导出为 TXT">'+ico("down")+'</button><button class="ibtn" data-act="pickup-clear" title="清空拾取">'+ico("trash")+'</button>':"");
  const cfg='<div class="card pkmod">'+
   '<div class="row" style="border:none;padding-top:4px">'+
       '<span class="lab"><b>灵感拾取</b> <span class="stpill'+(p.on?" on":"")+'">'+(p.on?"拾取中":"已关闭")+'</span><br><span class="sub">开启后，'+esc(tn)+'会从<b>你发的消息</b>里随机拾取（它自己的消息不拾取），归入 TA 的卡池；回复时它会像挑字卡一样随机用这些内容回你，也可以点每条右侧的按钮让它直接发文字或用 MiniMax 语音说出这条内容</span></span>'+
@@ -6957,6 +6959,27 @@ ACT["lib-export-cat"]=()=>{const cat=curParam;(async()=>{try{
  download("字卡_"+cat+"_"+dayKey(Date.now())+".json",JSON.stringify({app:"xingjian",ver:1,cat:cat,data:{cards:out}}));
  toast("已导出 "+out.length+" 条");
  }catch(e){toast("导出失败："+(e&&e.message||e))}})()};
+function libTxtLines(cat){
+ return cardsOf(cat).map(function(c){
+  if(c.type==="text")return String(c.content||"").replace(/\r?\n/g," ").trim();
+  if(c.type==="voice")return String(c.name||"").trim()||"[语音]";
+  return String(c.name||"").trim()?("[图片] "+String(c.name).trim()):"[图片]";
+ }).filter(Boolean);
+}
+ACT["lib-export-txt"]=()=>{try{
+ const cat=curParam,lines=libTxtLines(cat);
+ if(!lines.length)return toast("这个分类还没有可导出的文字");
+ const fn=("字卡_"+cat+"_"+dayKey(Date.now())+".txt").replace(/[\\/:*?"<>|]/g,"_");
+ download(fn,"\ufeff"+lines.join("\r\n"),"text/plain;charset=utf-8");
+ toast("已导出 TXT · "+lines.length+" 条");
+}catch(e){toast("导出失败："+(e&&e.message||e))}};
+ACT["pickup-export-txt"]=()=>{try{
+ const p=pkState(),items=p.items.slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+ const lines=items.map(function(it){return String(it.text||"").replace(/\r?\n/g," ").trim()}).filter(Boolean);
+ if(!lines.length)return toast("还没有拾取内容");
+ download("灵感拾取_"+dayKey(Date.now())+".txt","\ufeff"+lines.join("\r\n"),"text/plain;charset=utf-8");
+ toast("已导出 TXT · "+lines.length+" 条");
+}catch(e){toast("导出失败："+(e&&e.message||e))}};
 ACT["lib-export-all"]=()=>exportKeys(["cards"],"字卡库全部.json");
 /* ================= mochi 字卡库适配 + 导入压缩 ================= */
 const MOCHI_MAP={text:"主字卡",kaomoji:"颜文字",emoji:"Emoji",image:"表情包",sticker:"表情包",stk:"表情包",voice:"语音字卡",poke:"拍一拍",pat:"拍一拍",interact:"情绪字卡",intent:"情绪字卡",music:"音乐",period:"经期",cjian:"主字卡",mjfree:"自由字卡",room:"房间",water:"水",fish:"鱼",garden:"花园",eat:"吃饭",piggy:"存钱",drift:"漂流",reach:"触碰",sync:"同步"};
