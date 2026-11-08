@@ -280,8 +280,28 @@ input[type="search"]::-ms-reveal{display:none;width:0;height:0}
 .chatbar input{flex:1;min-width:0;border:none;background:transparent;color:var(--text);caret-color:var(--primary)}
 .chatbar .ibtn{box-shadow:none;background:#fff;color:#3a3a3a;border:1px solid rgba(0,0,0,.06);width:36px;height:36px}
 .chatbar .ibtn svg{width:26px;height:26px;stroke-width:1.4}
-.voicemode{flex:1;text-align:center;padding:9px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:14px;user-select:none;touch-action:none}
+.voicemode{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:20px;background:var(--bg);border:1px solid var(--line);font-size:14px;font-weight:500;color:var(--text);user-select:none;touch-action:none}
 .voicemode.disabled{opacity:.45}
+.voicemode .vdot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.45;flex:none}
+.voicemode.rec{background:color-mix(in srgb,var(--primary) 14%,var(--bg));border-color:color-mix(in srgb,var(--primary) 42%,transparent);color:var(--primary)}
+.voicemode.rec .vdot{opacity:1;animation:vrecPulse .9s ease-in-out infinite}
+@keyframes vrecPulse{50%{opacity:.15;transform:scale(.75)}}
+/* 录音后的试听卡片 */
+#modal .sheet.vpsheet{width:min(340px,calc(100vw - 48px))!important;max-width:340px!important;border-radius:20px!important;padding:18px 16px 16px!important}
+.vprevcard{display:flex;align-items:center;gap:12px;background:var(--bg);border-radius:14px;padding:12px 14px}
+.vprevplay{width:44px;height:44px;border-radius:50%;background:var(--primary);color:var(--on-primary,#fff);border:none;display:flex;align-items:center;justify-content:center;flex:none;padding:0}
+.vprevplay svg{width:20px;height:20px;fill:currentColor;stroke:currentColor}
+.vprevwave{flex:1;display:flex;align-items:center;justify-content:space-between;gap:2px;height:26px}
+.vprevwave i{display:block;width:3px;border-radius:2px;background:color-mix(in srgb,var(--primary) 45%,transparent);height:8px}
+.vprevwave i:nth-child(2n){height:13px}
+.vprevwave i:nth-child(3n){height:17px}
+.vprevwave i:nth-child(4n){height:11px}
+.vprevwave i:nth-child(5n){height:21px}
+.vprevcard.playing .vprevwave i{animation:vprevWave .8s ease-in-out infinite alternate}
+.vprevcard.playing .vprevwave i:nth-child(2n){animation-delay:.12s}
+.vprevcard.playing .vprevwave i:nth-child(3n){animation-delay:.24s}
+@keyframes vprevWave{from{transform:scaleY(.45)}to{transform:scaleY(1.2)}}
+.vprevdur{font-size:13px;color:var(--muted);flex:none;min-width:2.2em;text-align:right}
 .mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px;padding:4px 0}
 .mgrid button{border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;line-height:1.25;color:var(--text)}
 .mgrid .mi{width:58px;height:58px;border-radius:16px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--icon,var(--primary))}

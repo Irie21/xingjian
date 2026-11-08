@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v143";
+const APP_BUILD="v145";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -601,8 +601,11 @@ function hardenInput(el){
     if(im&&!el.getAttribute("inputmode"))el.setAttribute("inputmode",im);
    }else if(t==="password"){
     el.setAttribute("autocomplete","new-password");
-   }else if(t==="number"&&!el.getAttribute("inputmode")){
-    el.setAttribute("inputmode","decimal");
+   }else if(t==="number"){
+    /* 数字框也改成 search：安卓 Edge/Chrome 对 number 类型会弹「🔑 付款地址」自动填充条 */
+    el.setAttribute("data-num","1");
+    el.setAttribute("type","search");
+    if(!el.getAttribute("inputmode"))el.setAttribute("inputmode","decimal");
    }
   }
   if(!el.getAttribute("autocomplete")||el.getAttribute("autocomplete")!=="new-password")el.setAttribute("autocomplete","off");
@@ -755,7 +758,7 @@ PAGES.chat={html(){const s=S.settings;
   '<div id="abovebar"><div class="typing" id="typing">对方正在输入…</div><div id="quotebar"></div><div id="multibar"></div></div>'+
   '<div class="chatbar" id="chatbar"><div class="bar-bg"></div><button type="button" class="ibtn" data-act="chat-menu" title="功能">'+ico("moon")+'</button><button type="button" class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img" title="图片">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send" title="发送">'+ico("send")+'</button></div>'+
   '<div id="chatpanel"></div><div id="msgmenu"></div>'},
- init(){renderMsgs("bottom");bindChatMoreScroll();setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");if(inp)inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sendChat()}});renderTabbar()}};
+ init(){renderMsgs("bottom");bindChatMoreScroll();setChatStatus();renderQuoteBar();updateMultiBar();applyTyping();const inp=$("#cin");if(inp){inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sendChat()}});initVoiceToggle(inp)}renderTabbar()}};
 let curChatStatus="";
 /* 顶栏状态落盘在 S.misc.taStatus：重进聊天页一直沿用，
    只有 TA 主动更换（或用户在聊天设置里点「换一个」）才会变 */
@@ -1179,10 +1182,53 @@ function notifyTA(text){const s=S.settings;
  if(s.system.popup)msgPop(text);
 }
 /* voice record / send */
-let mediaRec=null,recChunks=[];
+let mediaRec=null,recChunks=[],recStart=0,voiceStopReq=false;
 PAGES.chatVoiceSend=null;
 function chatVoiceSheet(){actionSheet("发送语音",["录制语音","从语音字卡选择"]).then(i=>{if(i===0)startRecord();if(i===1){const vc=cardsOf("语音字卡");if(!vc.length)return toast("语音字卡为空");pushCardMsg("me",pick(vc));playBlock("me")}})}
-function startRecord(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){S.settings.chat.voice=false;save("settings");voicePermDialog();return}if(!S.settings.chat.voice){voicePermDialog();return}navigator.mediaDevices.getUserMedia({audio:true}).then(st=>{mediaRec=new MediaRecorder(st);recChunks=[];mediaRec.ondataavailable=e=>recChunks.push(e.data);mediaRec.onstop=()=>{const b=new Blob(recChunks,{type:"audio/webm"});st.getTracks().forEach(t=>t.stop());pushChat({from:"me",type:"voice",data:b,dur:Math.max(1,Math.round(b.size/1600))});playBlock("me")};mediaRec.start();toast("录音中…再次点击停止");setTimeout(()=>{if(mediaRec&&mediaRec.state==="recording")mediaRec.stop()},30000)}).catch(()=>{S.settings.chat.voice=false;save("settings");setVoiceMode(true);voicePermDialog()})}
+function setVoiceBarRecording(on){const vb=document.getElementById("vbtn");if(!vb)return;vb.classList.toggle("rec",!!on);const l=vb.querySelector(".vlabel");if(l)l.textContent=on?"松手 试听":"按住 说话"}
+function openVoicePreview(blob,dur){
+ const url=URL.createObjectURL(blob);let audio=null;
+ try{audio=new Audio(url);audio.preload="auto"}catch(e){}
+ const secs=Math.max(1,Math.round(dur||1));
+ const bars=Array(14).fill("<i></i>").join("");
+ const sh=openSheet('<div class="mtitle center">语音试听</div>'+
+  '<div class="vprevcard"><button class="vprevplay" type="button" id="vpplay">'+ico("play")+'</button>'+
+   '<span class="vprevwave">'+bars+'</span><span class="vprevdur">'+secs+'″</span></div>'+
+  '<div class="btnrow" style="margin-top:16px"><button class="btn" data-vp="cancel" style="flex:1">取消</button><button class="btn pri" data-vp="send" style="flex:1">发送</button></div>',true);
+ sh.classList.add("vpsheet");
+ const btn=sh.querySelector("#vpplay");
+ const setPlay=function(on){if(!btn)return;btn.innerHTML=ico(on?"pause":"play");const c=sh.querySelector(".vprevcard");if(c)c.classList.toggle("playing",!!on)};
+ if(btn)btn.onclick=function(){try{if(!audio)return;if(audio.paused)audio.play().then(function(){setPlay(true)}).catch(function(){});else{audio.pause();setPlay(false)}}catch(e){}};
+ if(audio)audio.onended=function(){setPlay(false)};
+ sh.onclick=function(e){
+  const b=e.target.closest("[data-vp]");if(!b)return;
+  const act=b.dataset.vp;
+  try{if(audio)audio.pause()}catch(e){}
+  try{URL.revokeObjectURL(url)}catch(e){}
+  closeModal();
+  if(act==="send"){try{pushChat({from:"me",type:"voice",data:blob,dur:secs});playBlock("me")}catch(e){}}
+ };
+}
+function startRecord(){
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){S.settings.chat.voice=false;save("settings");voicePermDialog();return}
+ if(!S.settings.chat.voice){voicePermDialog();return}
+ voiceStopReq=false;
+ navigator.mediaDevices.getUserMedia({audio:true}).then(st=>{
+  mediaRec=new MediaRecorder(st);recChunks=[];recStart=Date.now();
+  mediaRec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data)};
+  mediaRec.onstop=function(){
+   const b=new Blob(recChunks,{type:(mediaRec&&mediaRec.mimeType)||"audio/webm"});
+   try{st.getTracks().forEach(t=>t.stop())}catch(e){}
+   const dur=Math.max(1,Math.round((Date.now()-recStart)/1000));
+   mediaRec=null;setVoiceBarRecording(false);
+   if(!b.size||Date.now()-recStart<500){toast("录音太短，再试一次");return}
+   openVoicePreview(b,dur);
+  };
+  mediaRec.start();setVoiceBarRecording(true);toast("录音中…松开试听");
+  if(voiceStopReq)setTimeout(function(){try{if(mediaRec&&mediaRec.state==="recording")mediaRec.stop()}catch(e){}},300);
+  setTimeout(function(){if(mediaRec&&mediaRec.state==="recording"){try{mediaRec.stop()}catch(e){}}},30000);
+ }).catch(()=>{S.settings.chat.voice=false;save("settings");setVoiceMode(true);voicePermDialog()})
+}
 /* ================= CALL（参考 mochi 通话） ================= */
 function callCfg(){const c=S.settings.reply.call||{};return {incoming:(c.prob==null?10:+c.prob),pickup:(c.pickup==null?60:+c.pickup),busy:(c.busy==null?10:+c.busy),reject:(c.reject==null?10:+c.reject),hangup:(c.hangup==null?5:+c.hangup),nohangup:!!c.nohangup};}
 let callState=null,callTick=null,callCd=null,miniDragged=false,miniTapGuard=false;
@@ -5218,11 +5264,17 @@ function modChat(){const r=S.settings.reply.chat;const body=
  '<div class="muted" style="padding:2px 0 8px">更新时向聊天推「更新了一条日常」+ 日常内容；关闭总开关则停止生成与推送。内容在字卡库「寻踪·在哪里 / 寻踪·在做什么 / 寻踪·想对你说」维护。</div>';
  return foldCard("chat","聊天回复",body)+modActive()}
 function modLetter(){return '<div class="card"><h3>信箱</h3>'+
+ '<div class="sect">写信内容</div>'+
  setRowNum("信的内容最少字卡","reply.letter.minCards","条")+setRowNum("信的内容最多字卡","reply.letter.maxCards","条")+
+ '<div class="sect">主动写信</div>'+
  setRowStep("主动写信概率","reply.letter.activeProb","%",0,100,5)+setRowNum("主动写信条数","reply.letter.activeCount","封")+
  setRowNum("主动写信最短间隔","reply.letter.activeTimeMin","小时")+setRowNum("主动写信最长间隔","reply.letter.activeTimeMax","小时")+
- setRowStep("我回信后对方回信概率","reply.letter.replyProb","%",0,100,5)+setRowNum("回信最短时间","reply.letter.replyTimeMin","分钟")+setRowNum("回信最长时间","reply.letter.replyTimeMax","分钟")+setRowNum("回信条数","reply.letter.replyCount","封")+
- setRowStep("写信用颜文字概率","reply.letter.kaomoji","%",0,100,5)+setRowStep("写信用 Emoji 概率","reply.letter.emoji","%",0,100,5)+setRowStep("写信用表情包概率","reply.letter.sticker","%",0,100,5)+"</div>"}
+ '<div class="sect">对方回信（我寄信后）</div>'+
+ setRowStep("对方回信概率","reply.letter.replyProb","%",0,100,5)+setRowNum("回信最短时间","reply.letter.replyTimeMin","分钟")+setRowNum("回信最长时间","reply.letter.replyTimeMax","分钟")+setRowNum("回信条数","reply.letter.replyCount","封")+
+ '<div class="sect">写信 / 回信的点缀</div>'+
+ setRowStep("用颜文字概率","reply.letter.kaomoji","%",0,100,5)+setRowStep("用 Emoji 概率","reply.letter.emoji","%",0,100,5)+setRowStep("用表情包概率","reply.letter.sticker","%",0,100,5)+
+ '<div class="muted" style="padding:2px 2px 0">对方回信同样按这里的概率带上颜文字 / Emoji / 表情包。</div>'+
+ "</div>"}
 function modMoments(){return '<div class="card"><h3>朋友圈</h3>'+
  setRowStep("对方主动发朋友圈概率","reply.moments.activeProb","%",0,100,5)+setRowNum("字卡条数","reply.moments.cards","条")+setRowNum("间隔时间","reply.moments.intervalH","小时")+
  setRowStep("对方用颜文字概率","reply.moments.kaomoji","%",0,100,5)+setRowStep("对方用 Emoji 概率","reply.moments.emoji","%",0,100,5)+setRowStep("对方用表情包概率","reply.moments.sticker","%",0,100,5)+setRowStep("对方用语音字卡概率","reply.moments.voice","%",0,100,5)+
@@ -5762,8 +5814,8 @@ PAGES.chatset={html(){const c=S.settings.chat;
  '</div>'+
  '<div class="sect">语音输入</div><div class="card">'+
   '<div class="row"><span class="lab">麦克风权限</span><button class="btn sm" data-act="voice-toggle">'+(c.voice?"已开启":"已关闭")+'</button></div>'+
-  '<div class="row"><span class="lab">录制语音</span><button class="btn sm" data-act="voice-record">'+(mediaRec&&mediaRec.state==="recording"?"停止并发送":"开始录音")+'</button></div>'+
-  '<div class="muted" style="padding:4px 2px 8px">开启权限后点「开始录音」，再次点击结束并发送</div>'+
+  '<div class="row"><span class="lab">录制语音</span><button class="btn sm" data-act="voice-record">'+(mediaRec&&mediaRec.state==="recording"?"停止并试听":"开始录音")+'</button></div>'+
+  '<div class="muted" style="padding:4px 2px 8px">开启权限后点「开始录音」，再次点击结束并试听</div>'+
  '</div>'+
  '<div class="sect">气泡与文字颜色</div><div class="card">'+colorRow("我的气泡","chat.myBubble","#ffffff")+colorRow("我的文字","chat.myText","#000000")+colorRow("对方气泡","chat.taBubble","#ffffff")+colorRow("对方文字","chat.taText","#000000")+
   '<div class="row"><button class="btn sm" data-act="chat-reset-colors">恢复默认颜色</button></div></div>'+
@@ -6187,14 +6239,33 @@ ACT["quizset-open"]=el=>{const m=(S.chats||[]).find(x=>x.id===el.dataset.id);if(
  $("#modal .sheet").onclick=e=>{if(e.target.closest("[data-r]"))closeModal()}};
 
 /* ---- 语音输入切换（长按输入框） ---- */
-function initVoiceToggle(inp){let t=null;inp.addEventListener("pointerdown",()=>{t=setTimeout(()=>{t=null;setVoiceMode(true)},450)});["pointerup","pointerleave","pointercancel"].forEach(ev=>inp.addEventListener(ev,()=>{if(t){clearTimeout(t);t=null}}))}
+function initVoiceToggle(inp){
+ if(!inp||inp.__vToggle)return;inp.__vToggle=1;
+ let t=null,switched=0;
+ const cancel=function(){if(t){clearTimeout(t);t=null}};
+ inp.addEventListener("pointerdown",function(){
+  cancel();
+  t=setTimeout(function(){t=null;switched=Date.now();
+   try{inp.blur()}catch(e){}
+   try{const sel=document.getSelection();if(sel)sel.removeAllRanges()}catch(e){}
+   setVoiceMode(true);
+  },420);
+ });
+ inp.addEventListener("pointerup",cancel);
+ inp.addEventListener("pointercancel",cancel);
+ inp.addEventListener("contextmenu",function(e){if(Date.now()-switched<900)e.preventDefault()});
+}
 function setVoiceMode(on){const bar=$("#chatbar");if(!bar)return;
  if(on){const allowed=!!(S.settings.chat&&S.settings.chat.voice);
-  bar.innerHTML='<button class="ibtn" data-act="chat-menu">'+ico("moon")+'</button><button class="voicemode'+(allowed?"":" disabled")+'" id="vbtn">按住 说话</button><button class="ibtn" data-act="chat-kbd">'+ico("keyboard")+'</button>';
+  bar.innerHTML='<button class="ibtn" data-act="chat-menu" title="功能">'+ico("moon")+'</button>'+
+   '<button class="voicemode'+(allowed?"":" disabled")+'" id="vbtn"><span class="vdot"></span><span class="vlabel">按住 说话</span></button>'+
+   '<button class="ibtn" data-act="chat-kbd" title="键盘">'+ico("keyboard")+'</button>';
   const vb=$("#vbtn");
-  vb.addEventListener("pointerdown",e=>{e.preventDefault();if(!allowed){voicePermDialog();return}startRecord()});
-  vb.addEventListener("pointerup",()=>{if(mediaRec&&mediaRec.state==="recording")mediaRec.stop()})}
- else{bar.innerHTML='<button type="button" class="ibtn" data-act="chat-menu">'+ico("moon")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…"><button type="button" class="ibtn" data-act="chat-img">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sendChat()}});initVoiceToggle(inp)}}
+  const stop=function(){voiceStopReq=true;if(mediaRec&&mediaRec.state==="recording"){try{mediaRec.stop()}catch(e){}}};
+  vb.addEventListener("pointerdown",function(e){e.preventDefault();voiceStopReq=false;if(!allowed){voicePermDialog();return}try{vb.setPointerCapture(e.pointerId)}catch(x){}startRecord()});
+  vb.addEventListener("pointerup",stop);
+  vb.addEventListener("pointercancel",stop)}
+ else{bar.innerHTML='<button type="button" class="ibtn" data-act="chat-menu">'+ico("moon")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…" title="长按输入框切换语音"><button type="button" class="ibtn" data-act="chat-img">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sendChat()}});initVoiceToggle(inp)}}
 /* ---- 问卷自动作答 ---- */
 /* ================= 底部面板 / 消息操作 / 引用 / 多选 / 收藏 ================= */
 let chatPanelMode=null;
@@ -7165,7 +7236,7 @@ document.addEventListener("click",e=>{
  const mm=$("#msgmenu");if(mm&&mm.classList.contains("on")&&!e.target.closest("#msgmenu")&&!e.target.closest('[data-act="msg-tap"]'))closeMsgMenu();
 });
 document.addEventListener("input",e=>{const t=e.target;
- if(t.matches("[data-set]")){const p=t.dataset.set;let v=t.type==="checkbox"?t.checked:(t.type==="number"||t.type==="range"?+t.value:t.value);setPath(S.settings,p,v);normalizeActive(p);save("settings");const lab=document.querySelector('[data-labfor="'+p+'"]');if(lab)lab.textContent=v+(lab.dataset.unit||"");const pnote=document.querySelector('[data-probnote="'+p+'"]');if(pnote)pnote.style.display=(+v===0)?"":"none";if(p==="dark"||p==="theme"||p==="navOp"||p.startsWith("custom"))applyTheme();if(p==="aiOn"&&v){S.settings.aiReply=S.settings.aiReply||{};S.settings.aiReply.on=true}if(p.startsWith("system"))applySystem();if(p.startsWith("chat"))applyChatUI();if(p.indexOf("ai")===0||p.indexOf("voice")===0)renderAiBadge();if(p.indexOf("reply.chat.active")===0)scheduleActive();if(p==="system.storageWarn")renderStorageCard();if(p==="taName")try{localStorage.setItem("nickname",v)}catch(e){}return}
+ if(t.matches("[data-set]")){const p=t.dataset.set;let v=t.type==="checkbox"?t.checked:((t.type==="number"||t.type==="range"||t.getAttribute("data-num")==="1")?+t.value:t.value);setPath(S.settings,p,v);normalizeActive(p);save("settings");const lab=document.querySelector('[data-labfor="'+p+'"]');if(lab)lab.textContent=v+(lab.dataset.unit||"");const pnote=document.querySelector('[data-probnote="'+p+'"]');if(pnote)pnote.style.display=(+v===0)?"":"none";if(p==="dark"||p==="theme"||p==="navOp"||p.startsWith("custom"))applyTheme();if(p==="aiOn"&&v){S.settings.aiReply=S.settings.aiReply||{};S.settings.aiReply.on=true}if(p.startsWith("system"))applySystem();if(p.startsWith("chat"))applyChatUI();if(p.indexOf("ai")===0||p.indexOf("voice")===0)renderAiBadge();if(p.indexOf("reply.chat.active")===0)scheduleActive();if(p==="system.storageWarn")renderStorageCard();if(p==="taName")try{localStorage.setItem("nickname",v)}catch(e){}return}
  
  if(t.matches("[data-mall]")){const s=S.settings.reply.mall=S.settings.reply.mall||{};s[t.dataset.mall]=!!t.checked;save("settings");return}
  if(t.matches("[data-pcr]")){const c=pcCfg();c.en=!!t.checked;save("misc");return}
