@@ -6,7 +6,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const chance=p=>Math.random()*100<p;
 /* 当前构建号：改代码时和 sw.js 的缓存版本一起往上加。
    它显示在「设置 → 存储」里 —— 用来判断手机/桌面上跑的到底是哪一版（缓存没更新时一眼就能看出来） */
-const APP_BUILD="v145";
+const APP_BUILD="v148";
 const pick=a=>a[rnd(0,a.length-1)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1211,9 +1211,9 @@ function openVoicePreview(blob,dur){
 }
 function startRecord(){
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){S.settings.chat.voice=false;save("settings");voicePermDialog();return}
- if(!S.settings.chat.voice){voicePermDialog();return}
  voiceStopReq=false;
  navigator.mediaDevices.getUserMedia({audio:true}).then(st=>{
+  try{if(!S.settings.chat.voice){S.settings.chat.voice=true;save("settings")}}catch(e){}
   mediaRec=new MediaRecorder(st);recChunks=[];recStart=Date.now();
   mediaRec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data)};
   mediaRec.onstop=function(){
@@ -1743,7 +1743,7 @@ function renderMoments(){const box=$("#mbox");if(!box)return;
   const cmts=(p.cmts||[]).map(function(c,i){return '<div class="fcmt"><b class="'+(c.who===ta?"ta":"")+'" data-act="feed-reply" data-id="'+p.id+'" data-i="'+i+'">'+esc(c.who)+"</b>"+(c.to?(" 回复 "+esc(c.to)):"")+"："+((c.img||c.imgMedia)?'<img class="zoomable fcimg" data-act="img-view" data-mid="'+c.id+'" src="'+mediaUrl(c.img,"mc"+c.id)+'">':"")+esc(c.text||"")+(c.voiceData?feedVoiceBtn(c.id,c.voiceDur):"")+"</div>"}).join("");
   return '<div class="card post"><div class="who">'+avatarHtml({src:avatarSrc(mine?"me":"ta"),name:mine?me:ta,me:mine})+'<div><b>'+esc(mine?me:ta)+'</b><br><time>'+mailDate(p.ts)+'</time></div>'+
    '<button class="ibtn" data-act="moment-del" data-id="'+p.id+'" style="margin-left:auto">'+ico("trash")+"</button></div>"+
-   '<div class="txt">'+esc(p.content)+"</div>"+(p.imgs&&p.imgs.length?'<div class="pics">'+p.imgs.map(function(i,ix){return '<img class="zoomable" data-act="img-view" data-mid="'+p.id+'" data-mi="'+ix+'" src="'+mediaUrl(i,"f"+p.id+ix)+'">'}).join("")+"</div>":"")+
+   (function(){const txt='<div class="txt">'+esc(p.content)+"</div>";const pics=(p.imgs&&p.imgs.length)?'<div class="pics">'+p.imgs.map(function(i,ix){return '<img class="zoomable" data-act="img-view" data-mid="'+p.id+'" data-mi="'+ix+'" src="'+mediaUrl(i,"f"+p.id+ix)+'">'}).join("")+"</div>":"";return p.textFirst===false?(pics+txt):(txt+pics)})()+
    (p.voice?feedVoiceBtn(p.id,p.voiceDur):"")+
    '<div class="acts"><span class="'+(liked?"on":"")+(taLiked?" taon":"")+'" data-act="moment-like" data-id="'+p.id+'">'+ico("heart")+" "+(p.likes||0)+'</span><span data-act="moment-cmt" data-id="'+p.id+'">'+ico("cmt")+" 评论</span>"+'<span class="'+(p.myFav?"on":"")+(p.taFav?" taon":"")+'" data-act="moment-fav" data-id="'+p.id+'">'+ico("fav")+" 收藏</span></div>"+
    ((p.likesWho&&p.likesWho.length)||cmts?'<div class="cmts">'+((p.likesWho&&p.likesWho.length)?'<div>♥ '+esc(p.likesWho.join("、"))+"</div>":"")+cmts+"</div>":"")+
@@ -1753,7 +1753,7 @@ ACT["feed-reply"]=el=>{_fc={pid:el.dataset.id,ci:+el.dataset.i};feedCmtBar();con
 ACT["moment-del"]=el=>{const p=feedPost(el.dataset.id);if(!p)return;
  confirmDlg("删除这条动态？","删除",true).then(function(ok){if(!ok)return;
   S.moments=S.moments.filter(function(x){return x.id!==p.id});save("moments");if(_fc.pid===p.id){_fc={pid:"",ci:null}}render();toast("已删除")})};
-let _mcDraft=null;function mcDraftState(){if(!_mcDraft)_mcDraft={text:"",imgs:[],imgCids:[]};return _mcDraft}
+let _mcDraft=null;function mcDraftState(){if(!_mcDraft)_mcDraft={text:"",imgs:[],imgCids:[],textFirst:null};return _mcDraft}
 function momentCompose(){openSheet('<div class="mtitle">发朋友圈<button class="ibtn" data-r="x">'+ico("close")+'</button></div><textarea id="mc" placeholder="记录此刻…" enterkeyhint="send"></textarea><div id="mpics" class="pics" style="margin-top:8px"></div><div id="mstk" class="mstkwrap" style="display:none;margin-top:8px"></div><div class="btnrow" style="margin-top:10px"><button class="btn sm" data-addimg="1">'+ico("img")+' 添加图片</button><button class="btn sm" data-addsticker="1">'+ico("sticker")+' 表情包</button><button class="btn pri" data-r="ok" style="margin-left:auto">发布</button></div>',true);
  const st=mcDraftState();const imgs=st.imgs,imgCids=st.imgCids;const sh=$("#modal .sheet");
  const mcEl=sh.querySelector("#mc");if(mcEl){mcEl.value=st.text||"";mcEl.addEventListener("input",function(){st.text=mcEl.value});
@@ -1772,7 +1772,7 @@ function momentCompose(){openSheet('<div class="mtitle">发朋友圈<button clas
   const rm=e.target.closest("[data-rmimg]");
   if(rm){const ix=+rm.dataset.rmimg;if(ix>=0){imgs.splice(ix,1);imgCids.splice(ix,1);paint()}return}
   if(e.target.closest("[data-stkclose]")){const g0=sh.querySelector("#mstk");if(g0){g0.dataset.on="";g0.style.display="none"}return}
-  if(e.target.closest("[data-addimg]")){pickFile("image/*",true,fs=>{Promise.all(fs.map(readAsDataURL)).then(rs=>{rs.forEach(function(u){imgs.push(u);imgCids.push("")});if(!document.getElementById("mc")){momentCompose();return}paint()}).catch(function(){toast("图片读取失败")})});return}
+  if(e.target.closest("[data-addimg]")){pickFile("image/*",true,fs=>{Promise.all(fs.map(readAsDataURL)).then(rs=>{if(st.textFirst===null)st.textFirst=!!((sh.querySelector("#mc")||{}).value||"").trim();rs.forEach(function(u){imgs.push(u);imgCids.push("")});if(!document.getElementById("mc")){momentCompose();return}paint()}).catch(function(){toast("图片读取失败")})});return}
      if(e.target.closest("[data-addsticker]")){
   /* 用编辑页里的内嵌表情网格，不能 openStickerPicker —— 它会复用同一个 .sheet，
      把发朋友圈的输入框/已选图片全部清空，看起来就是“发不出去、直接回到朋友圈”。 */
@@ -1785,13 +1785,13 @@ function momentCompose(){openSheet('<div class="mtitle">发朋友圈<button clas
   const chip=e.target.closest("[data-spk]");
   if(chip){S.misc.stkG=chip.dataset.spk||"";save("misc");paintStk();return}
   const sk=e.target.closest("[data-spki]");
-  if(sk){const c0=S.cards.find(x=>x.id===sk.dataset.spki);if(c0)cardMediaUrl(c0,function(u){if(u){imgs.push(u);imgCids.push(c0.id||"");paint();stkRecentTouch(c0.id);toast("已添加表情")}});return}
+  if(sk){const c0=S.cards.find(x=>x.id===sk.dataset.spki);if(c0)cardMediaUrl(c0,function(u){if(u){if(st.textFirst===null)st.textFirst=!!((sh.querySelector("#mc")||{}).value||"").trim();imgs.push(u);imgCids.push(c0.id||"");paint();stkRecentTouch(c0.id);toast("已添加表情")}});return}
   const b=e.target.closest("[data-r]");if(!b)return;
   const _c=($("#mc")||{value:""}).value;closeModal();if(b.dataset.r!=="ok")return;
   const c=(_c||"").trim();
   const finalImgs=(st.imgs||[]).filter(function(x){return typeof x==="string"&&x});
   if(!c&&!finalImgs.length)return toast("说点什么吧");
-  const p={id:uid(),who:"me",content:c,imgs:finalImgs,imgCids:(st.imgCids||[]).slice(0,finalImgs.length),ts:Date.now(),likes:0,likesWho:[],cmts:[]};
+  const p={id:uid(),who:"me",content:c,imgs:finalImgs,imgCids:(st.imgCids||[]).slice(0,finalImgs.length),textFirst:(st.textFirst!==false),ts:Date.now(),likes:0,likesWho:[],cmts:[]};
   S.moments.push(p);
   try{save("moments")}catch(err){}
   try{renderMoments()}catch(err){try{toast("已发布，重新进入朋友圈即可看到")}catch(e2){}}
@@ -5812,11 +5812,6 @@ PAGES.chatset={html(){const c=S.settings.chat;
   '<div class="row"><span class="lab">头像形状</span><span class="chips">'+[["circle","圆形"],["square","方形"]].map(t=>'<button class="chip'+(c.avaShape===t[0]?" on":"")+'" data-act="ava-shape" data-v="'+t[0]+'">'+t[1]+"</button>").join("")+'</span></div>'+
   '<div class="muted" style="padding:4px 2px 8px">点击聊天页里的头像也可直接更换头像</div>'+
  '</div>'+
- '<div class="sect">语音输入</div><div class="card">'+
-  '<div class="row"><span class="lab">麦克风权限</span><button class="btn sm" data-act="voice-toggle">'+(c.voice?"已开启":"已关闭")+'</button></div>'+
-  '<div class="row"><span class="lab">录制语音</span><button class="btn sm" data-act="voice-record">'+(mediaRec&&mediaRec.state==="recording"?"停止并试听":"开始录音")+'</button></div>'+
-  '<div class="muted" style="padding:4px 2px 8px">开启权限后点「开始录音」，再次点击结束并试听</div>'+
- '</div>'+
  '<div class="sect">气泡与文字颜色</div><div class="card">'+colorRow("我的气泡","chat.myBubble","#ffffff")+colorRow("我的文字","chat.myText","#000000")+colorRow("对方气泡","chat.taBubble","#ffffff")+colorRow("对方文字","chat.taText","#000000")+
   '<div class="row"><button class="btn sm" data-act="chat-reset-colors">恢复默认颜色</button></div></div>'+
  '<div class="sect">顶栏 / 底栏透明度</div><div class="card">'+setRowRange("顶栏透明度","chat.headOp","%",0,100)+setRowRange("底栏透明度","chat.footOp","%",0,100)+'</div>'+
@@ -6256,16 +6251,16 @@ function initVoiceToggle(inp){
  inp.addEventListener("contextmenu",function(e){if(Date.now()-switched<900)e.preventDefault()});
 }
 function setVoiceMode(on){const bar=$("#chatbar");if(!bar)return;
- if(on){const allowed=!!(S.settings.chat&&S.settings.chat.voice);
+ if(on){
   bar.innerHTML='<button class="ibtn" data-act="chat-menu" title="功能">'+ico("moon")+'</button>'+
-   '<button class="voicemode'+(allowed?"":" disabled")+'" id="vbtn"><span class="vdot"></span><span class="vlabel">按住 说话</span></button>'+
-   '<button class="ibtn" data-act="chat-kbd" title="键盘">'+ico("keyboard")+'</button>';
+   '<button class="voicemode" id="vbtn"><span class="vdot"></span><span class="vlabel">按住 说话</span></button>'+
+   '<button class="ibtn kbdico" data-act="chat-kbd" title="键盘">'+ico("keyboard")+'</button>';
   const vb=$("#vbtn");
   const stop=function(){voiceStopReq=true;if(mediaRec&&mediaRec.state==="recording"){try{mediaRec.stop()}catch(e){}}};
-  vb.addEventListener("pointerdown",function(e){e.preventDefault();voiceStopReq=false;if(!allowed){voicePermDialog();return}try{vb.setPointerCapture(e.pointerId)}catch(x){}startRecord()});
+  vb.addEventListener("pointerdown",function(e){e.preventDefault();voiceStopReq=false;try{vb.setPointerCapture(e.pointerId)}catch(x){}startRecord()});
   vb.addEventListener("pointerup",stop);
   vb.addEventListener("pointercancel",stop)}
- else{bar.innerHTML='<button type="button" class="ibtn" data-act="chat-menu">'+ico("moon")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…" title="长按输入框切换语音"><button type="button" class="ibtn" data-act="chat-img">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sendChat()}});initVoiceToggle(inp)}}
+ else{bar.innerHTML='<button type="button" class="ibtn" data-act="chat-menu">'+ico("moon")+'</button><button type="button" class="ibtn" data-act="chat-sticker" title="表情包">'+ico("sticker")+'</button><input id="cin" type="search" name="chat_input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="输入消息…" title="长按输入框切换语音"><button type="button" class="ibtn" data-act="chat-img">'+ico("img")+'</button><button type="button" class="ibtn" data-act="chat-send">'+ico("send")+'</button>';const inp=$("#cin");inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sendChat()}});initVoiceToggle(inp)}}
 /* ---- 问卷自动作答 ---- */
 /* ================= 底部面板 / 消息操作 / 引用 / 多选 / 收藏 ================= */
 let chatPanelMode=null;

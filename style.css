@@ -282,6 +282,8 @@ input[type="search"]::-ms-reveal{display:none;width:0;height:0}
 .chatbar .ibtn svg{width:26px;height:26px;stroke-width:1.4}
 .voicemode{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:20px;background:var(--bg);border:1px solid var(--line);font-size:14px;font-weight:500;color:var(--text);user-select:none;touch-action:none}
 .voicemode.disabled{opacity:.45}
+/* 语音模式右侧键盘：图标本身占的笔画少，放大到与其它底栏图标同样的视觉大小 */
+.chatbar .ibtn.kbdico svg{width:26px !important;height:26px !important;stroke-width:1.9 !important}
 .voicemode .vdot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.45;flex:none}
 .voicemode.rec{background:color-mix(in srgb,var(--primary) 14%,var(--bg));border-color:color-mix(in srgb,var(--primary) 42%,transparent);color:var(--primary)}
 .voicemode.rec .vdot{opacity:1;animation:vrecPulse .9s ease-in-out infinite}
@@ -1697,7 +1699,7 @@ html,body{scrollbar-width:none !important;-ms-overflow-style:none !important}
 #modal .sheet.askpanel{height:min(calc(var(--apph,100dvh) * .66),620px) !important;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
 #modal .sheet.rpsheet{height:min(calc(var(--apph,100dvh) * .42),330px) !important;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
 #modal .sheet.patsheet{height:min(calc(var(--apph,100dvh) * .58),440px) !important;padding:0 !important;overflow:hidden;display:flex;flex-direction:column}
-#modal .sheet.avsheet{height:min(calc(var(--apph,100dvh) * .52),400px) !important;padding:0 !important;overflow-y:auto;display:flex;flex-direction:column}
+#modal .sheet.avsheet{height:min(calc(var(--apph,100dvh) * .58),440px) !important;padding:0 !important;overflow-y:auto;display:flex;flex-direction:column}
 #modal .sheet.patsheet .patbar{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 
 /* 键盘弹起时：面板留在原来的位置和高度，不跟着输入栏一起上移 */
